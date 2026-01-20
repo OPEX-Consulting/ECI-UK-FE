@@ -23,6 +23,9 @@ export const saveIncident = (incident: Incident): void => {
   }
   
   localStorage.setItem(STORAGE_KEYS.INCIDENTS, JSON.stringify(incidents));
+  
+  // Dispatch custom event to notify components of data changes
+  window.dispatchEvent(new CustomEvent('incidents-updated'));
 };
 
 export const getIncidentById = (id: string): Incident | undefined => {

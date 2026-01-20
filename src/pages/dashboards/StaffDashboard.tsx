@@ -17,10 +17,25 @@ export const StaffDashboard = () => {
   const [incidents, setIncidents] = useState<Incident[]>([]);
 
   useEffect(() => {
-    if (user) {
-      const userIncidents = getIncidentsByReporter(user.id);
-      setIncidents(userIncidents);
-    }
+    const loadIncidents = () => {
+      if (user) {
+        const userIncidents = getIncidentsByReporter(user.id);
+        setIncidents(userIncidents);
+      }
+    };
+
+    loadIncidents();
+
+    // Listen for custom incidents-updated event
+    const handleIncidentsUpdated = () => {
+      loadIncidents();
+    };
+
+    window.addEventListener('incidents-updated', handleIncidentsUpdated);
+
+    return () => {
+      window.removeEventListener('incidents-updated', handleIncidentsUpdated);
+    };
   }, [user]);
 
   const stats = {
