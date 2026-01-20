@@ -57,6 +57,33 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        incident: {
+          safeguarding: {
+            DEFAULT: "hsl(var(--incident-safeguarding))",
+            bg: "hsl(var(--incident-safeguarding-bg))",
+          },
+          behavioral: {
+            DEFAULT: "hsl(var(--incident-behavioral))",
+            bg: "hsl(var(--incident-behavioral-bg))",
+          },
+          "health-safety": {
+            DEFAULT: "hsl(var(--incident-health-safety))",
+            bg: "hsl(var(--incident-health-safety-bg))",
+          },
+        },
+        status: {
+          draft: "hsl(var(--status-draft))",
+          submitted: "hsl(var(--status-submitted))",
+          "under-review": "hsl(var(--status-under-review))",
+          "info-requested": "hsl(var(--status-info-requested))",
+          finalized: "hsl(var(--status-finalized))",
+        },
+        severity: {
+          low: "hsl(var(--severity-low))",
+          medium: "hsl(var(--severity-medium))",
+          high: "hsl(var(--severity-high))",
+          critical: "hsl(var(--severity-critical))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
