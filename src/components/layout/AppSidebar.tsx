@@ -15,7 +15,6 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
-  Shield,
   LayoutDashboard,
   FileText,
   ClipboardCheck,
@@ -24,6 +23,7 @@ import {
   AlertTriangle,
   Users,
 } from 'lucide-react';
+import edusafeLogo from '@/assets/edusafe-logo.jpg';
 
 const getNavItems = (role: string) => {
   const staffItems = [
@@ -88,12 +88,14 @@ export const AppSidebar = () => {
     <Sidebar>
       <SidebarHeader className="border-b border-sidebar-border px-4 py-4">
         <div className="flex items-center gap-3">
-          <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-            <Shield className="w-5 h-5" />
-          </div>
+          <img 
+            src={edusafeLogo} 
+            alt="EduSafe" 
+            className="h-10 w-auto rounded"
+          />
           <div>
-            <h2 className="font-semibold text-sidebar-foreground">RegTech UK</h2>
-            <p className="text-xs text-sidebar-foreground/70">Incident Management</p>
+            <h2 className="font-semibold text-sidebar-foreground text-sm">EduSafe</h2>
+            <p className="text-xs text-sidebar-foreground/70">Compliance Intelligence</p>
           </div>
         </div>
       </SidebarHeader>

@@ -6,7 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Shield, AlertCircle, Loader2 } from 'lucide-react';
+import { AlertCircle, Loader2 } from 'lucide-react';
+import edusafeLogo from '@/assets/edusafe-logo.jpg';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -36,14 +37,18 @@ const Login = () => {
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-md space-y-6">
         {/* Logo / Branding */}
-        <div className="flex flex-col items-center space-y-2">
-          <div className="flex items-center justify-center w-16 h-16 rounded-xl bg-primary text-primary-foreground">
-            <Shield className="w-8 h-8" />
+        <div className="flex flex-col items-center space-y-3">
+          <img 
+            src={edusafeLogo} 
+            alt="EduSafe Compliance Intelligence" 
+            className="h-16 w-auto"
+          />
+          <div className="text-center">
+            <h1 className="text-xl font-bold text-foreground">Compliance Intelligence</h1>
+            <p className="text-muted-foreground text-sm">
+              Incident Reporting & Compliance Management
+            </p>
           </div>
-          <h1 className="text-2xl font-bold text-foreground">RegTech UK</h1>
-          <p className="text-muted-foreground text-center">
-            Incident Reporting & Compliance Management System
-          </p>
         </div>
 
         {/* Login Card */}
