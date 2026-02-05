@@ -15,6 +15,7 @@ import AllIncidents from "./pages/AllIncidents";
 import ComplianceDashboard from "./pages/ComplianceDashboard";
 import UsersPage from "./pages/UsersPage";
 import NotFound from "./pages/NotFound";
+import Landing from "./pages/Landing";
 
 const queryClient = new QueryClient();
 
@@ -26,7 +27,7 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <Routes>
-            <Route path="/" element={<Navigate to="/login" replace />} />
+            <Route path="/" element={<Landing />} />
             <Route path="/login" element={<Login />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/report" element={<ReportIncident />} />
