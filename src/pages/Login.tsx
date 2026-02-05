@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -34,18 +34,31 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <div className="w-full max-w-md space-y-6">
-        {/* Logo / Branding */}
+    <div className="min-h-screen relative flex items-center justify-center p-4">
+      {/* Background Image with Overlay */}
+      <div 
+        className="absolute inset-0 bg-cover bg-center z-0"
+        style={{
+          backgroundImage: "url('https://images.unsplash.com/photo-1562774053-701939374585?auto=format&fit=crop&q=80&w=1986')",
+        }}
+      >
+        <div className="absolute inset-0 bg-black/60 md:bg-black/50"></div>
+      </div>
+
+      <Link to="/" className="absolute top-6 left-6 z-20 hover:opacity-90 transition-opacity">
+        <img 
+          src={edusafeLogo} 
+          alt="EduSafe Compliance Intelligence" 
+          className="h-10 w-auto rounded-md"
+        />
+      </Link>
+
+      <div className="relative z-10 w-full max-w-md space-y-6">
+        {/* Branding Title Only */}
         <div className="flex flex-col items-center space-y-3">
-          <img 
-            src={edusafeLogo} 
-            alt="EduSafe Compliance Intelligence" 
-            className="h-16 w-auto"
-          />
           <div className="text-center">
-            <h1 className="text-xl font-bold text-foreground">Compliance Intelligence</h1>
-            <p className="text-muted-foreground text-sm">
+            <h1 className="text-xl font-bold text-white">Compliance Intelligence</h1>
+            <p className="text-gray-200 text-sm">
               Incident Reporting & Compliance Management
             </p>
           </div>

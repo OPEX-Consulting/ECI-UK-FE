@@ -125,10 +125,10 @@ const ReportIncident = () => {
 
   return (
     <AppLayout>
-      <div className="max-w-3xl mx-auto space-y-6">
+      <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Report New Incident</h1>
-          <p className="text-muted-foreground">
+          <p className="text-muted-foreground text-sm">
             Document an incident that occurred at the school
           </p>
         </div>
@@ -136,7 +136,8 @@ const ReportIncident = () => {
         {/* Incident Type Selection */}
         <Card>
           <CardHeader>
-            <CardTitle>Incident Type</CardTitle>
+            <CardTitle className='text-xl font-semibold'>
+              Incident Type</CardTitle>
             <CardDescription>Select the category that best describes the incident</CardDescription>
           </CardHeader>
           <CardContent>
@@ -172,7 +173,8 @@ const ReportIncident = () => {
         {/* Incident Details */}
         <Card>
           <CardHeader>
-            <CardTitle>Incident Details</CardTitle>
+           <CardTitle className='text-xl font-semibold'>
+              Incident Details</CardTitle>
             <CardDescription>Provide information about what happened</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">

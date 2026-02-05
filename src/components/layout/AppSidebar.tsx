@@ -70,6 +70,18 @@ const getRoleLabel = (role: string) => {
   }
 };
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+    
 export const AppSidebar = () => {
   const { user, logout } = useAuth();
   const location = useLocation();
@@ -87,14 +99,14 @@ export const AppSidebar = () => {
   return (
     <Sidebar>
       <SidebarHeader className="border-b border-sidebar-border px-4 py-4">
-        <div className="flex items-center gap-3">
+        <div className="flex items-start flex-col gap-3">
           <img 
             src={edusafeLogo} 
             alt="EduSafe" 
             className="h-10 w-auto rounded"
           />
           <div>
-            <h2 className="font-semibold text-sidebar-foreground text-sm">EduSafe</h2>
+            {/* <h2 className="font-semibold text-sidebar-foreground text-sm">EduSafe</h2> */}
             <p className="text-xs text-sidebar-foreground/70">Compliance Intelligence</p>
           </div>
         </div>
@@ -140,15 +152,30 @@ export const AppSidebar = () => {
             </p>
           </div>
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="w-full justify-start text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent"
-          onClick={handleLogout}
-        >
-          <LogOut className="w-4 h-4 mr-2" />
-          Sign out
-        </Button>
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full justify-start text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+            >
+              <LogOut className="w-4 h-4 mr-2" />
+              Sign out
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Sign out</AlertDialogTitle>
+              <AlertDialogDescription className='text-sm text-gray-500'>
+                Are you sure you want to sign out? 
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleLogout}>Sign out</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </SidebarFooter>
     </Sidebar>
   );
