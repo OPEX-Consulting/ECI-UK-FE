@@ -22,24 +22,28 @@ import {
   LogOut,
   AlertTriangle,
   Users,
+  CheckSquare,
 } from 'lucide-react';
 import edusafeLogo from '@/assets/edusafe-logo.jpg';
 
 const getNavItems = (role: string) => {
   const staffItems = [
     { title: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
+    { title: 'Tasks', icon: CheckSquare, path: '/tasks' },
     { title: 'Report Incident', icon: AlertTriangle, path: '/report' },
     { title: 'My Reports', icon: FileText, path: '/my-reports' },
   ];
 
   const officerItems = [
     { title: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
+    { title: 'Tasks', icon: CheckSquare, path: '/tasks' },
     { title: 'Review Queue', icon: ClipboardCheck, path: '/review' },
     { title: 'All Incidents', icon: FileText, path: '/incidents' },
   ];
 
   const principalItems = [
     { title: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
+    { title: 'Tasks', icon: CheckSquare, path: '/tasks' },
     { title: 'Compliance', icon: BarChart3, path: '/compliance' },
     { title: 'All Incidents', icon: FileText, path: '/incidents' },
     { title: 'Users', icon: Users, path: '/users' },
