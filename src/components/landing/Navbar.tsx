@@ -21,9 +21,15 @@ const Navbar = () => {
         </Link>
         <Link 
           to="/login" 
-          className="hover:text-gray-300 transition-colors  rounded-sm font-bold uppercase ml-4"
+          className="hover:text-gray-300 transition-colors uppercase font-medium"
         >
           Login
+        </Link>
+        <Link 
+          to="/onboarding/signup" 
+          className="bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded-sm font-bold uppercase ml-4 transition-colors"
+        >
+          Get Started
         </Link>
       </div>
       {/* Mobile Menu Button can be added here if needed */}

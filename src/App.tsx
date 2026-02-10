@@ -17,31 +17,58 @@ import UsersPage from "./pages/UsersPage";
 import NotFound from "./pages/NotFound";
 import Landing from "./pages/Landing";
 
+import { OnboardingProvider } from "@/contexts/OnboardingContext";
+import OnboardingLayout from "@/components/onboarding/OnboardingLayout";
+import SignUp from "@/pages/onboarding/SignUp";
+import EmailVerification from "@/pages/onboarding/EmailVerification";
+import OrganizationSetup from "@/pages/onboarding/OrganizationSetup";
+import ComplianceWizard from "@/pages/onboarding/ComplianceWizard";
+import ReviewActivation from "@/pages/onboarding/ReviewActivation";
+
+import { TaskProvider } from "@/contexts/TaskContext";
+import TaskManager from "@/pages/TaskManager";
+
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Landing />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/report" element={<ReportIncident />} />
-            <Route path="/my-reports" element={<MyReports />} />
-            <Route path="/incident/:id" element={<IncidentDetail />} />
-            <Route path="/review" element={<ReviewQueue />} />
-            <Route path="/review/:id" element={<ReviewIncident />} />
-            <Route path="/incidents" element={<AllIncidents />} />
-            <Route path="/compliance" element={<ComplianceDashboard />} />
-            <Route path="/users" element={<UsersPage />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
+      <TaskProvider>
+        <OnboardingProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <Routes>
+                <Route path="/" element={<Landing />} />
+                <Route path="/login" element={<Login />} />
+                
+                {/* Onboarding Routes */}
+                <Route path="/onboarding" element={<OnboardingLayout />}>
+                  <Route index element={<SignUp />} />
+                  <Route path="signup" element={<SignUp />} />
+                  <Route path="verify" element={<EmailVerification />} />
+                  <Route path="organization" element={<OrganizationSetup />} />
+                  <Route path="compliance" element={<ComplianceWizard />} />
+                  <Route path="review" element={<ReviewActivation />} />
+                </Route>
+
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/tasks" element={<TaskManager />} />
+                <Route path="/report" element={<ReportIncident />} />
+                <Route path="/my-reports" element={<MyReports />} />
+                <Route path="/incident/:id" element={<IncidentDetail />} />
+                <Route path="/review" element={<ReviewQueue />} />
+                <Route path="/review/:id" element={<ReviewIncident />} />
+                <Route path="/incidents" element={<AllIncidents />} />
+                <Route path="/compliance" element={<ComplianceDashboard />} />
+                <Route path="/users" element={<UsersPage />} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </BrowserRouter>
+          </TooltipProvider>
+        </OnboardingProvider>
+      </TaskProvider>
     </AuthProvider>
   </QueryClientProvider>
 );
