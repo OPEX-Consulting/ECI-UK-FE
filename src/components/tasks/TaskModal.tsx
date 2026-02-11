@@ -15,16 +15,19 @@ import { format } from 'date-fns';
 import { CalendarIcon, User as UserIcon, Upload, FileText, X, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Slider } from '@/components/ui/slider';
+import { useFrameworks } from '@/contexts/FrameworkContext';
 
 interface TaskModalProps {
   isOpen: boolean;
   onClose: () => void;
   task?: Task | null; // If null, creating new
+  defaultFrameworkId?: string;
 }
 
-const TaskModal = ({ isOpen, onClose, task }: TaskModalProps) => {
+const TaskModal = ({ isOpen, onClose, task, defaultFrameworkId }: TaskModalProps) => {
   const { addTask, updateTask } = useTasks();
   const { user } = useAuth();
+  const { frameworks } = useFrameworks();
   
   // Form State
   const [title, setTitle] = useState('');
@@ -36,6 +39,7 @@ const TaskModal = ({ isOpen, onClose, task }: TaskModalProps) => {
   const [dueDate, setDueDate] = useState<Date | undefined>(undefined);
   const [evidenceUploaded, setEvidenceUploaded] = useState(0);
   const [attachments, setAttachments] = useState<TaskAttachment[]>([]);
+  const [frameworkId, setFrameworkId] = useState<string>('');
 
   // Initialize form when task changes or modal opens
   useEffect(() => {
@@ -50,6 +54,7 @@ const TaskModal = ({ isOpen, onClose, task }: TaskModalProps) => {
         setDueDate(task.dueDate ? new Date(task.dueDate) : undefined);
         setEvidenceUploaded(task.evidenceUploaded);
         setAttachments(task.attachments || []);
+        setFrameworkId(task.frameworkId || '');
       } else {
         // Reset for new task
         setTitle('');
@@ -61,9 +66,10 @@ const TaskModal = ({ isOpen, onClose, task }: TaskModalProps) => {
         setDueDate(undefined);
         setEvidenceUploaded(0);
         setAttachments([]);
+        setFrameworkId(defaultFrameworkId || '');
       }
     }
-  }, [isOpen, task]);
+  }, [isOpen, task, defaultFrameworkId]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -83,6 +89,7 @@ const TaskModal = ({ isOpen, onClose, task }: TaskModalProps) => {
         dueDate: dueDate ? format(dueDate, 'yyyy-MM-dd') : '',
         evidenceUploaded,
         attachments,
+        frameworkId,
       });
     } else {
       // Create
@@ -95,16 +102,12 @@ const TaskModal = ({ isOpen, onClose, task }: TaskModalProps) => {
         assigneeId,
         assigneeName: assignee?.name,
         dueDate: dueDate ? format(dueDate, 'yyyy-MM-dd') : '',
+        frameworkId,
       });
     }
     onClose();
   };
 
-  // RBAC for Editing
-  // Principal: Can edit everything
-  // Staff: Can edit status, evidence (if assigned) -> For simplicity in MVP, staff can "Update" task but maybe we restrict fields?
-  // Officer: Read only (handled by parent passing isReadOnly? or check here)
-  
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
@@ -141,6 +144,32 @@ const TaskModal = ({ isOpen, onClose, task }: TaskModalProps) => {
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6 py-4">
+          <div className="space-y-2">
+             <Label>Framework</Label>
+             <Select 
+                value={frameworkId} 
+                onValueChange={setFrameworkId} 
+                disabled={isReadOnly || !!task || !!defaultFrameworkId}
+                required
+             >
+                <SelectTrigger>
+                    <SelectValue placeholder="Select Framework" />
+                </SelectTrigger>
+                <SelectContent>
+                    {frameworks.map(fw => (
+                        <SelectItem key={fw.id} value={fw.id}>
+                            {fw.name}
+                        </SelectItem>
+                    ))}
+                </SelectContent>
+             </Select>
+             {defaultFrameworkId && (
+                 <p className="text-[10px] text-muted-foreground">
+                    Automatically assigned to the current framework view.
+                 </p>
+             )}
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="title">Task Title</Label>
             <Input 

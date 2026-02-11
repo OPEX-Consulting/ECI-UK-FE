@@ -12,9 +12,10 @@ interface TaskLayoutProps {
   view: 'board' | 'list';
   setView: (view: 'board' | 'list') => void;
   onNewTask: () => void;
+  title?: string;
 }
 
-const TaskLayout = ({ children, view, setView, onNewTask }: TaskLayoutProps) => {
+const TaskLayout = ({ children, view, setView, onNewTask, title }: TaskLayoutProps) => {
   const { user } = useAuth();
   const { tasks } = useTasks();
 
@@ -27,8 +28,8 @@ const TaskLayout = ({ children, view, setView, onNewTask }: TaskLayoutProps) => 
         {/* Header Content - Custom for Task Manager */}
         <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900">Task Manager</h1>
-            <p className="text-muted-foreground">
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900">{title || 'Task Manager'}</h1>
+             <p className="text-muted-foreground text-sm">
               Manage compliance remediation tasks and regulatory requirements.
             </p>
           </div>

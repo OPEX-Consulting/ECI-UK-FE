@@ -25,10 +25,12 @@ import { cn } from "@/lib/utils";
 
 interface TaskListProps {
   onEditTask: (task: Task) => void;
+  tasks?: Task[];
 }
 
-const TaskList = ({ onEditTask }: TaskListProps) => {
-  const { tasks, updateTask } = useTasks();
+const TaskList = ({ onEditTask, tasks: propTasks }: TaskListProps) => {
+  const { tasks: contextTasks, updateTask } = useTasks();
+  const tasks = propTasks || contextTasks;
   const { user } = useAuth();
   
   // RBAC: Filter tasks based on role

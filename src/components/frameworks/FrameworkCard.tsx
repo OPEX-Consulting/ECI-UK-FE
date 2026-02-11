@@ -6,6 +6,7 @@ import { Shield, Database, GraduationCap, BookOpen, Heart, Check, PlayCircle } f
 import { useState } from 'react';
 import ImplementModal from './ImplementModal';
 import { useNavigate } from 'react-router-dom';
+import { useTasks } from '@/contexts/TaskContext';
 
 interface FrameworkCardProps {
   framework: Framework;
@@ -35,6 +36,9 @@ const FrameworkCard = ({ framework }: FrameworkCardProps) => {
   const Icon = getFrameworkIcon(framework.id);
   const [showImplementModal, setShowImplementModal] = useState(false);
   const navigate = useNavigate();
+  const { tasks } = useTasks();
+
+  const frameworkTaskCount = tasks.filter(t => t.frameworkId === framework.id).length;
 
   return (
     <>
@@ -45,7 +49,7 @@ const FrameworkCard = ({ framework }: FrameworkCardProps) => {
                         <Icon className="h-6 w-6" />
                     </div>
                     <div>
-                        <h3 className="font-semibold text-lg leading-tight mb-1">{framework.name}</h3>
+                        <h3 className="font-semibold text-[15px] leading-tight mb-1">{framework.name}</h3>
                         <p className="text-sm text-muted-foreground line-clamp-2">{framework.description}</p>
                     </div>
                 </div>
@@ -68,9 +72,8 @@ const FrameworkCard = ({ framework }: FrameworkCardProps) => {
 
                     <div className="flex items-center justify-between pt-2 border-t mt-2">
                         {framework.status === 'implemented' ? (
-                            <div className="flex items-center gap-2 text-sm text-green-600 font-medium">
-                                <Check className="w-4 h-4" />
-                                Implemented • {framework.taskCount} tasks generated
+                            <div className="flex items-center gap-2 text-xs text-green-600 font-medium">
+                                {frameworkTaskCount} tasks generated
                             </div>
                         ) : (
                             <Button 
@@ -86,7 +89,7 @@ const FrameworkCard = ({ framework }: FrameworkCardProps) => {
                             <Button 
                                 variant="outline" 
                                 size="sm"
-                                onClick={() => navigate('/tasks')}
+                                onClick={() => navigate(`/frameworks/${framework.id}/tasks`)}
                             >
                                 View Tasks
                             </Button>

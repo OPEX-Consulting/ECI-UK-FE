@@ -9,10 +9,11 @@ const Frameworks = () => {
 
   return (
     <AppLayout>
-      <div className="space-y-6 max-w-6xl mx-auto">
-        <div className="space-y-2">
-            <h1 className="text-3xl font-bold tracking-tight">Frameworks & Standards</h1>
-            <p className="text-muted-foreground text-lg">
+      <div className="space-y-6">
+        <div className="">
+              <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+              Frameworks & Standards</h1>
+             <p className="text-muted-foreground text-sm">
                 Browse, implement, and track compliance frameworks applicable to your school
             </p>
         </div>

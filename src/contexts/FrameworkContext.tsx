@@ -89,7 +89,7 @@ const FrameworkContext = createContext<FrameworkContextType | undefined>(undefin
 
 export const FrameworkProvider = ({ children }: { children: ReactNode }) => {
   const [frameworks, setFrameworks] = useState<Framework[]>(MOCK_FRAMEWORKS);
-  const { addTask } = useTasks();
+  const { } = useTasks();
 
   const implementFramework = (id: string) => {
     // 1. Update status
@@ -97,23 +97,10 @@ export const FrameworkProvider = ({ children }: { children: ReactNode }) => {
       fw.id === id ? { ...fw, status: 'implemented', taskCount: 33 } : fw
     ));
 
-    // 2. Mock AI Task Generation
-    // In a real app, this would call an API. Here we just add some sample tasks.
-    if (id === 'ofsted') {
-        const newTasks = [
-            { title: 'Self-Evaluation Form (SEF) Update', description: 'Update the SEF with latest data on pupil progress.', priority: 'high', risk: 'high', dueDate: '2024-11-15', assigneeId: 'user-2', assigneeName: 'John Samuel' },
-            { title: 'Curriculum Deep Dive Preparation', description: 'Prepare department heads for curriculum deep dives.', priority: 'high', risk: 'medium', dueDate: '2024-11-20', assigneeId: 'user-2', assigneeName: 'John Samuel' },
-             { title: 'Safeguarding Record Review', description: 'Review single central record and safeguarding files.', priority: 'critical', risk: 'high', dueDate: '2024-11-10', assigneeId: 'user-2', assigneeName: 'John Samuel' },
-        ];
 
-        newTasks.forEach(task => {
-            addTask({
-                ...task,
-                status: 'todo',
-                // frameworkId: id // We need to add this to Task interface if we want to filter by it
-            } as any);
-        });
-    }
+    // 2. Mock AI Task Generation
+    // Tasks are now pre-loaded from FRAMEWORK_MOCK_TASKS in TaskContext
+    // This action just "activates" them in the UI by marking framework as implemented
 
     toast.success('Framework implemented successfully', {
         description: 'Tasks have been generated and added to your board.'

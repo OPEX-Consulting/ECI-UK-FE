@@ -21,8 +21,11 @@ import {
   DragEndEvent,
   DragOverEvent,
   DragStartEvent,
+  useDraggable, 
+  useDroppable
 } from '@dnd-kit/core';
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 const COLUMNS: { id: TaskStatus; title: string; color: string }[] = [
   { id: 'todo', title: 'To-Do', color: 'bg-slate-500' },
@@ -33,12 +36,12 @@ const COLUMNS: { id: TaskStatus; title: string; color: string }[] = [
 
 interface TaskBoardProps {
   onEditTask: (task: Task) => void;
+  tasks?: Task[];
 }
 
-// Draggable Task Card Component
-import { useDraggable, useDroppable } from '@dnd-kit/core';
-import { CSS } from '@dnd-kit/utilities';
 
+
+// Draggable Task Card Component
 const DraggableTaskCard = ({ task, onClick }: { task: Task; onClick: () => void }) => {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: task.id,
@@ -54,6 +57,7 @@ const DraggableTaskCard = ({ task, onClick }: { task: Task; onClick: () => void 
       case 'high': return 'bg-red-100 text-red-800 border-red-200';
       case 'medium': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
       case 'low': return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'critical': return 'bg-purple-100 text-purple-800 border-purple-200';
       default: return 'bg-slate-100 text-slate-800 border-slate-200';
     }
   };
@@ -61,7 +65,7 @@ const DraggableTaskCard = ({ task, onClick }: { task: Task; onClick: () => void 
   return (
     <div ref={setNodeRef} style={style} {...listeners} {...attributes} className={cn("touch-none", isDragging && "opacity-50 z-50")}>
         <Card className="mb-3 shadow-sm hover:shadow-md transition-shadow cursor-grab active:cursor-grabbing border-l-4" style={{ 
-            borderLeftColor: task.risk === 'high' ? '#ef4444' : task.risk === 'medium' ? '#f59e0b' : '#3b82f6' 
+            borderLeftColor: task.risk === 'high' ? '#ef4444' : task.risk === 'medium' ? '#f59e0b' : task.risk === 'critical' ? '#7e22ce' : '#3b82f6' 
         }} onClick={onClick}>
         <CardContent className="p-4 space-y-3">
             {/* Header Tags */}
@@ -142,8 +146,9 @@ const DroppableColumn = ({ column, tasks, children }: { column: any; tasks: Task
   );
 };
 
-const TaskBoard = ({ onEditTask }: TaskBoardProps) => {
-  const { tasks, updateTask } = useTasks();
+const TaskBoard = ({ onEditTask, tasks: propTasks }: TaskBoardProps) => {
+  const { tasks: contextTasks, updateTask } = useTasks();
+  const tasks = propTasks || contextTasks;
   const { user } = useAuth();
   const [activeTask, setActiveTask] = useState<Task | null>(null);
 
