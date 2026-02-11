@@ -1,9 +1,11 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 import { User, HARDCODED_USERS } from '@/types/incident';
 
+import { FRAMEWORK_MOCK_TASKS } from '@/data/frameworkTasks';
+
 export type TaskStatus = 'todo' | 'in-progress' | 'in-review' | 'done';
-export type TaskPriority = 'low' | 'medium' | 'high';
-export type TaskRisk = 'low' | 'medium' | 'high';
+export type TaskPriority = 'low' | 'medium' | 'high' | 'critical';
+export type TaskRisk = 'low' | 'medium' | 'high' | 'critical';
 
 export interface TaskAttachment {
   id: string;
@@ -22,12 +24,13 @@ export interface Task {
   priority: TaskPriority;
   risk: TaskRisk;
   assigneeId?: string;
-  assigneeName?: string;
+  assigneeName?: string; // Denormalized for ease
   dueDate: string;
   createdAt: string;
   updatedAt: string;
   evidenceUploaded: number; // Percentage 0-100
   attachments: TaskAttachment[];
+  frameworkId?: string; // Optional link to a framework
 }
 
 interface TaskContextType {
@@ -39,6 +42,13 @@ interface TaskContextType {
 }
 
 const MOCK_TASKS: Task[] = [
+  ...FRAMEWORK_MOCK_TASKS.map(t => ({
+      ...t,
+      createdAt: new Date().toISOString().split('T')[0],
+      updatedAt: new Date().toISOString().split('T')[0],
+      evidenceUploaded: 0,
+      attachments: []
+  })),
   {
     id: 'TSK-392',
     title: 'Server Access Review Q3',

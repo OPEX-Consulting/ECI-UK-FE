@@ -30,6 +30,10 @@ import { FrameworkProvider } from "@/contexts/FrameworkContext";
 import TaskManager from "@/pages/TaskManager";
 import Frameworks from "@/pages/Frameworks";
 
+import About from "./pages/About";
+import Services from "./pages/Services";
+import Contact from "./pages/Contact";
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -44,6 +48,9 @@ const App = () => (
               <BrowserRouter>
                 <Routes>
                   <Route path="/" element={<Landing />} />
+                  <Route path="/about" element={<About />} />
+                  <Route path="/services" element={<Services />} />
+                  <Route path="/contact" element={<Contact />} />
                   <Route path="/login" element={<Login />} />
                   
                   {/* Onboarding Routes */}
@@ -59,6 +66,7 @@ const App = () => (
                   <Route path="/dashboard" element={<Dashboard />} />
                   <Route path="/tasks" element={<TaskManager />} />
                   <Route path="/frameworks" element={<Frameworks />} />
+                  <Route path="/frameworks/:frameworkId/tasks" element={<TaskManager />} />
                   <Route path="/report" element={<ReportIncident />} />
                   <Route path="/my-reports" element={<MyReports />} />
                   <Route path="/incident/:id" element={<IncidentDetail />} />
