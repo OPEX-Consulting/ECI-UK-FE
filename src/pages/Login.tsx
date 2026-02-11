@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle, Loader2 } from 'lucide-react';
 import edusafeLogo from '@/assets/edusafe-logo.jpg';
+import Navbar from '@/components/landing/Navbar';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -35,6 +36,7 @@ const Login = () => {
 
   return (
     <div className="min-h-screen relative flex items-center justify-center p-4">
+       <Navbar />
       {/* Background Image with Overlay */}
       <div 
         className="absolute inset-0 bg-cover bg-center z-0"
@@ -45,13 +47,7 @@ const Login = () => {
         <div className="absolute inset-0 bg-black/60 md:bg-black/50"></div>
       </div>
 
-      <Link to="/" className="absolute top-6 left-6 z-20 hover:opacity-90 transition-opacity">
-        <img 
-          src={edusafeLogo} 
-          alt="EduSafe Compliance Intelligence" 
-          className="h-10 w-auto rounded-md"
-        />
-      </Link>
+   
 
       <div className="relative z-10 w-full max-w-md space-y-6">
         {/* Branding Title Only */}
@@ -122,12 +118,12 @@ const Login = () => {
         </Card>
 
         {/* Demo Credentials Info */}
-        <Card className="bg-muted/50 border-dashed">
+        <Card className="bg-black border-none">
           <CardContent className="pt-4">
-            <p className="text-sm font-medium text-muted-foreground mb-2">
+            <p className="text-sm font-medium text-white mb-2">
               Demo Accounts (use any password):
             </p>
-            <div className="space-y-1 text-xs text-muted-foreground">
+            <div className="space-y-1 text-xs text-white">
               <p><span className="font-medium">Principal:</span> samuel.john@opexconsult.co.uk</p>
               <p><span className="font-medium">Officer:</span> sammyjay708@gmail.com</p>
               <p><span className="font-medium">Staff:</span> john96samuel@gmail.com</p>

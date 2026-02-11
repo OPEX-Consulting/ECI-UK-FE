@@ -1,5 +1,10 @@
 
+import { useState } from 'react';
+import DemoBookingModal from '@/components/landing/DemoBookingModal';
+
 const Hero = () => {
+  const [isDemoModalOpen, setIsDemoModalOpen] = useState(false);
+
   return (
     <div className="relative h-screen w-full overflow-hidden">
       {/* Background Image with Overlay */}
@@ -27,11 +32,19 @@ const Hero = () => {
             platform.
           </p>
 
-          <button className="bg-white text-[#1A1A1A] hover:bg-gray-100 transition-colors px-8 py-3 rounded-md font-semibold text-lg">
+          <button 
+            onClick={() => setIsDemoModalOpen(true)}
+            className="bg-white text-[#1A1A1A] hover:bg-gray-100 transition-colors px-8 py-3 rounded-md font-semibold text-lg"
+          >
             Book a Demo
           </button>
         </div>
       </div>
+
+      <DemoBookingModal 
+        isOpen={isDemoModalOpen} 
+        onClose={() => setIsDemoModalOpen(false)} 
+      />
     </div>
   );
 };

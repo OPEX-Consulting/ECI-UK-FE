@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -17,14 +18,22 @@ const STEPS = [
   { id: 'operationalActivities', title: 'Operational Activities', description: 'Select all operational activities that apply.' },
 ];
 
+const STANDARD_SCHOOL_TYPES = ['maintained', 'academy', 'independent', 'special', 'alternative'];
+
 const ComplianceWizard = () => {
   const { state, updateCompliance, nextStep, prevStep } = useOnboarding();
   const navigate = useNavigate();
   const [activeStepIndex, setActiveStepIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
 
+  // Initialize state handles "other" values correctly
+  const initialSchoolType = state.compliance.schoolType;
+  const isOtherType = initialSchoolType && !STANDARD_SCHOOL_TYPES.includes(initialSchoolType);
+
   // Local state for current step inputs (synced with context on navigation)
-  const [schoolType, setSchoolType] = useState(state.compliance.schoolType);
+  const [schoolType, setSchoolType] = useState(isOtherType ? 'other' : initialSchoolType);
+  const [otherSchoolType, setOtherSchoolType] = useState(isOtherType ? initialSchoolType : '');
+  
   const [fundingType, setFundingType] = useState(state.compliance.fundingType);
   const [ageRanges, setAgeRanges] = useState<string[]>(state.compliance.ageRanges);
   const [specialProvisions, setSpecialProvisions] = useState<string[]>(state.compliance.specialProvisions);
@@ -35,7 +44,7 @@ const ComplianceWizard = () => {
   const handleNext = () => {
     // Save current step data to context
     updateCompliance({
-      schoolType,
+      schoolType: schoolType === 'other' ? otherSchoolType : schoolType,
       fundingType,
       ageRanges,
       specialProvisions,
@@ -86,12 +95,28 @@ const ComplianceWizard = () => {
               { value: 'alternative', label: 'Alternative Provision', desc: 'Education outside of school settings' },
               { value: 'other', label: 'Other', desc: 'None of the above' }
             ].map((option) => (
-              <div key={option.value} className="flex items-center space-x-3 space-y-0 rounded-md border p-4 hover:bg-accent hover:text-accent-foreground cursor-pointer transition-colors" onClick={() => setSchoolType(option.value)}>
-                <RadioGroupItem value={option.value} id={option.value} />
-                <div className="flex-1 cursor-pointer">
-                  <Label htmlFor={option.value} className="font-medium cursor-pointer">{option.label}</Label>
-                  <p className="text-sm text-muted-foreground">{option.desc}</p>
+              <div key={option.value} className=" rounded-md border p-4 hover:bg-accent hover:text-accent-foreground cursor-pointer transition-colors" onClick={() => setSchoolType(option.value)}>
+                <div className="flex items-center space-x-3 space-y-0">
+                    <RadioGroupItem value={option.value} id={option.value} />
+                    <div className="flex-1 cursor-pointer">
+                    <Label htmlFor={option.value} className="font-medium cursor-pointer">{option.label}</Label>
+                    <p className="text-sm text-muted-foreground">{option.desc}</p>
+                    </div>
                 </div>
+                {/* Render Input if 'Other' is selected */}
+                {option.value === 'other' && schoolType === 'other' && (
+                    <div className="mt-3 pl-7" onClick={(e) => e.stopPropagation()}>
+                        <Label htmlFor="other-type" className="sr-only">Specify School Type</Label>
+                        <Input 
+                            id="other-type"
+                            placeholder="Please specify..." 
+                            value={otherSchoolType}
+                            onChange={(e) => setOtherSchoolType(e.target.value)}
+                            className="bg-background"
+                            autoFocus
+                        />
+                    </div>
+                )}
               </div>
             ))}
           </RadioGroup>
@@ -187,7 +212,9 @@ const ComplianceWizard = () => {
 
   const isStepValid = () => {
     switch (activeStep.id) {
-      case 'schoolType': return !!schoolType;
+      case 'schoolType': 
+        if (schoolType === 'other') return !!otherSchoolType && otherSchoolType.trim().length > 0;
+        return !!schoolType;
       case 'fundingType': return !!fundingType;
       case 'ageRanges': return ageRanges.length > 0;
       // Others are optional or multi-select without mandatory requirement in PRD, but let's assume at least one is NOT required for special/ops

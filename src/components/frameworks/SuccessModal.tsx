@@ -15,7 +15,7 @@ const SuccessModal = ({ isOpen, onClose, framework }: SuccessModalProps) => {
 
   const handleViewTasks = () => {
     onClose();
-    navigate('/tasks');
+    navigate(`/frameworks/${framework.id}/tasks`);
   };
 
   return (
