@@ -23,6 +23,7 @@ import {
   AlertTriangle,
   Users,
   CheckSquare,
+  BookOpen,
 } from 'lucide-react';
 import edusafeLogo from '@/assets/edusafe-logo.jpg';
 
@@ -30,6 +31,7 @@ const getNavItems = (role: string) => {
   const staffItems = [
     { title: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
     { title: 'Tasks', icon: CheckSquare, path: '/tasks' },
+    { title: 'Frameworks', icon: BookOpen, path: '/frameworks' },
     { title: 'Report Incident', icon: AlertTriangle, path: '/report' },
     { title: 'My Reports', icon: FileText, path: '/my-reports' },
   ];
@@ -37,6 +39,7 @@ const getNavItems = (role: string) => {
   const officerItems = [
     { title: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
     { title: 'Tasks', icon: CheckSquare, path: '/tasks' },
+    { title: 'Frameworks', icon: BookOpen, path: '/frameworks' },
     { title: 'Review Queue', icon: ClipboardCheck, path: '/review' },
     { title: 'All Incidents', icon: FileText, path: '/incidents' },
   ];
@@ -44,6 +47,7 @@ const getNavItems = (role: string) => {
   const principalItems = [
     { title: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
     { title: 'Tasks', icon: CheckSquare, path: '/tasks' },
+    { title: 'Frameworks', icon: BookOpen, path: '/frameworks' },
     { title: 'Compliance', icon: BarChart3, path: '/compliance' },
     { title: 'All Incidents', icon: FileText, path: '/incidents' },
     { title: 'Users', icon: Users, path: '/users' },
