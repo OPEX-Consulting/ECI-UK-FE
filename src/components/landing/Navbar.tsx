@@ -27,7 +27,7 @@ const Navbar = () => {
         </Link>
         <Link 
           to="/onboarding/signup" 
-          className="bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded-sm font-bold uppercase ml-4 transition-colors"
+          className="text-primary-foreground rounded-sm font-medium uppercase ml-4 transition-colors"
         >
           Get Started
         </Link>
