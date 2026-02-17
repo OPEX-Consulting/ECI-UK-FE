@@ -1,26 +1,38 @@
-import { ReactNode } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Search, LayoutGrid, List as ListIcon, Filter } from 'lucide-react';
-import { useTasks } from '@/contexts/TaskContext';
-import { AppLayout } from '@/components/layout/AppLayout';
+import { ReactNode } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Plus,
+  Search,
+  LayoutGrid,
+  List as ListIcon,
+  Filter,
+} from "lucide-react";
+import { useTasks } from "@/contexts/TaskContext";
+import { AppLayout } from "@/components/layout/AppLayout";
 
 interface TaskLayoutProps {
   children: ReactNode;
-  view: 'board' | 'list';
-  setView: (view: 'board' | 'list') => void;
+  view: "board" | "list";
+  setView: (view: "board" | "list") => void;
   onNewTask: () => void;
   title?: string;
 }
 
-const TaskLayout = ({ children, view, setView, onNewTask, title }: TaskLayoutProps) => {
+const TaskLayout = ({
+  children,
+  view,
+  setView,
+  onNewTask,
+  title,
+}: TaskLayoutProps) => {
   const { user } = useAuth();
   const { tasks } = useTasks();
 
-  // RBAC: Only Principal can create tasks
-  const canCreateTask = user?.role === 'principal';
+  // RBAC: Principal and Officer can create tasks
+  const canCreateTask = user?.role === "principal" || user?.role === "officer";
 
   return (
     <AppLayout>
@@ -28,8 +40,10 @@ const TaskLayout = ({ children, view, setView, onNewTask, title }: TaskLayoutPro
         {/* Header Content - Custom for Task Manager */}
         <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900">{title || 'Task Manager'}</h1>
-             <p className="text-muted-foreground text-sm">
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+              {title || "Task Manager"}
+            </h1>
+            <p className="text-muted-foreground text-sm">
               Manage compliance remediation tasks and regulatory requirements.
             </p>
           </div>
@@ -52,7 +66,11 @@ const TaskLayout = ({ children, view, setView, onNewTask, title }: TaskLayoutPro
 
         {/* Toolbar */}
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <Tabs value={view} onValueChange={(v) => setView(v as 'board' | 'list')} className="w-[200px]">
+          <Tabs
+            value={view}
+            onValueChange={(v) => setView(v as "board" | "list")}
+            className="w-[200px]"
+          >
             <TabsList>
               <TabsTrigger value="board" className="flex items-center gap-2">
                 <LayoutGrid className="h-4 w-4" />
@@ -66,24 +84,22 @@ const TaskLayout = ({ children, view, setView, onNewTask, title }: TaskLayoutPro
           </Tabs>
 
           <div className="flex items-center gap-2 overflow-x-auto pb-2 sm:pb-0">
-             <Button variant="outline" size="sm" className="h-8 border-dashed">
-                <Filter className="mr-2 h-3.5 w-3.5" />
-                Filter
-             </Button>
+            <Button variant="outline" size="sm" className="h-8 border-dashed">
+              <Filter className="mr-2 h-3.5 w-3.5" />
+              Filter
+            </Button>
           </div>
-          
+
           {canCreateTask && (
-             <Button onClick={onNewTask} className="md:hidden w-full">
-                <Plus className="mr-2 h-4 w-4" />
-                New Task
-              </Button>
+            <Button onClick={onNewTask} className="md:hidden w-full">
+              <Plus className="mr-2 h-4 w-4" />
+              New Task
+            </Button>
           )}
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-hidden">
-          {children}
-        </div>
+        <div className="flex-1 overflow-hidden">{children}</div>
       </div>
     </AppLayout>
   );
