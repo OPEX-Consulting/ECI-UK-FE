@@ -70,41 +70,41 @@ All colors MUST be HSL.
   }
 
   .dark {
-    --background: 160 50% 4%;
-    --foreground: 160 20% 98%;
+    --background: 0 0% 0%;
+    --foreground: 0 0% 98%;
 
-    --card: 160 50% 6%;
-    --card-foreground: 160 20% 98%;
+    --card: 0 0% 2%;
+    --card-foreground: 0 0% 98%;
 
-    --popover: 160 50% 6%;
-    --popover-foreground: 160 20% 98%;
+    --popover: 0 0% 2%;
+    --popover-foreground: 0 0% 98%;
 
     --primary: 160 84% 45%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 160 30% 15%;
-    --secondary-foreground: 160 20% 98%;
+    --secondary: 0 0% 7%;
+    --secondary-foreground: 0 0% 98%;
 
-    --muted: 160 30% 15%;
-    --muted-foreground: 160 20% 65%;
+    --muted: 0 0% 7%;
+    --muted-foreground: 0 0% 65%;
 
-    --accent: 160 30% 15%;
-    --accent-foreground: 160 20% 98%;
+    --accent: 0 0% 10%;
+    --accent-foreground: 0 0% 98%;
 
     --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: 0 0% 98%;
 
-    --border: 160 30% 18%;
-    --input: 160 30% 18%;
+    --border: 0 0% 12%;
+    --input: 0 0% 12%;
     --ring: 160 84% 45%;
 
-    --sidebar-background: 160 50% 8%;
-    --sidebar-foreground: 160 20% 96%;
+    --sidebar-background: 0 0% 1%;
+    --sidebar-foreground: 0 0% 96%;
     --sidebar-primary: 160 84% 45%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 160 50% 14%;
-    --sidebar-accent-foreground: 160 20% 96%;
-    --sidebar-border: 160 50% 18%;
+    --sidebar-accent: 0 0% 4%;
+    --sidebar-accent-foreground: 0 0% 96%;
+    --sidebar-border: 0 0% 8%;
     --sidebar-ring: 160 84% 45%;
 
     /* Incident type colors */

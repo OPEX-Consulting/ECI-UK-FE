@@ -1,4 +1,4 @@
-export type UserRole = 'staff' | 'officer' | 'principal';
+export type UserRole = 'staff' | 'officer' | 'principal' | 'admin';
 
 export interface User {
   id: string;
@@ -65,6 +65,12 @@ export interface AuditEntry {
 }
 
 export const HARDCODED_USERS: User[] = [
+  {
+    id: 'user-admin',
+    email: 'emmanuel.adedeji@eci.co.uk',
+    name: 'Emmanuel Adedeji',
+    role: 'admin',
+  },
   {
     id: 'user-1',
     email: 'samuel.john@opexconsult.co.uk',
