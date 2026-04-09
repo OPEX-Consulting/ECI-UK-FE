@@ -22,7 +22,7 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const { login } = useAuth();
+  const { login, user: currentUser } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -33,9 +33,17 @@ const Login = () => {
     const result = await login(email, password);
 
     if (result.success) {
-      navigate("/dashboard");
+      // Redirect based on role — re-read from context via the login result
+      // We need to read the stored user since context hasn't re-rendered yet
+      const stored = localStorage.getItem('regtech_current_user');
+      const loggedInUser = stored ? JSON.parse(stored) : null;
+      if (loggedInUser?.role === 'admin') {
+        navigate('/admin');
+      } else {
+        navigate('/dashboard');
+      }
     } else {
-      setError(result.error || "Login failed");
+      setError(result.error || 'Login failed');
     }
 
     setIsLoading(false);
@@ -151,6 +159,10 @@ const Login = () => {
               Demo Accounts (use any password):
             </p>
             <div className="space-y-1 text-xs text-white">
+              <p>
+                <span className="font-medium">Platform Admin:</span>{" "}
+                emmanuel.adedeji@eci.co.uk
+              </p>
               <p>
                 <span className="font-medium">Principal:</span>{" "}
                 samuel.john@opexconsult.co.uk
