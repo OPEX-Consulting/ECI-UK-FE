@@ -46,6 +46,7 @@ import AdminOrgDetail from "@/pages/admin/AdminOrgDetail";
 import AdminSchoolTypes from "@/pages/admin/AdminSchoolTypes";
 import AdminUsers from "@/pages/admin/AdminUsers";
 import AdminAuditLog from "@/pages/admin/AdminAuditLog";
+import AdminLogin from "@/pages/admin/AdminLogin";
 
 const queryClient = new QueryClient();
 
@@ -66,33 +67,43 @@ const App = () => (
                     <Route path="/services" element={<Services />} />
                     <Route path="/contact" element={<Contact />} />
                     <Route path="/login" element={<Login />} />
-                    
+                    <Route path="/admin/login" element={<AdminLogin />} />
+
                     {/* Onboarding Routes */}
                     <Route path="/onboarding" element={<OnboardingLayout />}>
                       <Route index element={<SignUp />} />
                       <Route path="signup" element={<SignUp />} />
                       <Route path="verify" element={<EmailVerification />} />
-                      <Route path="organization" element={<OrganizationSetup />} />
+                      <Route
+                        path="organization"
+                        element={<OrganizationSetup />}
+                      />
                       <Route path="compliance" element={<ComplianceWizard />} />
                       <Route path="review" element={<ReviewActivation />} />
                     </Route>
-    
+
                     <Route path="/dashboard" element={<Dashboard />} />
                     <Route path="/tasks" element={<TaskManager />} />
                     <Route path="/frameworks" element={<Frameworks />} />
-                    <Route path="/frameworks/:frameworkId/tasks" element={<TaskManager />} />
+                    <Route
+                      path="/frameworks/:frameworkId/tasks"
+                      element={<TaskManager />}
+                    />
                     <Route path="/report" element={<ReportIncident />} />
                     <Route path="/my-reports" element={<MyReports />} />
                     <Route path="/incident/:id" element={<IncidentDetail />} />
                     <Route path="/review" element={<ReviewQueue />} />
                     <Route path="/review/:id" element={<ReviewIncident />} />
                     <Route path="/incidents" element={<AllIncidents />} />
-                    <Route path="/compliance" element={<ComplianceDashboard />} />
+                    <Route
+                      path="/compliance"
+                      element={<ComplianceDashboard />}
+                    />
                     <Route path="/users" element={<UsersPage />} />
-  
+
                     {/* Admin Routes — protected, role=admin only */}
                     <Route
-                      path="/admin"
+                      path="/admin/dashboard"
                       element={
                         <AdminProtectedRoute>
                           <AdminLayout>
@@ -171,7 +182,7 @@ const App = () => (
                         </AdminProtectedRoute>
                       }
                     />
-  
+
                     <Route path="*" element={<NotFound />} />
                   </Routes>
                 </BrowserRouter>

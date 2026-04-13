@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 
 const adminNavItems = [
-  { title: 'Dashboard', icon: LayoutDashboard, path: '/admin' },
+  { title: 'Dashboard', icon: LayoutDashboard, path: '/admin/dashboard' },
   { title: 'Frameworks', icon: BookOpen, path: '/admin/frameworks' },
   { title: 'Organisations', icon: Building2, path: '/admin/organisations' },
   { title: 'School Types', icon: School, path: '/admin/school-types' },

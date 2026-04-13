@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, RefreshCw } from 'lucide-react';
-import { ORGS } from './AdminOrganisations';
+import { ORGS } from '@/mocks/organisations';
 
 type Tab = 'profile' | 'compliance' | 'users' | 'audit';
 
