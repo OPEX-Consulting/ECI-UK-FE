@@ -12,7 +12,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle, Loader2, Eye, EyeOff } from "lucide-react";
+import { AlertCircle, Loader2, Eye, EyeOff, ShieldCheck } from "lucide-react";
 import edusafeLogo from "@/assets/edusafe-logo.jpg";
 import Navbar from "@/components/landing/Navbar";
 
@@ -148,6 +148,25 @@ const Login = () => {
                   "Sign in"
                 )}
               </Button>
+
+              <div className="relative py-2">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-background px-2 text-muted-foreground">
+                    Or management
+                  </span>
+                </div>
+              </div>
+
+              <Link
+                to="/admin/login"
+                className="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg border border-primary/20 bg-primary/5 hover:bg-primary/10 transition-all text-sm font-bold text-primary group"
+              >
+                <ShieldCheck className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                Login as Admin
+              </Link>
             </form>
           </CardContent>
         </Card>

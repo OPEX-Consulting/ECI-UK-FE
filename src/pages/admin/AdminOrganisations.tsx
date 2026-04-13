@@ -1,6 +1,12 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Eye, Search } from 'lucide-react';
+import { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
+import { Eye, Search, Loader2, AlertCircle } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { getOrganisations } from "@/services/organisation";
+import {
+  Organisation,
+  OrgStatus,
+} from "@/types/organisation";
 import {
   Select,
   SelectContent,
@@ -8,38 +14,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ORGS as MOCK_ORGS } from "@/mocks/organisations";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-type OrgStatus = 'Active' | 'Onboarding' | 'Suspended';
-
-interface Organisation {
-  id: string;
-  name: string;
-  schoolType: string;
-  status: OrgStatus;
-  region: string;
-  compliance: number;
-  frameworks: number;
-  users: number;
-}
-
-// ─── Mock Data ────────────────────────────────────────────────────────────────
-const ORGS: Organisation[] = [
-  { id: 'org-1', name: 'Greenfield Academy', schoolType: 'Academy (Single)', status: 'Active', region: 'London', compliance: 87, frameworks: 3, users: 12 },
-  { id: 'org-2', name: "St. Mary's Primary School", schoolType: 'Faith School', status: 'Active', region: 'South East', compliance: 92, frameworks: 4, users: 8 },
-  { id: 'org-3', name: 'Riverside Free School', schoolType: 'Free School', status: 'Onboarding', region: 'North West', compliance: 34, frameworks: 2, users: 3 },
-  { id: 'org-4', name: 'Oakwood Independent', schoolType: 'Independent', status: 'Active', region: 'London', compliance: 78, frameworks: 5, users: 15 },
-  { id: 'org-5', name: 'Thornton MAT', schoolType: 'Academy (MAT)', status: 'Active', region: 'Yorkshire', compliance: 81, frameworks: 3, users: 42 },
-  { id: 'org-6', name: 'Elmhurst Special School', schoolType: 'Special School', status: 'Active', region: 'West Midlands', compliance: 69, frameworks: 4, users: 6 },
-  { id: 'org-7', name: 'Birchwood Community School', schoolType: 'State-funded (Maintained)', status: 'Suspended', region: 'East Midlands', compliance: 23, frameworks: 2, users: 9 },
-  { id: 'org-8', name: 'Highgate Prep', schoolType: 'Independent', status: 'Onboarding', region: 'London', compliance: 0, frameworks: 0, users: 2 },
-];
+// ─── UI Helpers ───────────────────────────────────────────────────────────────
 
 const statusBadge = (status: OrgStatus) => {
   switch (status) {
-    case 'Active':     return "bg-emerald-500/10 text-emerald-500 border-emerald-500/20";
-    case 'Onboarding': return "bg-blue-500/10 text-blue-500 border-blue-500/20";
-    case 'Suspended':  return "bg-red-500/10 text-red-500 border-red-500/20";
+    case "Active":
+      return "bg-emerald-500/10 text-emerald-500 border-emerald-500/20";
+    case "Onboarding":
+      return "bg-blue-500/10 text-blue-500 border-blue-500/20";
+    case "Suspended":
+      return "bg-red-500/10 text-red-500 border-red-500/20";
   }
 };
 
@@ -50,7 +36,12 @@ const ComplianceBar = ({ value }: { value: number }) => (
         className="h-full rounded-full transition-all duration-500"
         style={{
           width: `${value}%`,
-          background: value >= 70 ? 'hsl(var(--primary))' : value >= 30 ? '#f59e0b' : 'hsl(var(--muted-foreground)/0.4)',
+          background:
+            value >= 70
+              ? "hsl(var(--primary))"
+              : value >= 30
+                ? "#f59e0b"
+                : "hsl(var(--muted-foreground)/0.4)",
         }}
       />
     </div>
@@ -58,18 +49,54 @@ const ComplianceBar = ({ value }: { value: number }) => (
   </div>
 );
 
-const ORG_TYPES = ['Academy (Single)', 'Faith School', 'Free School', 'Independent', 'Academy (MAT)', 'Special School', 'State-funded (Maintained)'];
+const ORG_TYPES = [
+  "Academy (Single)",
+  "Faith School",
+  "Free School",
+  "Independent",
+  "Academy (MAT)",
+  "Special School",
+  "State-funded (Maintained)",
+];
 
 const AdminOrganisations = () => {
   const navigate = useNavigate();
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [typeFilter, setTypeFilter] = useState('all');
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [typeFilter, setTypeFilter] = useState("all");
 
-  const filtered = ORGS.filter((o) => {
-    const matchSearch = o.name.toLowerCase().includes(search.toLowerCase()) || o.region.toLowerCase().includes(search.toLowerCase());
-    const matchStatus = statusFilter === 'all' || o.status === statusFilter;
-    const matchType = typeFilter === 'all' || o.schoolType === typeFilter;
+  const { data: apiOrgs, isLoading, isError, error } = useQuery({
+    queryKey: ["organisations"],
+    queryFn: () => getOrganisations(0, 100),
+  });
+
+  const organisations = useMemo(() => {
+    if (!apiOrgs) return [];
+    
+    // Map API data to UI model
+    return apiOrgs.map(apiOrg => {
+      // Normalize status: e.g., "active" -> "Active"
+      const status = (apiOrg.status.charAt(0).toUpperCase() + apiOrg.status.slice(1)) as OrgStatus;
+      
+      return {
+        id: apiOrg.id,
+        name: apiOrg.name,
+        schoolType: apiOrg.type,
+        status,
+        region: apiOrg.metadata?.region || "N/A",
+        compliance: apiOrg.metadata?.compliance_score || 0,
+        frameworks: apiOrg.assigned_frameworks?.length || 0,
+        users: apiOrg.metadata?.total_users || 0,
+      };
+    });
+  }, [apiOrgs]);
+
+  const filtered = organisations.filter((o) => {
+    const matchSearch =
+      o.name.toLowerCase().includes(search.toLowerCase()) ||
+      o.region.toLowerCase().includes(search.toLowerCase());
+    const matchStatus = statusFilter === "all" || o.status === statusFilter;
+    const matchType = typeFilter === "all" || o.schoolType === typeFilter;
     return matchSearch && matchStatus && matchType;
   });
 
@@ -115,56 +142,101 @@ const AdminOrganisations = () => {
             <SelectContent className="bg-popover border border-border text-popover-foreground">
               <SelectItem value="all">All Types</SelectItem>
               {ORG_TYPES.map((t) => (
-                <SelectItem key={t} value={t}>{t}</SelectItem>
+                <SelectItem key={t} value={t}>
+                  {t}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
 
-        {/* Table */}
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border">
-              {['Organisation', 'School Type', 'Status', 'Region', 'Compliance', 'Frameworks', 'Users', 'Actions'].map((h) => (
-                <th key={h} className="px-5 py-3 text-left text-xs font-semibold tracking-wide text-muted-foreground">
-                  {h}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((org) => (
-              <tr
-                key={org.id}
-                className="transition-colors border-b border-border/50 hover:bg-muted/50 cursor-pointer"
-                onClick={() => navigate(`/admin/organisations/${org.id}`)}
-              >
-                <td className="px-5 py-4 font-medium text-foreground">{org.name}</td>
-                <td className="px-5 py-4 text-muted-foreground">{org.schoolType}</td>
-                <td className="px-5 py-4" onClick={(e) => e.stopPropagation()}>
-                  <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium border ${statusBadge(org.status)}`}>
-                    {org.status}
-                  </span>
-                </td>
-                <td className="px-5 py-4 text-muted-foreground">{org.region}</td>
-                <td className="px-5 py-4"><ComplianceBar value={org.compliance} /></td>
-                <td className="px-5 py-4 text-center text-muted-foreground">{org.frameworks}</td>
-                <td className="px-5 py-4 text-center text-muted-foreground">{org.users}</td>
-                <td className="px-5 py-4">
-                  <button
-                    className="text-muted-foreground hover:text-foreground transition-colors"
+        {/* Table Content */}
+        {isLoading ? (
+          <div className="flex flex-col items-center justify-center py-20 bg-card rounded-b-[10px]">
+            <Loader2 className="w-8 h-8 text-primary animate-spin mb-4" />
+            <p className="text-sm text-muted-foreground">Fetching organisations...</p>
+          </div>
+        ) : isError ? (
+          <div className="flex flex-col items-center justify-center py-20 bg-card rounded-b-[10px] text-center px-4">
+            <AlertCircle className="w-8 h-8 text-red-500 mb-4" />
+            <p className="text-sm font-medium text-foreground">Failed to load organisations</p>
+            <p className="text-xs text-muted-foreground mt-1 max-w-xs">
+              {error instanceof Error ? error.message : "An unexpected error occurred while fetching the organisation list."}
+            </p>
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 bg-card rounded-b-[10px]">
+            <Search className="w-8 h-8 text-muted-foreground/30 mb-4" />
+            <p className="text-sm text-muted-foreground">No organisations found matching your criteria</p>
+          </div>
+        ) : (
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border">
+                {[
+                  "Organisation",
+                  "School Type",
+                  "Status",
+                  "Region",
+                  "Compliance",
+                  "Frameworks",
+                  // "Users",
+                  "Actions",
+                ].map((h) => (
+                  <th
+                    key={h}
+                    className="px-5 py-3 text-left text-xs font-semibold tracking-wide text-muted-foreground"
                   >
-                    <Eye className="w-4 h-4" />
-                  </button>
-                </td>
+                    {h}
+                  </th>
+                ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {filtered.map((org) => (
+                <tr
+                  key={org.id}
+                  className="transition-colors border-b border-border/50 hover:bg-muted/50 cursor-pointer"
+                  onClick={() => navigate(`/admin/organisations/${org.id}`)}
+                >
+                  <td className="px-5 py-4 font-medium text-foreground">
+                    {org.name}
+                  </td>
+                  <td className="px-5 py-4 text-muted-foreground">
+                    {org.schoolType}
+                  </td>
+                  <td className="px-5 py-4" onClick={(e) => e.stopPropagation()}>
+                    <span
+                      className={`px-2.5 py-0.5 rounded-full text-xs font-medium border ${statusBadge(org.status)}`}
+                    >
+                      {org.status}
+                    </span>
+                  </td>
+                  <td className="px-5 py-4 text-muted-foreground">
+                    {org.region}
+                  </td>
+                  <td className="px-5 py-4">
+                    <ComplianceBar value={org.compliance} />
+                  </td>
+                  <td className="px-5 py-4 text-center text-muted-foreground">
+                    {org.frameworks}
+                  </td>
+                  {/* <td className="px-5 py-4 text-center text-muted-foreground">
+                    {org.users}
+                  </td> */}
+                  <td className="px-5 py-4">
+                    <button className="text-muted-foreground hover:text-foreground transition-colors">
+                      <Eye className="w-4 h-4" />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   );
 };
 
-export { ORGS };
 export default AdminOrganisations;
