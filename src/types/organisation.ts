@@ -27,3 +27,16 @@ export interface Organisation {
   frameworks: number;
   users: number;
 }
+
+export interface ApiSchoolType {
+  id: string;
+  name: string;
+  slug: string;
+  description: string;
+  country: string;
+  status: string;
+  orgs_using: number;
+  created_at: string;
+  updated_at: string;
+}
+

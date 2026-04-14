@@ -1,5 +1,7 @@
-import { useState } from 'react';
-import { Plus, Pencil, Trash2, RotateCcw, X } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { Plus, Pencil, Trash2, RotateCcw, X, Loader2, AlertCircle } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { getSchoolTypes } from '@/services/organisation';
 import {
   Select,
   SelectContent,
@@ -20,21 +22,32 @@ interface SchoolType {
   orgsUsing: number;
 }
 
-const SCHOOL_TYPES: SchoolType[] = [
-  { id: 'st-1', name: 'State-funded (Maintained)', description: 'Local authority maintained schools funded directly by the state.', slug: 'state-funded-maintained', country: 'UK', status: 'Active', orgsUsing: 98 },
-  { id: 'st-2', name: 'Academy (Single)', description: 'Single academy trust — independently run but state-funded.', slug: 'academy-single', country: 'UK', status: 'Active', orgsUsing: 72 },
-  { id: 'st-3', name: 'Academy (MAT)', description: 'Part of a multi-academy trust — group of academies under one trust.', slug: 'academy-mat', country: 'UK', status: 'Active', orgsUsing: 45 },
-  { id: 'st-4', name: 'Independent', description: 'Privately funded, not maintained by local authority.', slug: 'independent', country: 'UK', status: 'Active', orgsUsing: 38 },
-  { id: 'st-5', name: 'Free School', description: 'State-funded school with more freedom over curriculum and operations.', slug: 'free-school', country: 'UK', status: 'Active', orgsUsing: 31 },
-  { id: 'st-6', name: 'Special School', description: 'Schools for children with special educational needs.', slug: 'special-school', country: 'UK', status: 'Active', orgsUsing: 18 },
-  { id: 'st-7', name: 'Faith School', description: 'Schools with a religious character or affiliation.', slug: 'faith-school', country: 'UK', status: 'Active', orgsUsing: 10 },
-  { id: 'st-8', name: 'Grammar School', description: 'Selective state-funded schools with entrance exams.', slug: 'grammar-school', country: 'UK', status: 'Deprecated', orgsUsing: 0 },
-];
-
 const AdminSchoolTypes = () => {
   const [showModal, setShowModal] = useState(false);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+
+  const { data: apiSchoolTypes, isLoading, isError, error } = useQuery({
+    queryKey: ['school-types'],
+    queryFn: () => getSchoolTypes(0, 100),
+  });
+
+  const schoolTypes = useMemo(() => {
+    console.log("AdminSchoolTypes - raw API data:", apiSchoolTypes);
+    if (!apiSchoolTypes) return [];
+    
+    const mapped = apiSchoolTypes.map(st => ({
+      id: st.id,
+      name: st.name,
+      description: st.description,
+      slug: st.slug,
+      country: st.country,
+      status: (st.status.charAt(0).toUpperCase() + st.status.slice(1)) as SchoolTypeStatus,
+      orgsUsing: st.orgs_using,
+    }));
+    console.log("AdminSchoolTypes - mapped data:", mapped);
+    return mapped;
+  }, [apiSchoolTypes]);
 
   return (
     <div className="p-7 min-h-screen text-foreground transition-colors duration-300">
@@ -52,82 +65,103 @@ const AdminSchoolTypes = () => {
         </button>
       </div>
 
-      {/* Table */}
+      {/* Table Content */}
       <div className="bg-card border border-border rounded-[10px] transition-colors duration-300">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border">
-              <th className="w-8" />
-              {['Name', 'Slug', 'Country', 'Status', 'Orgs Using', 'Actions'].map((h) => (
-                <th key={h} className="px-4 py-3 text-left text-xs font-semibold tracking-wide text-muted-foreground">{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {SCHOOL_TYPES.map((st) => (
-              <tr
-                key={st.id}
-                className="transition-colors border-b border-border/50 hover:bg-muted/50"
-              >
-                <td className="pl-4 py-4 w-8">
-                  <div className="flex flex-col gap-0.5 cursor-grab opacity-40">
-                    <div className="flex gap-0.5">
-                      <span className="w-1 h-1 rounded-full bg-muted-foreground" />
-                      <span className="w-1 h-1 rounded-full bg-muted-foreground" />
-                    </div>
-                    <div className="flex gap-0.5">
-                      <span className="w-1 h-1 rounded-full bg-muted-foreground" />
-                      <span className="w-1 h-1 rounded-full bg-muted-foreground" />
-                    </div>
-                    <div className="flex gap-0.5">
-                      <span className="w-1 h-1 rounded-full bg-muted-foreground" />
-                      <span className="w-1 h-1 rounded-full bg-muted-foreground" />
-                    </div>
-                  </div>
-                </td>
-                <td className="px-4 py-4">
-                  <p className="font-medium text-foreground">{st.name}</p>
-                  <p className="text-xs mt-0.5 text-muted-foreground/60">{st.description}</p>
-                </td>
-                <td className="px-4 py-4">
-                  <code className="text-xs px-1.5 py-0.5 rounded bg-muted border border-border text-muted-foreground font-mono">
-                    {st.slug}
-                  </code>
-                </td>
-                <td className="px-4 py-4 text-muted-foreground">{st.country}</td>
-                <td className="px-4 py-4">
-                  <span
-                    className={`px-2.5 py-0.5 rounded-full text-xs font-medium border ${
-                      st.status === 'Active'
-                        ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
-                        : "bg-red-500/10 text-red-500 border-red-500/20"
-                    }`}
-                  >
-                    {st.status}
-                  </span>
-                </td>
-                <td className="px-4 py-4 text-center text-muted-foreground">{st.orgsUsing}</td>
-                <td className="px-4 py-4">
-                  <div className="flex items-center gap-3">
-                    <button className="text-muted-foreground hover:text-foreground transition-colors">
-                      <Pencil className="w-4 h-4" />
-                    </button>
-                    {st.status === 'Active' ? (
-                      <button className="text-muted-foreground hover:text-red-500 transition-colors">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    ) : (
-                      <button className="text-muted-foreground hover:text-emerald-500 transition-colors">
-                        <RotateCcw className="w-4 h-4" />
-                      </button>
-                    )}
-                  </div>
-                </td>
+        {isLoading ? (
+          <div className="flex flex-col items-center justify-center py-20 bg-card rounded-b-[10px]">
+            <Loader2 className="w-8 h-8 text-primary animate-spin mb-4" />
+            <p className="text-sm text-muted-foreground">Fetching school types...</p>
+          </div>
+        ) : isError ? (
+          <div className="flex flex-col items-center justify-center py-20 bg-card rounded-b-[10px] text-center px-4">
+            <AlertCircle className="w-8 h-8 text-red-500 mb-4" />
+            <p className="text-sm font-medium text-foreground">Failed to load school types</p>
+            <p className="text-xs text-muted-foreground mt-1 max-w-xs">
+              {error instanceof Error ? error.message : "An unexpected error occurred while fetching the school types list."}
+            </p>
+          </div>
+        ) : schoolTypes.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 bg-card rounded-b-[10px]">
+            <Plus className="w-8 h-8 text-muted-foreground/30 mb-4" />
+            <p className="text-sm text-muted-foreground">No school types found</p>
+          </div>
+        ) : (
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border">
+                <th className="w-8" />
+                {['Name', 'Slug', 'Country', 'Status', 'Orgs Using', 'Actions'].map((h) => (
+                  <th key={h} className="px-4 py-3 text-left text-xs font-semibold tracking-wide text-muted-foreground">{h}</th>
+                ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {schoolTypes.map((st) => (
+                <tr
+                  key={st.id}
+                  className="transition-colors border-b border-border/50 hover:bg-muted/50"
+                >
+                  <td className="pl-4 py-4 w-8">
+                    <div className="flex flex-col gap-0.5 cursor-grab opacity-40">
+                      <div className="flex gap-0.5">
+                        <span className="w-1 h-1 rounded-full bg-muted-foreground" />
+                        <span className="w-1 h-1 rounded-full bg-muted-foreground" />
+                      </div>
+                      <div className="flex gap-0.5">
+                        <span className="w-1 h-1 rounded-full bg-muted-foreground" />
+                        <span className="w-1 h-1 rounded-full bg-muted-foreground" />
+                      </div>
+                      <div className="flex gap-0.5">
+                        <span className="w-1 h-1 rounded-full bg-muted-foreground" />
+                        <span className="w-1 h-1 rounded-full bg-muted-foreground" />
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-4 py-4">
+                    <p className="font-medium text-foreground">{st.name}</p>
+                    <p className="text-xs mt-0.5 text-muted-foreground/60">{st.description}</p>
+                  </td>
+                  <td className="px-4 py-4">
+                    <code className="text-xs px-1.5 py-0.5 rounded bg-muted border border-border text-muted-foreground font-mono">
+                      {st.slug}
+                    </code>
+                  </td>
+                  <td className="px-4 py-4 text-muted-foreground">{st.country}</td>
+                  <td className="px-4 py-4">
+                    <span
+                      className={`px-2.5 py-0.5 rounded-full text-xs font-medium border ${
+                        st.status === 'Active'
+                          ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
+                          : "bg-red-500/10 text-red-500 border-red-500/20"
+                      }`}
+                    >
+                      {st.status}
+                    </span>
+                  </td>
+                  <td className="px-4 py-4 text-center text-muted-foreground">{st.orgsUsing}</td>
+                  <td className="px-4 py-4">
+                    <div className="flex items-center gap-3">
+                      <button className="text-muted-foreground hover:text-foreground transition-colors">
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                      {st.status === 'Active' ? (
+                        <button className="text-muted-foreground hover:text-red-500 transition-colors">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      ) : (
+                        <button className="text-muted-foreground hover:text-emerald-500 transition-colors">
+                          <RotateCcw className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
+
 
       {/* Modal */}
       {showModal && (
