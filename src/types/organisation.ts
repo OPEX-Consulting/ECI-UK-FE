@@ -34,9 +34,22 @@ export interface ApiSchoolType {
   slug: string;
   description: string;
   country: string;
-  status: string;
+  status: string; // "active" | "deprecated"
   orgs_using: number;
   created_at: string;
   updated_at: string;
 }
 
+export interface SchoolTypeCreatePayload {
+  name: string;
+  description: string;
+  country: string;
+  status?: string;
+}
+
+export interface SchoolTypeUpdatePayload {
+  name?: string;
+  description?: string;
+  country?: string;
+  status?: string;
+}
