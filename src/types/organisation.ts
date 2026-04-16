@@ -53,3 +53,28 @@ export interface SchoolTypeUpdatePayload {
   country?: string;
   status?: string;
 }
+
+export interface ApiAdminUser {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+  status: string;
+  invited_by: string;
+  last_login: string;
+  created_at: string;
+}
+
+export interface ApiAuditLog {
+  id: string;
+  actor_id: string;
+  actor_name: string;
+  action: string;
+  category: string;
+  target_id: string | null;
+  target_name: string | null;
+  organisation_id: string;
+  details: Record<string, any> | null;
+  ip_address: string | null;
+  created_at: string;
+}
