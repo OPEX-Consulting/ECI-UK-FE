@@ -50,6 +50,7 @@ const AdminSchoolTypes = () => {
   // ── Modal state ────────────────────────────────────────────────────────────
   const [showModal, setShowModal] = useState(false);
   const [editTarget, setEditTarget] = useState<SchoolTypeRow | null>(null); // null = create mode
+  const [deleteTarget, setDeleteTarget] = useState<SchoolTypeRow | null>(null);
 
   // ── Form state ─────────────────────────────────────────────────────────────
   const [name, setName] = useState("");
@@ -172,10 +173,8 @@ const AdminSchoolTypes = () => {
     updateMutation.mutate({ id: st.id, payload: { status: newStatus } });
   }
 
-  function handleDelete(id: string) {
-    if (window.confirm("Delete this school type? This cannot be undone.")) {
-      deleteMutation.mutate(id);
-    }
+  function handleDelete(st: SchoolTypeRow) {
+    setDeleteTarget(st);
   }
 
   const isBusy = createMutation.isPending || updateMutation.isPending;
@@ -311,7 +310,7 @@ const AdminSchoolTypes = () => {
                         {/* Delete (active) or Restore (deprecated) */}
                         {st.status === "Active" ? (
                           <button
-                            onClick={() => handleDelete(st.id)}
+                            onClick={() => handleDelete(st)}
                             disabled={deleteMutation.isPending}
                             className="disabled:opacity-40 text-muted-foreground hover:text-red-500 transition-colors"
                             title="Delete"
@@ -337,6 +336,66 @@ const AdminSchoolTypes = () => {
           </table>
         )}
       </div>
+
+      {/* ── Delete Confirmation Modal ── */}
+      {deleteTarget && (
+        <div className="z-50 fixed inset-0 flex justify-center items-center bg-black/80 backdrop-blur-sm px-4">
+          <div className="bg-card shadow-2xl p-6 border border-border rounded-xl w-full max-w-sm animate-in duration-200 fade-in zoom-in">
+            <div className="flex flex-col items-center text-center">
+              <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center mb-4">
+                <Trash2 className="w-6 h-6 text-red-500" />
+              </div>
+              <h2 className="text-lg font-semibold">Delete School Type</h2>
+              <p className="text-sm text-muted-foreground mt-2">
+                Are you sure you want to delete{" "}
+                <span className="font-medium text-foreground">
+                  {deleteTarget.name}
+                </span>
+                ? This action cannot be undone.
+              </p>
+
+              {deleteMutation.isError && (
+                <div className="mt-3 w-full px-3 py-2 rounded-lg text-xs font-medium bg-red-500/10 text-red-500 border border-red-500/20">
+                  {deleteMutation.error instanceof Error
+                    ? deleteMutation.error.message
+                    : "Failed to delete. Please try again."}
+                </div>
+              )}
+
+              <div className="flex items-center gap-3 mt-6 w-full">
+                <button
+                  onClick={() => {
+                    setDeleteTarget(null);
+                    deleteMutation.reset();
+                  }}
+                  disabled={deleteMutation.isPending}
+                  className="flex-1 py-2.5 rounded-md text-sm font-medium border border-border hover:bg-muted transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() =>
+                    deleteMutation.mutate(deleteTarget.id, {
+                      onSuccess: () => setDeleteTarget(null),
+                    })
+                  }
+                  disabled={deleteMutation.isPending}
+                  className="flex-1 py-2.5 rounded-md text-sm font-semibold bg-red-500 text-white hover:bg-red-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {deleteMutation.isPending ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Deleting…
+                    </>
+                  ) : (
+                    "Delete"
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Create / Edit Modal */}
       {showModal && (
