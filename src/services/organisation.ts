@@ -2,6 +2,7 @@
 import api from "@/lib/api";
 import {
   ApiOrganisation,
+  ApiOrgDetail,
   ApiSchoolType,
   ApiAdminUser,
   ApiAuditLog,
@@ -18,6 +19,13 @@ export const getOrganisations = async (
   const response = await api.get<ApiOrganisation[]>("/admin/organisations/", {
     params: { skip, limit },
   });
+  return response.data;
+};
+
+export const getOrganisationDetail = async (
+  id: string,
+): Promise<ApiOrgDetail> => {
+  const response = await api.get<ApiOrgDetail>(`/admin/organisations/${id}`);
   return response.data;
 };
 

@@ -78,3 +78,42 @@ export interface ApiAuditLog {
   ip_address: string | null;
   created_at: string;
 }
+
+export interface ApiOrgSchool {
+  official_domain: string;
+  country: string;
+  region_or_local_authority: string;
+  school_type_id: string;
+  funding_governance: string;
+  age_ranges: string[];
+  special_provisions: string[];
+  operational_activities: string[];
+  compliance_summary: Record<string, any> | null;
+}
+
+export interface ApiOrgUser {
+  id?: string;
+  name?: string;
+  email?: string;
+  role?: string;
+  status?: string;
+  last_login?: string;
+}
+
+export interface ApiOrgDetail {
+  id: string;
+  name: string;
+  slug: string;
+  type: string;
+  assigned_frameworks: string[];
+  metadata?: Record<string, any>;
+  school: ApiOrgSchool | null;
+  status: string;
+  created_at: string;
+  updated_at: string;
+  users: ApiOrgUser[];
+  user_count: number;
+  frameworks: any[];
+  framework_count: number;
+  last_activity: string | null;
+}
