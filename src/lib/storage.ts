@@ -4,6 +4,7 @@ const STORAGE_KEYS = {
   INCIDENTS: 'regtech_incidents',
   AUDIT_LOG: 'regtech_audit_log',
   CURRENT_USER: 'regtech_current_user',
+  TOKEN: 'regtech_token',
 };
 
 // Incident Storage
@@ -77,6 +78,18 @@ export const setCurrentUser = (user: User | null): void => {
     localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(user));
   } else {
     localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
+  }
+};
+
+export const getToken = (): string | null => {
+  return localStorage.getItem(STORAGE_KEYS.TOKEN);
+};
+
+export const setToken = (token: string | null): void => {
+  if (token) {
+    localStorage.setItem(STORAGE_KEYS.TOKEN, token);
+  } else {
+    localStorage.removeItem(STORAGE_KEYS.TOKEN);
   }
 };
 

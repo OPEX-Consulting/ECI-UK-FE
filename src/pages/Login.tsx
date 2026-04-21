@@ -12,7 +12,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle, Loader2, Eye, EyeOff } from "lucide-react";
+import { AlertCircle, Loader2, Eye, EyeOff, ShieldCheck } from "lucide-react";
 import edusafeLogo from "@/assets/edusafe-logo.jpg";
 import Navbar from "@/components/landing/Navbar";
 
@@ -22,7 +22,7 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const { login } = useAuth();
+  const { login, user: currentUser } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -33,9 +33,17 @@ const Login = () => {
     const result = await login(email, password);
 
     if (result.success) {
-      navigate("/dashboard");
+      // Redirect based on role — re-read from context via the login result
+      // We need to read the stored user since context hasn't re-rendered yet
+      const stored = localStorage.getItem('regtech_current_user');
+      const loggedInUser = stored ? JSON.parse(stored) : null;
+      if (loggedInUser?.role === 'admin') {
+        navigate('/admin');
+      } else {
+        navigate('/dashboard');
+      }
     } else {
-      setError(result.error || "Login failed");
+      setError(result.error || 'Login failed');
     }
 
     setIsLoading(false);
@@ -55,7 +63,7 @@ const Login = () => {
         <div className="absolute inset-0 bg-black/60 md:bg-black/50"></div>
       </div>
 
-      <div className="relative z-10 w-full max-w-md space-y-6">
+      <div className="relative z-10 w-full mt-10 max-w-md space-y-6">
         {/* Branding Title Only */}
         <div className="flex flex-col items-center space-y-3">
           <div className="text-center">
@@ -140,6 +148,25 @@ const Login = () => {
                   "Sign in"
                 )}
               </Button>
+
+              <div className="relative py-2">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-background px-2 text-muted-foreground">
+                    Or management
+                  </span>
+                </div>
+              </div>
+
+              <Link
+                to="/admin/login"
+                className="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg border border-primary/20 bg-primary/5 hover:bg-primary/10 transition-all text-sm font-bold text-primary group"
+              >
+                <ShieldCheck className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                Login as Admin
+              </Link>
             </form>
           </CardContent>
         </Card>
@@ -151,6 +178,10 @@ const Login = () => {
               Demo Accounts (use any password):
             </p>
             <div className="space-y-1 text-xs text-white">
+              <p>
+                <span className="font-medium">Platform Admin:</span>{" "}
+                emmanuel.adedeji@eci.co.uk
+              </p>
               <p>
                 <span className="font-medium">Principal:</span>{" "}
                 samuel.john@opexconsult.co.uk
