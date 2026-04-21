@@ -199,13 +199,13 @@ const AdminDashboard = () => {
             >
               <CartesianGrid
                 horizontal={false}
-                stroke="oklch(var(--border))"
+                stroke="hsl(var(--border))"
                 opacity={0.5}
               />
               <XAxis
                 type="number"
                 tickCount={5}
-                tick={{ fill: "oklch(var(--muted-foreground))", fontSize: 11 }}
+                tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
                 axisLine={false}
                 tickLine={false}
               />
@@ -213,13 +213,13 @@ const AdminDashboard = () => {
                 type="category"
                 dataKey="name"
                 width={148}
-                tick={{ fill: "oklch(var(--muted-foreground))", fontSize: 11 }}
+                tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
                 axisLine={false}
                 tickLine={false}
               />
               <Tooltip
                 content={<CustomBarTooltip />}
-                cursor={{ fill: "oklch(var(--muted))", opacity: 0.1 }}
+                cursor={{ fill: "hsl(var(--muted))", opacity: 0.1 }}
               />
               <Bar dataKey="value" radius={[0, 4, 4, 0]}>
                 {mappedSchoolTypeData.map((_entry, index) => (
@@ -244,35 +244,35 @@ const AdminDashboard = () => {
               margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
             >
               <CartesianGrid
-                stroke="oklch(var(--border))"
+                stroke="hsl(var(--border))"
                 strokeDasharray="4 4"
               />
               <XAxis
                 dataKey="week"
-                tick={{ fill: "oklch(var(--muted-foreground))", fontSize: 11 }}
+                tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
                 axisLine={false}
                 tickLine={false}
               />
               <YAxis
                 domain={[50, 100]}
-                tick={{ fill: "oklch(var(--muted-foreground))", fontSize: 11 }}
+                tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
                 axisLine={false}
                 tickLine={false}
               />
               <Tooltip
                 content={<CustomLineTooltip />}
-                cursor={{ stroke: "oklch(var(--primary))" }}
+                cursor={{ stroke: "hsl(var(--primary))" }}
               />
               <Line
                 type="monotone"
                 dataKey="score"
-                stroke="oklch(var(--primary))"
+                stroke="hsl(var(--primary))"
                 strokeWidth={2}
-                dot={{ fill: "oklch(var(--primary))", r: 4, strokeWidth: 0 }}
+                dot={{ fill: "hsl(var(--primary))", r: 4, strokeWidth: 0 }}
                 activeDot={{
                   r: 6,
-                  fill: "oklch(var(--primary))",
-                  stroke: "oklch(var(--background))",
+                  fill: "hsl(var(--primary))",
+                  stroke: "hsl(var(--background))",
                   strokeWidth: 2,
                 }}
               />
@@ -294,25 +294,25 @@ const AdminDashboard = () => {
               margin={{ top: 5, right: 10, left: -20, bottom: 0 }}
               barSize={32}
             >
-              <CartesianGrid vertical={false} stroke="oklch(var(--border))" />
+              <CartesianGrid vertical={false} stroke="hsl(var(--border))" />
               <XAxis
                 dataKey="name"
-                tick={{ fill: "oklch(var(--muted-foreground))", fontSize: 11 }}
+                tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
                 axisLine={false}
                 tickLine={false}
               />
               <YAxis
-                tick={{ fill: "oklch(var(--muted-foreground))", fontSize: 11 }}
+                tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
                 axisLine={false}
                 tickLine={false}
               />
               <Tooltip
                 content={<CustomBarTooltip />}
-                cursor={{ fill: "oklch(var(--muted))", opacity: 0.1 }}
+                cursor={{ fill: "hsl(var(--muted))", opacity: 0.1 }}
               />
               <Bar
                 dataKey="value"
-                fill="oklch(var(--primary))"
+                fill="hsl(var(--primary))"
                 radius={[4, 4, 0, 0]}
               >
                 {mappedComplianceDistData.map((_entry, index) => (
@@ -320,10 +320,10 @@ const AdminDashboard = () => {
                     key={`cell-dist-${index}`}
                     fill={
                       index === 2
-                        ? "oklch(var(--primary))"
+                        ? "hsl(var(--primary))"
                         : index === 3
-                          ? "oklch(var(--primary) / 0.7)"
-                          : "oklch(var(--muted))"
+                          ? "hsl(var(--primary) / 0.7)"
+                          : "hsl(var(--muted))"
                     }
                   />
                 ))}
