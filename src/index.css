@@ -8,86 +8,86 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    --background: 99.2% 0.005 95; /* Ivory oklch(0.992 0.005 95) */
-    --foreground: 18% 0.015 170; /* Deep Forest Green oklch(0.18 0.015 170) */
+    --background: 60 20% 98.5%; /* Ivory */
+    --foreground: 165 30% 12%; /* Deep Forest Green */
 
-    --card: 100% 0 0;
-    --card-foreground: 18% 0.015 170;
+    --card: 0 0% 100%;
+    --card-foreground: 165 30% 12%;
 
-    --popover: 100% 0 0;
-    --popover-foreground: 18% 0.015 170;
+    --popover: 0 0% 100%;
+    --popover-foreground: 165 30% 12%;
 
-    --primary: 22% 0.02 170;
-    --primary-foreground: 98.5% 0.005 95;
+    --primary: 165 35% 18%;
+    --primary-foreground: 60 20% 98.5%;
 
-    --secondary: 96% 0.01 170;
-    --secondary-foreground: 18% 0.015 170;
+    --secondary: 165 20% 95%;
+    --secondary-foreground: 165 30% 12%;
 
-    --muted: 48% 0.015 170;
-    --muted-foreground: 48% 0.015 170;
+    --muted: 165 10% 90%;
+    --muted-foreground: 165 10% 40%;
 
-    --accent: 94% 0.01 170;
-    --accent-foreground: 18% 0.015 170;
+    --accent: 165 20% 94%;
+    --accent-foreground: 165 30% 12%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 90% 0.01 95;
-    --input: 90% 0.01 95;
-    --ring: 22% 0.02 170;
+    --border: 60 10% 90%;
+    --input: 60 10% 90%;
+    --ring: 165 35% 18%;
 
     --radius: 0.5rem;
     --radius-card: 22px;
 
     /* Sidebar Light */
-    --sidebar-background: 99.2% 0.005 95;
-    --sidebar-foreground: 18% 0.015 170;
-    --sidebar-primary: 22% 0.02 170;
-    --sidebar-primary-foreground: 98.5% 0.005 95;
-    --sidebar-accent: 94% 0.01 170;
-    --sidebar-accent-foreground: 18% 0.015 170;
-    --sidebar-border: 90% 0.01 95;
-    --sidebar-ring: 22% 0.02 170;
+    --sidebar-background: 60 20% 98.5%;
+    --sidebar-foreground: 165 30% 12%;
+    --sidebar-primary: 165 35% 18%;
+    --sidebar-primary-foreground: 60 20% 98.5%;
+    --sidebar-accent: 165 20% 94%;
+    --sidebar-accent-foreground: 165 30% 12%;
+    --sidebar-border: 60 10% 90%;
+    --sidebar-ring: 165 35% 18%;
   }
 
   .dark {
-    --background: 10% 0.02 170; /* Deep Dark Green oklch(0.1 0.02 170) */
-    --foreground: 98% 0.005 170;
+    --background: 165 40% 6%; /* Very Deep Dark Green */
+    --foreground: 160 20% 98%;
 
-    --card: 12% 0.02 170;
-    --card-foreground: 98% 0.005 170;
+    --card: 165 40% 8%;
+    --card-foreground: 160 20% 98%;
 
-    --popover: 12% 0.02 170;
-    --popover-foreground: 98% 0.005 170;
+    --popover: 165 40% 8%;
+    --popover-foreground: 160 20% 98%;
 
-    --primary: 98.5% 0.005 95;
-    --primary-foreground: 10% 0.02 170;
+    --primary: 160 20% 98%;
+    --primary-foreground: 165 40% 6%;
 
-    --secondary: 15% 0.02 170;
-    --secondary-foreground: 98% 0.005 170;
+    --secondary: 165 30% 12%;
+    --secondary-foreground: 160 20% 98%;
 
-    --muted: 25% 0.02 170;
-    --muted-foreground: 60% 0.01 170;
+    --muted: 165 30% 15%;
+    --muted-foreground: 165 10% 65%;
 
-    --accent: 15% 0.02 170;
-    --accent-foreground: 98% 0.005 170;
+    --accent: 165 30% 12%;
+    --accent-foreground: 160 20% 98%;
 
     --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 98% 0.005 170;
+    --destructive-foreground: 160 20% 98%;
 
-    --border: 15% 0.02 170;
-    --input: 15% 0.02 170;
-    --ring: 98.5% 0.005 95;
+    --border: 165 30% 12%;
+    --input: 165 30% 12%;
+    --ring: 160 20% 98%;
 
     /* Sidebar Dark */
-    --sidebar-background: 12% 0.02 170;
-    --sidebar-foreground: 90% 0.01 170;
-    --sidebar-primary: 98.5% 0.005 95;
-    --sidebar-primary-foreground: 10% 0.02 170;
-    --sidebar-accent: 15% 0.02 170;
-    --sidebar-accent-foreground: 98% 0.005 170;
-    --sidebar-border: 15% 0.02 170;
-    --sidebar-ring: 98.5% 0.005 95;
+    --sidebar-background: 165 40% 8%;
+    --sidebar-foreground: 160 20% 90%;
+    --sidebar-primary: 160 20% 98%;
+    --sidebar-primary-foreground: 165 40% 6%;
+    --sidebar-accent: 165 30% 12%;
+    --sidebar-accent-foreground: 160 20% 98%;
+    --sidebar-border: 165 30% 12%;
+    --sidebar-ring: 160 20% 98%;
   }
 }
 
