@@ -30,7 +30,7 @@ const HowItWorks = () => {
       <div className="container mx-auto px-6 lg:px-8">
         {/* Header */}
         <div className="text-center mb-24">
-          <div className="inline-flex items-center px-3 py-1 rounded-full border border-border bg-white text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-6">
+          <div className="inline-flex items-center px-3 py-1 rounded-full border border-border bg-card text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-6">
             • HOW IT WORKS
           </div>
           <h2 className="font-serif text-[38px] md:text-[44px] font-medium tracking-[-0.02em] leading-[1.1] text-foreground max-w-4xl mx-auto">
@@ -48,7 +48,7 @@ const HowItWorks = () => {
             <div className="space-y-16">
               {steps.map((step, index) => (
                 <div key={index} className="relative flex gap-8 z-10">
-                  <div className="flex-shrink-0 w-[48px] h-[48px] font-serif rounded-xl bg-white border border-border flex items-center justify-center text-[14px] font-bold text-[#2D6A4F] shadow-sm">
+                  <div className="flex-shrink-0 w-[48px] h-[48px] font-serif rounded-xl bg-card border border-border flex items-center justify-center text-[14px] font-bold text-primary shadow-sm transition-colors duration-300">
                     {step.number}
                   </div>
                   <div className="pt-2">
@@ -65,8 +65,8 @@ const HowItWorks = () => {
           </div>
 
           {/* Right Side: Mock UI Card */}
-          <div className="lg:col-span-5 relative mt-12 lg:mt-0">
-            <div className="bg-white rounded-[24px] border border-border shadow-2xl p-0 overflow-hidden animate-fade-in group">
+          <div className="lg:col-span-5 relative mt-12 lg:mt-0 transition-colors duration-300">
+            <div className="bg-card rounded-[24px] border border-border shadow-2xl p-0 overflow-hidden animate-fade-in group">
               <div className="p-6 border-b border-border flex items-center justify-between">
                 <div>
                   <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">
@@ -133,7 +133,7 @@ const HowItWorks = () => {
                 ))}
               </div>
 
-              <div className="p-4 bg-muted/20 flex items-center justify-between px-6">
+              <div className="p-4 bg-muted/40 flex items-center justify-between px-6">
                 <div className="text-[12px] text-muted-foreground font-medium">
                   2 risks require immediate action
                 </div>

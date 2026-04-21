@@ -52,7 +52,7 @@ const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <ThemeProvider defaultTheme="dark" storageKey="eci-admin-theme">
+    <ThemeProvider defaultTheme="light" storageKey="eci-admin-theme">
       <TaskProvider>
         <FrameworkProvider>
           <OnboardingProvider>
