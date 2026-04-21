@@ -1,6 +1,10 @@
 import { Link } from "react-router-dom";
+import { useTheme } from "@/components/theme-provider";
+import { Sun, Moon } from "lucide-react";
 
 const Navbar = () => {
+  const { theme, setTheme } = useTheme();
+
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 w-full border-b border-border bg-background/80 backdrop-blur-md transition-all duration-300">
       <div className="container mx-auto flex h-16 items-center justify-between px-6 lg:px-8">
@@ -31,6 +35,17 @@ const Navbar = () => {
         </div>
 
         <div className="flex items-center gap-5">
+          <button
+            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            className="p-2 rounded-full hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+            title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+          >
+            {theme === "dark" ? (
+              <Sun className="w-[18px] h-[18px]" />
+            ) : (
+              <Moon className="w-[18px] h-[18px]" />
+            )}
+          </button>
           <Link 
             to="/login" 
             className="hidden text-sm font-medium text-foreground/80 hover:text-foreground md:block transition-colors"

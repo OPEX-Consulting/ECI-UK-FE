@@ -2,13 +2,13 @@ import { ArrowRight, ShieldCheck, PieChart, Bell } from 'lucide-react';
 
 const Hero = () => {
   return (
-    <div className="relative min-h-screen w-full pt-28 pb-14 overflow-hidden bg-background">
+    <div className="relative min-h-screen w-full pt-28 pb-14 overflow-hidden bg-background transition-colors duration-500">
       {/* Background patterns - Grid overlay */}
       <div
-        className="absolute inset-0 z-0 opacity-[0.03] pointer-events-none"
+        className="absolute inset-0 z-0 opacity-[0.03] dark:opacity-[0.05] pointer-events-none"
         style={{
           backgroundImage:
-            "linear-gradient(#000 1px, transparent 1px), linear-gradient(90deg, #000 1px, transparent 1px)",
+            "linear-gradient(var(--foreground) 1px, transparent 1px), linear-gradient(90deg, var(--foreground) 1px, transparent 1px)",
           backgroundSize: "40px 40px",
         }}
       ></div>
@@ -16,9 +16,9 @@ const Hero = () => {
       <div className="container relative z-10 mx-auto px-6 lg:px-8">
         <div className="flex flex-col items-center text-center max-w-5xl mx-auto">
           {/* Floating Badge */}
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white border border-primary/10 mb-8 animate-fade-in">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-card border border-border mb-8 animate-fade-in shadow-sm transition-colors duration-300">
             <span className="flex h-2 w-2 rounded-full bg-primary animate-pulse" />
-            <span className="text-[10px] font-semibold uppercase tracking-widest text-foreground/80">
+            <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
               UK Education Compliance Platform
             </span>
           </div>
@@ -26,7 +26,7 @@ const Hero = () => {
           {/* Headline */}
           <h1 className="font-serif text-[62px] md:text-[70px] font-medium tracking-[-0.025em] text-foreground leading-[1.05] mb-8">
             Make compliance a <br />
-            <span className="italic text-[#2a583b]">daily practice</span> — not
+            <span className="italic text-primary">daily practice</span> — not
             an <br />
             annual panic
           </h1>
@@ -43,7 +43,7 @@ const Hero = () => {
             <button className="w-full sm:w-auto rounded-full bg-primary px-8 py-3 text-sm font-semibold text-primary-foreground hover:opacity-90 transition-all shadow-lg flex items-center justify-center gap-2">
               Get started free <ArrowRight className="w-5 h-5" />
             </button>
-            <button className="w-full sm:w-auto rounded-full bg-white border border-border px-8 py-3 text-sm font-semibold text-foreground hover:bg-muted transition-all">
+            <button className="w-full sm:w-auto rounded-full bg-background border border-border px-8 py-3 text-sm font-semibold text-foreground hover:bg-muted transition-all">
               See a demo
             </button>
           </div>

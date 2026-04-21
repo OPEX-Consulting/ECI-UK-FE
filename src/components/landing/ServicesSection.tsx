@@ -55,9 +55,9 @@ const ServicesSection = () => {
           <div className="inline-flex items-center px-3 py-1 rounded-full border border-border bg-white text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-6">
             • WHAT ECI DOES
           </div>
-          <h2 className="font-serif text-[38px] md:text-[44px] font-medium tracking-[-0.02em] leading-[1.1] text-black mb-8">
+          <h2 className="font-serif text-[38px] md:text-[44px] font-medium tracking-[-0.02em] leading-[1.1] text-foreground mb-8">
             Six capabilities.{" "}
-            <span className="text-[#56605d]">
+            <span className="text-muted-foreground">
               One <br />
               compliance system.
             </span>
@@ -69,24 +69,26 @@ const ServicesSection = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-16">
-          {capabilities.map((cap, index) => (
+          {capabilities.map((service, index) => (
             <div
-              key={index}
-              className="group flex flex-col p-10 rounded-[22px] border border-border bg-white hover:border-primary/20 hover:shadow-2xl hover:shadow-primary/5 transition-all duration-300"
+              key={service.title}
+              className="group relative flex flex-col justify-between rounded-[22px] border border-border bg-card p-8 pb-7 transition-all duration-300 hover:shadow-xl hover:shadow-primary/5"
             >
-              <div className="w-12 h-12 rounded-full bg-[#def1e0] flex items-center justify-center mb-8">
-                <cap.icon className="w-6 h-6 text-[#2D6A4F]" />
+              <div>
+                <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-secondary/50 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
+                  <service.icon className="h-7 w-7" />
+                </div>
+                <h3 className="mb-3 font-serif text-[22px] font-bold tracking-tight text-foreground">
+                  {service.title}
+                </h3>
+                <p className="mb-8 text-[15px] leading-relaxed text-muted-foreground">
+                  {service.description}
+                </p>
               </div>
-              <h3 className="text-xl font-semibold mb-4 tracking-tight text-foreground font-serif">
-                {cap.title}
-              </h3>
-              <p className="text-[15px] text-muted-foreground leading-relaxed mb-auto pb-8">
-                {cap.description}
-              </p>
 
-              <div className="pt-6 border-t border-border flex items-center justify-between">
-                <span className="text-[12px] font-medium text-muted-foreground tracking-tight">
-                  {cap.footer}
+              <div className="flex items-center justify-between border-t border-border pt-5">
+                <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/80">
+                  {service.footer}
                 </span>
                 <ArrowRight className="w-4 h-4 text-muted-foreground/50 group-hover:text-primary transition-colors" />
               </div>
@@ -95,16 +97,16 @@ const ServicesSection = () => {
         </div>
 
         {/* Bottom CTA Bar */}
-        <div className="bg-[#FAF9F6] border rounded-3xl px-8 py-4 flex flex-col md:flex-row items-center justify-between gap-6">
+        <div className="bg-secondary/40 border border-border rounded-3xl px-8 py-4 flex flex-col md:flex-row items-center justify-between gap-6 transition-colors duration-300">
           <p className="text-[14px] text-muted-foreground font-medium">
             All six capabilities are included from day one — no add-ons, no
             module fees.
           </p>
           <div className="flex items-center gap-4">
-            <button className="text-sm rounded-full bg-[#1A1A1A] text-white px-6 py-3 text-sm font-semibold hover:bg-black transition-all">
+            <button className="text-sm rounded-full bg-primary text-primary-foreground px-6 py-3 text-sm font-semibold hover:opacity-90 transition-all shadow-sm">
               Get started free
             </button>
-            <button className="text-sm rounded-full bg-white border border-border px-6 py-3 text-sm font-semibold text-foreground hover:bg-muted transition-all">
+            <button className="text-sm rounded-full bg-background border border-border px-6 py-3 text-sm font-semibold text-foreground hover:bg-muted transition-all">
               See pricing
             </button>
           </div>

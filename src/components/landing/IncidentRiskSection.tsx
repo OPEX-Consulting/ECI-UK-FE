@@ -22,12 +22,12 @@ const IncidentRiskSection = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-stretch">
           {/* Incident Reporting Card */}
-          <div className="p-12 rounded-[32px] bg-[#FAF9F6] border border-border flex flex-col">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#E8F1EE] border border-[#D1E2DD] text-[10px] font-bold uppercase tracking-widest text-[#2D6A4F] mb-8 w-fit">
+          <div className="p-12 rounded-[32px] bg-secondary/40 border border-border flex flex-col transition-all duration-300 hover:shadow-xl group">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-[10px] font-bold uppercase tracking-widest text-primary mb-8 w-fit transition-colors">
               <Clock className="w-3.5 h-3.5" />
               INCIDENT REPORTING
             </div>
-            <h3 className="font-serif text-[28px] md:text-[32px] font-medium leading-[1.2] mb-6">
+            <h3 className="font-serif text-[28px] md:text-[32px] font-medium leading-[1.2] mb-6 text-foreground">
               Log any incident in <br />
               under 2 minutes
             </h3>
@@ -42,8 +42,8 @@ const IncidentRiskSection = () => {
                 'H&S incidents with RIDDOR flagging'
               ].map((item) => (
                 <li key={item} className="flex items-center gap-3 text-[14px] text-foreground/80 font-medium">
-                  <div className="w-5 h-5 rounded-full bg-[#def1e0] flex items-center justify-center flex-shrink-0">
-                    <Check className="w-3 h-3 text-[#2D6A4F]" />
+                  <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
+                    <Check className="w-3 h-3" />
                   </div>
                   {item}
                 </li>
@@ -52,12 +52,12 @@ const IncidentRiskSection = () => {
           </div>
 
           {/* Risk Management Card */}
-          <div className="p-12 rounded-[32px] bg-[#FAF9F6] border border-border flex flex-col">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#E8F1EE] border border-[#D1E2DD] text-[10px] font-bold uppercase tracking-widest text-[#2D6A4F] mb-8 w-fit">
+          <div className="p-12 rounded-[32px] bg-secondary/40 border border-border flex flex-col transition-all duration-300 hover:shadow-xl group">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-[10px] font-bold uppercase tracking-widest text-primary mb-8 w-fit transition-colors">
               <ShieldCheck className="w-3.5 h-3.5" />
               RISK MANAGEMENT
             </div>
-            <h3 className="font-serif text-[28px] md:text-[32px] font-medium leading-[1.2] mb-6">
+            <h3 className="font-serif text-[28px] md:text-[32px] font-medium leading-[1.2] mb-6 text-foreground">
               Identify, treat, and close risks <br />
               systematically
             </h3>
@@ -72,8 +72,8 @@ const IncidentRiskSection = () => {
                 'Evidence-backed resolution'
               ].map((item) => (
                 <li key={item} className="flex items-center gap-3 text-[14px] text-foreground/80 font-medium">
-                  <div className="w-5 h-5 rounded-full bg-[#def1e0] flex items-center justify-center flex-shrink-0">
-                    <Check className="w-3 h-3 text-[#2D6A4F]" />
+                  <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
+                    <Check className="w-3 h-3" />
                   </div>
                   {item}
                 </li>
