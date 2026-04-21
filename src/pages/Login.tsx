@@ -50,7 +50,7 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen relative flex items-center justify-center p-4">
+    <div className="min-h-screen relative flex items-center justify-center p-4 bg-background transition-colors duration-500">
       <Navbar />
       {/* Background Image with Overlay */}
       <div
@@ -60,24 +60,24 @@ const Login = () => {
             "url('https://images.unsplash.com/photo-1562774053-701939374585?auto=format&fit=crop&q=80&w=1986')",
         }}
       >
-        <div className="absolute inset-0 bg-black/60 md:bg-black/50"></div>
+        <div className="absolute inset-0 bg-black/60 md:bg-black/50 dark:bg-black/80 transition-colors"></div>
       </div>
 
       <div className="relative z-10 w-full mt-10 max-w-md space-y-6">
         {/* Branding Title Only */}
         <div className="flex flex-col items-center space-y-3">
           <div className="text-center">
-            <h1 className="text-xl font-bold text-white">
+            <h1 className="text-2xl font-serif font-bold text-white mb-2">
               Compliance Intelligence
             </h1>
-            <p className="text-gray-200 text-sm">
+            <p className="text-white/70 text-sm">
               Incident Reporting & Compliance Management
             </p>
           </div>
         </div>
 
         {/* Login Card */}
-        <Card className="shadow-lg">
+        <Card className="shadow-lg bg-card border-border transition-colors">
           <CardHeader className="space-y-1">
             <CardTitle className="text-xl">Sign in</CardTitle>
             <CardDescription>
@@ -103,6 +103,7 @@ const Login = () => {
                   onChange={(e) => setEmail(e.target.value)}
                   required
                   autoComplete="email"
+                  className="bg-background border-border"
                 />
               </div>
 
@@ -117,7 +118,7 @@ const Login = () => {
                     onChange={(e) => setPassword(e.target.value)}
                     required
                     autoComplete="current-password"
-                    className="pr-10"
+                    className="pr-10 bg-background border-border"
                   />
                   <Button
                     type="button"
@@ -138,7 +139,7 @@ const Login = () => {
                 </div>
               </div>
 
-              <Button type="submit" className="w-full" disabled={isLoading}>
+              <Button type="submit" className="w-full bg-primary text-primary-foreground hover:opacity-90" disabled={isLoading}>
                 {isLoading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -151,10 +152,10 @@ const Login = () => {
 
               <div className="relative py-2">
                 <div className="absolute inset-0 flex items-center">
-                  <span className="w-full border-t" />
+                  <span className="w-full border-t border-border" />
                 </div>
                 <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-background px-2 text-muted-foreground">
+                  <span className="bg-card px-2 text-muted-foreground">
                     Or management
                   </span>
                 </div>
@@ -172,26 +173,26 @@ const Login = () => {
         </Card>
 
         {/* Demo Credentials Info */}
-        <Card className="bg-black border-none">
+        <Card className="bg-secondary/50 border border-border backdrop-blur-sm transition-colors">
           <CardContent className="pt-4">
-            <p className="text-sm font-medium text-white mb-2">
+            <p className="text-sm font-medium text-foreground mb-2">
               Demo Accounts (use any password):
             </p>
-            <div className="space-y-1 text-xs text-white">
+            <div className="space-y-1 text-xs text-muted-foreground">
               <p>
-                <span className="font-medium">Platform Admin:</span>{" "}
+                <span className="font-medium text-foreground">Platform Admin:</span>{" "}
                 emmanuel.adedeji@eci.co.uk
               </p>
               <p>
-                <span className="font-medium">Principal:</span>{" "}
+                <span className="font-medium text-foreground">Principal:</span>{" "}
                 samuel.john@opexconsult.co.uk
               </p>
               <p>
-                <span className="font-medium">Officer:</span>{" "}
+                <span className="font-medium text-foreground">Officer:</span>{" "}
                 sammyjay708@gmail.com
               </p>
               <p>
-                <span className="font-medium">Staff:</span>{" "}
+                <span className="font-medium text-foreground">Staff:</span>{" "}
                 john96samuel@gmail.com
               </p>
             </div>

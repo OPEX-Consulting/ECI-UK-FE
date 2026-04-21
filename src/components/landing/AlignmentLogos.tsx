@@ -10,7 +10,7 @@ const bodies = [
 
 const AlignmentLogos = () => {
   return (
-    <section className="py-8 border-y border-border/90 bg-[#faf9f2]">
+    <section className="py-8 border-y border-border bg-secondary/30 transition-colors duration-300">
       <div className="container mx-auto px-6">
         <div className="flex flex-col items-center gap-8">
           <p className="text-[12px] font-medium text-muted-foreground uppercase tracking-widest">
