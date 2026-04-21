@@ -2,14 +2,14 @@ import { ArrowRight, ShieldCheck, PieChart, Bell } from 'lucide-react';
 
 const Hero = () => {
   return (
-    <div className="relative min-h-scree w-full pt-28 pb-14  overflow-hidden bg-background">
+    <div className="relative min-h-screen w-full pt-28 pb-14 overflow-hidden bg-background">
       {/* Background patterns - Grid overlay */}
       <div
-        className="absolute inset-0 z-0 opacity-[0.05] pointer-events-none"
+        className="absolute inset-0 z-0 opacity-[0.03] pointer-events-none"
         style={{
           backgroundImage:
-            "linear-gradient(to right, #000 1px, transparent 1px), linear-gradient(to bottom, #000 1px, transparent 1px)",
-          backgroundSize: "60px 60px",
+            "linear-gradient(#000 1px, transparent 1px), linear-gradient(90deg, #000 1px, transparent 1px)",
+          backgroundSize: "40px 40px",
         }}
       ></div>
 
