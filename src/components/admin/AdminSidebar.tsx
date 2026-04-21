@@ -3,6 +3,17 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/components/theme-provider';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
   LayoutDashboard,
   BookOpen,
   Building2,
@@ -38,7 +49,7 @@ export const AdminSidebar = () => {
 
   const handleLogout = () => {
     logout();
-    navigate('/login');
+    navigate('/admin/login');
   };
 
   return (
@@ -116,13 +127,34 @@ export const AdminSidebar = () => {
               Platform Admin
             </p>
           </div>
-          <button
-            onClick={handleLogout}
-            title="Sign out"
-            className="shrink-0 p-1.5 rounded text-sidebar-foreground opacity-50 hover:text-destructive transition-colors"
-          >
-            <LogOut className="w-4 h-4" />
-          </button>
+          
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <button
+                title="Sign out"
+                className="shrink-0 p-1.5 rounded text-sidebar-foreground opacity-50 hover:text-destructive transition-colors"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            </AlertDialogTrigger>
+            <AlertDialogContent className="bg-popover border-border">
+              <AlertDialogHeader>
+                <AlertDialogTitle className="text-foreground">Are you sure you want to sign out?</AlertDialogTitle>
+                <AlertDialogDescription className="text-muted-foreground">
+                  You will need to enter your credentials again to access the admin console.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel className="bg-secondary text-secondary-foreground border-border">Cancel</AlertDialogCancel>
+                <AlertDialogAction 
+                  onClick={handleLogout}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  Sign Out
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </div>
     </aside>
