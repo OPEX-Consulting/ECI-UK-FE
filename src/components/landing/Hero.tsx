@@ -2,14 +2,14 @@ import { ArrowRight, ShieldCheck, PieChart, Bell } from 'lucide-react';
 
 const Hero = () => {
   return (
-    <div className="relative min-h-screen w-full pt-28 pb-14 overflow-hidden bg-background transition-colors duration-500">
+    <div className="relative w-full pt-28 pb-14 overflow-hidden bg-background transition-colors duration-500">
       {/* Background patterns - Grid overlay */}
       <div
-        className="absolute inset-0 z-0 opacity-[0.03] dark:opacity-[0.05] pointer-events-none"
+        className="absolute inset-0 z-0 opacity-[0.03] dark:opacity-[0.05] pointer-events-none transition-opacity duration-300"
         style={{
           backgroundImage:
-            "linear-gradient(var(--foreground) 1px, transparent 1px), linear-gradient(90deg, var(--foreground) 1px, transparent 1px)",
-          backgroundSize: "40px 40px",
+            "linear-gradient(hsl(var(--foreground)) 1px, transparent 1px), linear-gradient(90deg, hsl(var(--foreground)) 1px, transparent 1px)",
+          backgroundSize: "60px 60px",
         }}
       ></div>
 
@@ -26,7 +26,7 @@ const Hero = () => {
           {/* Headline */}
           <h1 className="font-serif text-[62px] md:text-[70px] font-medium tracking-[-0.025em] text-foreground leading-[1.05] mb-8">
             Make compliance a <br />
-            <span className="italic text-primary">daily practice</span> — not
+            <span className="italic text-[#2a583b]">daily practice</span> — not
             an <br />
             annual panic
           </h1>

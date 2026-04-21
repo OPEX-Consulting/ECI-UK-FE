@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { useTheme } from "@/components/theme-provider";
 import { Sun, Moon } from "lucide-react";
+import edusafeLogo from "@/assets/edusafe-logo.jpg";
 
 const Navbar = () => {
   const { theme, setTheme } = useTheme();
@@ -10,9 +11,11 @@ const Navbar = () => {
       <div className="container mx-auto flex h-16 items-center justify-between px-6 lg:px-8">
         <div className="flex items-center gap-10">
           <Link to="/" className="flex items-center gap-2">
-            <span className="font-serif text-2xl font-bold tracking-tight text-foreground">
-              ECI
-            </span>
+            <img 
+              src={edusafeLogo} 
+              alt="ECI Logo" 
+              className="h-10 w-auto rounded-lg shadow-sm dark:brightness-110 transition-all"
+            />
           </Link>
           
           {/* <div className="hidden items-center gap-6 md:flex">
