@@ -63,7 +63,7 @@ const Login = () => {
         <div className="absolute inset-0 bg-black/60 md:bg-black/50"></div>
       </div>
 
-      <div className="relative z-10 w-full max-w-md space-y-6">
+      <div className="relative z-10 w-full mt-10 max-w-md space-y-6">
         {/* Branding Title Only */}
         <div className="flex flex-col items-center space-y-3">
           <div className="text-center">

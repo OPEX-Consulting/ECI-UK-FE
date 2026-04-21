@@ -1,50 +1,93 @@
-
-import { useState } from 'react';
-import DemoBookingModal from '@/components/landing/DemoBookingModal';
+import { ArrowRight, ShieldCheck, PieChart, Bell } from 'lucide-react';
 
 const Hero = () => {
-  const [isDemoModalOpen, setIsDemoModalOpen] = useState(false);
-
   return (
-    <div className="relative h-screen w-full overflow-hidden">
-      {/* Background Image with Overlay */}
-      <div 
-        className="absolute inset-0 bg-cover bg-center z-0"
+    <div className="relative min-h-scree w-full pt-28 pb-14  overflow-hidden bg-background">
+      {/* Background patterns - Grid overlay */}
+      <div
+        className="absolute inset-0 z-0 opacity-[0.05] pointer-events-none"
         style={{
-          backgroundImage: "url('https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2072&q=80')",
+          backgroundImage:
+            "linear-gradient(to right, #000 1px, transparent 1px), linear-gradient(to bottom, #000 1px, transparent 1px)",
+          backgroundSize: "60px 60px",
         }}
-      >
-        <div className="absolute inset-0 bg-black/60 md:bg-black/50"></div>
-      </div>
+      ></div>
 
-      {/* Content */}
-      <div className="relative z-10 container mx-auto px-6 md:px-12 h-full flex flex-col justify-center">
-        <div className="max-w-3xl pt-20">
-          <h1 className="text-4xl md:text-5xl lg:text-7xl font-serif font-medium text-white leading-tight mb-6">
-            AI-Enabled <br />
-            Compliance for <br />
-            Further Education
+      <div className="container relative z-10 mx-auto px-6 lg:px-8">
+        <div className="flex flex-col items-center text-center max-w-5xl mx-auto">
+          {/* Floating Badge */}
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white border border-primary/10 mb-8 animate-fade-in">
+            <span className="flex h-2 w-2 rounded-full bg-primary animate-pulse" />
+            <span className="text-[10px] font-semibold uppercase tracking-widest text-foreground/80">
+              UK Education Compliance Platform
+            </span>
+          </div>
+
+          {/* Headline */}
+          <h1 className="font-serif text-[62px] md:text-[70px] font-medium tracking-[-0.025em] text-foreground leading-[1.05] mb-8">
+            Make compliance a <br />
+            <span className="italic text-[#2a583b]">daily practice</span> — not
+            an <br />
+            annual panic
           </h1>
-          
-          <p className="text-lg md:text-xl text-gray-200 mb-8 max-w-2xl leading-relaxed">
-            Automate your regulatory requirements, Manage Ofsted,
-            ESFA, Safeguarding, and GDPR in one intelligent
-            platform.
+
+          {/* Subtext */}
+          <p className="text-[16px] md:text-[16px] text-muted-foreground mb-12 max-w-2xl leading-relaxed">
+            ECI gives schools and FE colleges a living compliance system —
+            proactive task management, real-time risk visibility, and inspection
+            readiness. Every day, not just before Ofsted calls.
           </p>
 
-          <button 
-            onClick={() => setIsDemoModalOpen(true)}
-            className="bg-white text-[#1A1A1A] hover:bg-gray-100 transition-colors px-8 py-3 rounded-md font-semibold text-lg"
-          >
-            Book a Demo
-          </button>
+          {/* CTA Buttons */}
+          <div className="flex flex-col sm:flex-row items-center gap-4 w-full justify-center">
+            <button className="w-full sm:w-auto rounded-full bg-primary px-8 py-3 text-sm font-semibold text-primary-foreground hover:opacity-90 transition-all shadow-lg flex items-center justify-center gap-2">
+              Get started free <ArrowRight className="w-5 h-5" />
+            </button>
+            <button className="w-full sm:w-auto rounded-full bg-white border border-border px-8 py-3 text-sm font-semibold text-foreground hover:bg-muted transition-all">
+              See a demo
+            </button>
+          </div>
+          <p className="text-[12px] text-muted-foreground mt-4">
+            No credit card required · Setup in under 10 minutes · UK schools and
+            FE colleges
+          </p>
+
+          {/* Dashboard Preview mockup area */}
+          {/* <div className="relative w-full max-w-[1024px] rounded-[22px] border border-border bg-white shadow-2xl overflow-hidden animate-slide-up">
+            <div className="aspect-[16/10] relative">
+              <img
+                src="https://images.unsplash.com/photo-1460925895917-afdab827c52f?ixlib=rb-4.0.3&auto=format&fit=crop&w=2426&q=80"
+                alt="ECI Compliance Dashboard"
+                className="w-full h-full object-cover"
+              />
+           
+              <div className="absolute top-10 left-10 p-5 rounded-2xl bg-white shadow-xl border border-border flex items-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                  <ShieldCheck className="w-7 h-7 text-primary" />
+                </div>
+                <div className="text-left">
+                  <div className="text-[11px] text-muted-foreground font-bold uppercase tracking-wider">
+                    Overall Health
+                  </div>
+                  <div className="text-2xl font-bold">94.2%</div>
+                </div>
+              </div>
+
+              <div className="absolute bottom-16 right-16 p-5 rounded-2xl bg-white shadow-xl border border-border flex items-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-amber-50 flex items-center justify-center">
+                  <Bell className="w-7 h-7 text-amber-600" />
+                </div>
+                <div className="text-left">
+                  <div className="text-[11px] text-muted-foreground font-bold uppercase tracking-wider">
+                    Active Alerts
+                  </div>
+                  <div className="text-2xl font-bold">3 Pending</div>
+                </div>
+              </div>
+            </div>
+          </div> */}
         </div>
       </div>
-
-      <DemoBookingModal 
-        isOpen={isDemoModalOpen} 
-        onClose={() => setIsDemoModalOpen(false)} 
-      />
     </div>
   );
 };

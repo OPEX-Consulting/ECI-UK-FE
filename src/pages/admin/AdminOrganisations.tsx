@@ -38,10 +38,10 @@ const ComplianceBar = ({ value }: { value: number }) => (
           width: `${value}%`,
           background:
             value >= 70
-              ? "hsl(var(--primary))"
+              ? "oklch(var(--primary))"
               : value >= 30
                 ? "#f59e0b"
-                : "hsl(var(--muted-foreground)/0.4)",
+                : "oklch(var(--muted-foreground)/0.4)",
         }}
       />
     </div>
