@@ -1,38 +1,102 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
-import { saveIncident, generateId, addAuditEntry } from '@/lib/storage';
-import { IncidentType, LOCATIONS } from '@/types/incident';
-import { AppLayout } from '@/components/layout/AppLayout';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Shield, Users, Heart, AlertTriangle, Loader2, Save, Send } from 'lucide-react';
-import { toast } from 'sonner';
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { saveIncident, generateId, addAuditEntry } from "@/lib/storage";
+import {
+  IncidentType,
+  LOCATIONS,
+  Incident,
+  HARDCODED_USERS,
+} from "@/types/incident";
+import { AppLayout } from "@/components/layout/AppLayout";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import {
+  Shield,
+  Users,
+  Heart,
+  AlertTriangle,
+  Loader2,
+  Save,
+  Send,
+  Plus,
+  Calendar,
+  MapPin,
+  User as UserIcon,
+  ChevronRight,
+  Database,
+  Flame,
+  AlertCircle,
+  Clock,
+  CheckCircle2,
+} from "lucide-react";
+import { toast } from "sonner";
+import { MOCK_INCIDENTS } from "@/data/mock-incidents";
+import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { format } from "date-fns";
+import { IncidentDetailsModal } from "@/components/incidents/IncidentDetailsModal";
 
-const incidentTypes: { type: IncidentType; label: string; icon: typeof Shield; description: string }[] = [
-  { 
-    type: 'safeguarding', 
-    label: 'Safeguarding', 
+const incidentTypes: {
+  type: IncidentType;
+  label: string;
+  icon: any;
+  description: string;
+  color: string;
+}[] = [
+  {
+    type: "safeguarding",
+    label: "Safeguarding",
     icon: Shield,
-    description: 'Child protection concerns, abuse, neglect'
+    description: "Child protection concerns, abuse, neglect",
+    color: "text-amber-500",
   },
-  { 
-    type: 'behavioral', 
-    label: 'Behavioral', 
+  {
+    type: "behavioral",
+    label: "Behavioral",
     icon: Users,
-    description: 'Bullying, fights, disruptive behavior'
+    description: "Bullying, fights, disruptive behavior",
+    color: "text-blue-500",
   },
-  { 
-    type: 'health-safety', 
-    label: 'Health & Safety', 
+  {
+    type: "health-safety",
+    label: "Health & Safety",
     icon: Heart,
-    description: 'Injuries, accidents, medical emergencies'
+    description: "Injuries, accidents, medical emergencies",
+    color: "text-rose-500",
+  },
+  {
+    type: "data-protection",
+    label: "Data Protection",
+    icon: Database,
+    description: "Data breaches, GDPR concerns",
+    color: "text-rose-500",
+  },
+  {
+    type: "fire-safety",
+    label: "Fire Safety",
+    icon: Flame,
+    description: "Fire hazards, equipment failure",
+    color: "text-emerald-500",
   },
 ];
 
@@ -40,286 +104,417 @@ const ReportIncident = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedIncident, setSelectedIncident] = useState<Incident | null>(
+    null,
+  );
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+  const [incidents, setIncidents] = useState<Incident[]>(MOCK_INCIDENTS);
+
   const [formData, setFormData] = useState({
-    type: '' as IncidentType | '',
-    studentName: '',
-    location: '',
-    incidentDate: '',
-    incidentTime: '',
-    description: '',
-    immediateAction: '',
+    type: "" as IncidentType | "",
+    title: "",
+    studentName: "",
+    incidentDate: "",
+    incidentTime: "",
+    description: "",
+    immediateAction: "",
+    reportedBy: "",
     isUrgent: false,
   });
 
-  const handleTypeSelect = (type: IncidentType) => {
-    setFormData(prev => ({ ...prev, type }));
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case "under-review":
+        return (
+          <Badge
+            variant="secondary"
+            className="bg-emerald-50 text-emerald-600 border-emerald-100 hover:bg-emerald-100 font-medium px-3 py-1 text-[11px]"
+          >
+            Action in Progress
+          </Badge>
+        );
+      case "submitted":
+        return (
+          <Badge
+            variant="secondary"
+            className="bg-blue-50 text-blue-600 border-blue-100 hover:bg-blue-100 font-medium px-3 py-1 text-[11px]"
+          >
+            Open
+          </Badge>
+        );
+      case "finalized":
+        return (
+          <Badge
+            variant="secondary"
+            className="bg-slate-100 text-slate-500 border-slate-200 hover:bg-slate-200 font-medium px-3 py-1 text-[11px]"
+          >
+            Closed
+          </Badge>
+        );
+      default:
+        return (
+          <Badge
+            variant="outline"
+            className="font-medium px-3 py-1 text-[11px]"
+          >
+            {status}
+          </Badge>
+        );
+    }
+  };
+
+  const getIncidentIcon = (type: IncidentType, isUrgent: boolean) => {
+    const iconBase =
+      "w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0";
+    if (isUrgent) {
+      return (
+        <div className={`${iconBase} bg-rose-50 border border-rose-100`}>
+          <AlertCircle className="w-5 h-5 text-rose-500" />
+        </div>
+      );
+    }
+
+    switch (type) {
+      case "safeguarding":
+        return (
+          <div className={`${iconBase} bg-amber-50 border border-amber-100`}>
+            <AlertTriangle className="w-5 h-5 text-amber-500" />
+          </div>
+        );
+      case "fire-safety":
+        return (
+          <div
+            className={`${iconBase} bg-emerald-50 border border-emerald-100`}
+          >
+            <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+          </div>
+        );
+      default:
+        return (
+          <div className={`${iconBase} bg-rose-50 border border-rose-100`}>
+            <AlertCircle className="w-5 h-5 text-rose-500" />
+          </div>
+        );
+    }
   };
 
   const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (asDraft: boolean) => {
     if (!user) return;
-    
-    // Validation
-    if (!formData.type) {
-      toast.error('Please select an incident type');
-      return;
-    }
-    if (!formData.studentName.trim()) {
-      toast.error('Please enter the student name');
-      return;
-    }
-    if (!formData.location) {
-      toast.error('Please select a location');
-      return;
-    }
-    if (!formData.incidentDate) {
-      toast.error('Please enter the incident date');
-      return;
-    }
-    if (!formData.description.trim()) {
-      toast.error('Please describe the incident');
-      return;
-    }
+
+    if (!formData.type) return toast.error("Please select an incident type");
+    if (!formData.studentName.trim())
+      return toast.error("Please enter the student name");
+    if (!formData.incidentDate)
+      return toast.error("Please enter the incident date");
+    if (!formData.reportedBy)
+      return toast.error("Please select who is reporting this incident");
+    if (!formData.description.trim())
+      return toast.error("Please describe the incident");
 
     setIsSubmitting(true);
-
     const incidentId = generateId();
     const now = new Date().toISOString();
 
-    const incident = {
+    const newIncident: Incident = {
       id: incidentId,
+      title: formData.title.trim(),
       type: formData.type as IncidentType,
-      status: asDraft ? 'draft' as const : 'submitted' as const,
+      status: asDraft ? "under-review" : "submitted",
       studentName: formData.studentName.trim(),
-      location: formData.location,
+      location: "Main Site",
       incidentDate: formData.incidentDate,
-      incidentTime: formData.incidentTime || '00:00',
+      incidentTime: formData.incidentTime || "00:00",
       description: formData.description.trim(),
       immediateAction: formData.immediateAction.trim(),
       isUrgent: formData.isUrgent,
       reporterId: user.id,
-      reporterName: user.name,
+      reporterName: formData.reportedBy || user.name,
       createdAt: now,
       updatedAt: now,
     };
 
-    saveIncident(incident);
-    addAuditEntry({
-      incidentId,
-      action: asDraft ? 'Created as draft' : 'Submitted for review',
-      performedBy: user.id,
-      performedByName: user.name,
-    });
-
-    toast.success(asDraft ? 'Draft saved' : 'Incident submitted for review');
-    navigate('/my-reports');
+    setIncidents((prev) => [newIncident, ...prev]);
+    setIsModalOpen(false);
+    toast.success(asDraft ? "Draft saved" : "Incident submitted for review");
     setIsSubmitting(false);
+
+    // Reset form
+    setFormData({
+      type: "",
+      title: "",
+      studentName: "",
+      incidentDate: "",
+      incidentTime: "",
+      description: "",
+      immediateAction: "",
+      reportedBy: "",
+      isUrgent: false,
+    });
   };
 
   return (
     <AppLayout>
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Report New Incident</h1>
-          <p className="text-muted-foreground text-sm">
-            Document an incident that occurred at the school
-          </p>
+      <div className=" space-y-8 pb-20 animate-in fade-in duration-500">
+        {/* Header */}
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+          <div className="space-y-1">
+            <h1 className="text-2xl font-serif tracking-tight text-foreground">
+              Incident Reports
+            </h1>
+            <p className="text-muted-foreground text-sm font-medium">
+              Log, track and resolve incidents with full audit trail
+            </p>
+          </div>
+
+          <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+            <DialogTrigger asChild>
+              <Button className="bg-[#1e3e35] text-white rounded-md px-6  text-sm shadow-sm transition-all active:scale-95 flex items-center gap-2">
+                <Plus className="w-5 h-5" />
+                Report Incident
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl p-0 border-none shadow-2xl">
+              <div className="p-8 space-y-8">
+                <DialogHeader className="p-0">
+                  <DialogTitle className="text-xl font-serif ">
+                    Report New Incident
+                  </DialogTitle>
+                  <DialogDescription className="text-sm font-light text-muted-foreground">
+                    Document an incident that occurred at the school. All
+                    reports are timestamped and audited.
+                  </DialogDescription>
+                </DialogHeader>
+
+                <div className="space-y-8">
+                  {/* Incident Type Grid */}
+                  <div className="space-y-4">
+                    <Label className="text-sm font-semibold">Category *</Label>
+                    <Select
+                      value={formData.type}
+                      onValueChange={(val) =>
+                        setFormData({ ...formData, type: val as IncidentType })
+                      }
+                    >
+                      <SelectTrigger className="w-full h-12 rounded-2xl border-2 border-border bg-card px-4 text-sm font-bold shadow-sm hover:border-primary/50 transition-all focus:ring-primary/20">
+                        <SelectValue placeholder="Select incident category" />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-2xl border-border shadow-xl p-1">
+                        {incidentTypes.map((t) => (
+                          <SelectItem
+                            key={t.type}
+                            value={t.type}
+                            className="rounded-xl py-3 focus:bg-primary/5 cursor-pointer"
+                          >
+                            <span className="font-bold text-slate-700">
+                              {t.label}
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Form Details */}
+                  <div className="grid grid-cols-1 gap-6">
+                    <div className="space-y-2">
+                      <Label htmlFor="title" className="font-bold">
+                        Incident Title *
+                      </Label>
+                      <Input
+                        id="title"
+                        name="title"
+                        value={formData.title}
+                        onChange={handleInputChange}
+                        className="rounded-xl border-border bg-secondary/30"
+                        placeholder="Briefly describe the incident (e.g. Minor fracture in Gym)"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <Label htmlFor="studentName" className="font-bold">
+                        Student Name / Party Involved *
+                      </Label>
+                      <Input
+                        id="studentName"
+                        name="studentName"
+                        value={formData.studentName}
+                        onChange={handleInputChange}
+                        className="rounded-xl border-border bg-secondary/30"
+                        placeholder="John Doe"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="reportedBy" className="font-bold">
+                        Reported By *
+                      </Label>
+                      <Select
+                        value={formData.reportedBy}
+                        onValueChange={(val) =>
+                          setFormData({ ...formData, reportedBy: val })
+                        }
+                      >
+                        <SelectTrigger
+                          id="reportedBy"
+                          className="rounded-xl border-border bg-secondary/30"
+                        >
+                          <SelectValue placeholder="Select staff member" />
+                        </SelectTrigger>
+                        <SelectContent className="rounded-xl border-border">
+                          {HARDCODED_USERS.map((u) => (
+                            <SelectItem key={u.id} value={u.name}>
+                              {u.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="incidentDate" className="font-bold">
+                        Date *
+                      </Label>
+                      <Input
+                        id="incidentDate"
+                        name="incidentDate"
+                        type="date"
+                        value={formData.incidentDate}
+                        onChange={handleInputChange}
+                        className="rounded-xl border-border bg-secondary/30"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="incidentTime" className="font-bold">
+                        Time
+                      </Label>
+                      <Input
+                        id="incidentTime"
+                        name="incidentTime"
+                        type="time"
+                        value={formData.incidentTime}
+                        onChange={handleInputChange}
+                        className="rounded-xl border-border bg-secondary/30"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="description" className="font-bold">
+                      Description *
+                    </Label>
+                    <Textarea
+                      id="description"
+                      name="description"
+                      value={formData.description}
+                      onChange={handleInputChange}
+                      className="rounded-xl border-border bg-secondary/30 min-h-[120px]"
+                      placeholder="Please provide as much detail as possible..."
+                    />
+                  </div>
+                  <div className="flex gap-4 pt-4 border-t border-border">
+                    <Button
+                      variant="outline"
+                      className="flex-1 rounded-xl h-12 font-bold"
+                      onClick={() => setIsModalOpen(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      className="flex-1 rounded-xl h-12 font-bold bg-primary shadow-lg shadow-primary/20"
+                      onClick={() => handleSubmit(false)}
+                    >
+                      {isSubmitting ? (
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                      ) : (
+                        "Submit Report"
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
 
-        {/* Incident Type Selection */}
-        <Card>
-          <CardHeader>
-            <CardTitle className='text-xl font-semibold'>
-              Incident Type</CardTitle>
-            <CardDescription>Select the category that best describes the incident</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 md:grid-cols-3">
-              {incidentTypes.map(({ type, label, icon: Icon, description }) => (
-                <button
-                  key={type}
-                  type="button"
-                  onClick={() => handleTypeSelect(type)}
-                  className={`p-4 border-2 rounded-lg text-left transition-all ${
-                    formData.type === type
-                      ? type === 'safeguarding'
-                        ? 'border-incident-safeguarding bg-incident-safeguarding-bg'
-                        : type === 'behavioral'
-                        ? 'border-incident-behavioral bg-incident-behavioral-bg'
-                        : 'border-incident-health-safety bg-incident-health-safety-bg'
-                      : 'border-border hover:border-primary/50'
-                  }`}
-                >
-                  <Icon className={`w-6 h-6 mb-2 ${
-                    type === 'safeguarding' ? 'text-incident-safeguarding' :
-                    type === 'behavioral' ? 'text-incident-behavioral' :
-                    'text-incident-health-safety'
-                  }`} />
-                  <p className="font-medium">{label}</p>
-                  <p className="text-sm text-muted-foreground">{description}</p>
-                </button>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+        {/* List of Incidents */}
+        <div className="space-y-4">
+          {incidents.map((incident) => (
+            <Card
+              key={incident.id}
+              className="group rounded-none bg-[#f9fafb] border hover:border-primary/40 hover:shadow-xl hover:shadow-primary/5 transition-all duration-300 rounded-xl overflow-hidden cursor-pointer"
+              onClick={() => {
+                setSelectedIncident(incident);
+                setIsDetailsModalOpen(true);
+              }}
+            >
+              <CardContent className="px-6 py-4 rounded-none">
+                <div className="flex items-center gap-6">
+                  {/* Icon */}
+                  {getIncidentIcon(incident.type, incident.isUrgent)}
 
-        {/* Incident Details */}
-        <Card>
-          <CardHeader>
-           <CardTitle className='text-xl font-semibold'>
-              Incident Details</CardTitle>
-            <CardDescription>Provide information about what happened</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="studentName">Student Name *</Label>
-                <Input
-                  id="studentName"
-                  name="studentName"
-                  placeholder="Full name of student involved"
-                  value={formData.studentName}
-                  onChange={handleInputChange}
-                />
-              </div>
+                  {/* Main Content */}
+                  <div className="flex-1 space-y-2 min-w-0">
+                    <h3 className="text-sm font-medium text-foreground group-hover:text-primary transition-colors">
+                      {incident.description.split(".")[0]}
+                    </h3>
+                    <p className="text-sm text-muted-foreground line-clamp-1 font-medium">
+                      {incident.description
+                        .split(".")
+                        .slice(1)
+                        .join(".")
+                        .trim() || incident.description}
+                    </p>
 
-              <div className="space-y-2">
-                <Label htmlFor="location">Location *</Label>
-                <Select
-                  value={formData.location}
-                  onValueChange={(value) => setFormData(prev => ({ ...prev, location: value }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select location" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {LOCATIONS.map(loc => (
-                      <SelectItem key={loc} value={loc}>{loc}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+                    <div className="flex flex-wrap items-center gap-x-6 gap-y-2 pt-2">
+                      <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground/80">
+                        <span className="capitalize">
+                          {incident.type.replace("-", " ")}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground/80">
+                        <Calendar className="w-3.5 h-3.5" />
+                        {format(new Date(incident.incidentDate), "MMM d, yyyy")}
+                      </div>
+                      <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground/80">
+                        <UserIcon className="w-3.5 h-3.5" />
+                        Reported by {incident.reporterName}
+                      </div>
+                    </div>
+                  </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="incidentDate">Date of Incident *</Label>
-                <Input
-                  id="incidentDate"
-                  name="incidentDate"
-                  type="date"
-                  value={formData.incidentDate}
-                  onChange={handleInputChange}
-                  max={new Date().toISOString().split('T')[0]}
-                />
-              </div>
+                  {/* Right Side Info */}
+                  <div className="hidden md:flex flex-col items-end gap-3 flex-shrink-0">
+                    {getStatusBadge(incident.status)}
+                    <Avatar className="w-8 h-8 border-2 border-background shadow-sm">
+                      <AvatarFallback className="bg-primary text-primary-foreground text-[10px] font-bold">
+                        {incident.reporterName
+                          .split(" ")
+                          .map((n) => n[0])
+                          .join("")}
+                      </AvatarFallback>
+                    </Avatar>
+                  </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="incidentTime">Time of Incident</Label>
-                <Input
-                  id="incidentTime"
-                  name="incidentTime"
-                  type="time"
-                  value={formData.incidentTime}
-                  onChange={handleInputChange}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="description">Description of Incident *</Label>
-              <Textarea
-                id="description"
-                name="description"
-                placeholder="Describe what happened in detail. Include who was involved, what occurred, and any witnesses."
-                value={formData.description}
-                onChange={handleInputChange}
-                rows={5}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="immediateAction">Immediate Action Taken</Label>
-              <Textarea
-                id="immediateAction"
-                name="immediateAction"
-                placeholder="Describe any immediate actions you took in response to the incident."
-                value={formData.immediateAction}
-                onChange={handleInputChange}
-                rows={3}
-              />
-            </div>
-
-            <div className="flex items-center space-x-3 p-4 border border-border rounded-lg">
-              <Switch
-                id="urgent"
-                checked={formData.isUrgent}
-                onCheckedChange={(checked) => setFormData(prev => ({ ...prev, isUrgent: checked }))}
-              />
-              <div className="flex-1">
-                <Label htmlFor="urgent" className="flex items-center gap-2 cursor-pointer">
-                  <AlertTriangle className="w-4 h-4 text-destructive" />
-                  Mark as Urgent
-                </Label>
-                <p className="text-sm text-muted-foreground">
-                  Flag this incident for immediate attention
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {formData.type === 'safeguarding' && (
-          <Alert className="border-incident-safeguarding bg-incident-safeguarding-bg">
-            <Shield className="h-4 w-4 text-incident-safeguarding" />
-            <AlertDescription className="text-foreground">
-              <strong>Safeguarding Notice:</strong> This report will be flagged for immediate 
-              review by the Designated Safeguarding Lead. If a child is in immediate danger, 
-              please also contact emergency services.
-            </AlertDescription>
-          </Alert>
-        )}
-
-        {/* Actions */}
-        <div className="flex flex-col sm:flex-row gap-3 justify-end">
-          <Button 
-            variant="outline" 
-            onClick={() => navigate('/dashboard')}
-            disabled={isSubmitting}
-          >
-            Cancel
-          </Button>
-          <Button 
-            variant="secondary"
-            onClick={() => handleSubmit(true)}
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? (
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            ) : (
-              <Save className="w-4 h-4 mr-2" />
-            )}
-            Save Draft
-          </Button>
-          <Button 
-            onClick={() => handleSubmit(false)}
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? (
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            ) : (
-              <Send className="w-4 h-4 mr-2" />
-            )}
-            Submit for Review
-          </Button>
+                  <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
+                </div>
+              </CardContent>
+            </Card>
+          ))}
         </div>
+
+        <IncidentDetailsModal
+          incident={selectedIncident}
+          isOpen={isDetailsModalOpen}
+          onOpenChange={setIsDetailsModalOpen}
+        />
       </div>
     </AppLayout>
   );
