@@ -127,7 +127,7 @@ const AdminLogin = () => {
               </div>
             </div>
 
-            <div className="flex items-center gap-3 py-2">
+            {/* <div className="flex items-center gap-3 py-2">
               <input
                 type="checkbox"
                 id="remember"
@@ -139,7 +139,7 @@ const AdminLogin = () => {
               >
                 Remember this device for 30 days
               </label>
-            </div>
+            </div> */}
 
             <button
               type="submit"

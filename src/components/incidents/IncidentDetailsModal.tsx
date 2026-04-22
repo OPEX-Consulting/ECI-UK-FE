@@ -211,14 +211,14 @@ export const IncidentDetailsModal = ({
               <div className="flex items-center gap-3">
                 <Badge
                   variant="outline"
-                  className={`capitalize px-3 py-1 rounded-full font-bold text-xs border-blue-100 ${
+                  className={`capitalize px-3 py-1 rounded-full font-bold text-xs border-primary/10 ${
                     status === "submitted"
-                      ? "bg-blue-50 text-blue-700"
+                      ? "bg-blue-500/10 text-blue-700 dark:text-blue-400"
                       : status === "under-review"
-                        ? "bg-amber-50 text-amber-700"
+                        ? "bg-amber-500/10 text-amber-700 dark:text-amber-400"
                         : status === "info-requested"
-                          ? "bg-rose-50 text-rose-700"
-                          : "bg-emerald-50 text-emerald-700"
+                          ? "bg-rose-500/10 text-rose-700 dark:text-rose-400"
+                          : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
                   }`}
                 >
                   {status.replace("-", " ")}
@@ -292,21 +292,21 @@ export const IncidentDetailsModal = ({
               <TabsList className="bg-transparent h-auto p-0 gap-8 justify-start">
                 <TabsTrigger
                   value="details"
-                  className="bg-transparent border-b-2 border-transparent data-[state=active]:border-blue-600 data-[state=active]:bg-transparent rounded-none px-0 py-4 text-sm font-bold shadow-none"
+                  className="bg-transparent border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent rounded-none px-0 py-4 text-sm font-bold shadow-none"
                 >
                   <Eye className="w-4 h-4 mr-2" />
                   Details
                 </TabsTrigger>
                 <TabsTrigger
                   value="audit"
-                  className="bg-transparent border-b-2 border-transparent data-[state=active]:border-blue-600 data-[state=active]:bg-transparent rounded-none px-0 py-4 text-sm font-bold shadow-none"
+                  className="bg-transparent border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent rounded-none px-0 py-4 text-sm font-bold shadow-none"
                 >
                   <History className="w-4 h-4 mr-2" />
                   Incident History
                 </TabsTrigger>
                 <TabsTrigger
                   value="settings"
-                  className="bg-transparent border-b-2 border-transparent data-[state=active]:border-blue-600 data-[state=active]:bg-transparent rounded-none px-0 py-4 text-sm font-bold shadow-none"
+                  className="bg-transparent border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent rounded-none px-0 py-4 text-sm font-bold shadow-none"
                 >
                   <Settings className="w-4 h-4 mr-2" />
                   Settings
@@ -396,7 +396,7 @@ export const IncidentDetailsModal = ({
                   />
                   <div
                     onClick={handleFileClick}
-                    className="border-2 border-dashed border-border rounded-2xl p-10 flex flex-col items-center justify-center gap-4 bg-muted/20 hover:bg-muted/30 transition-colors cursor-pointer group"
+                    className="border-2 border-dashed border-border rounded-2xl p-10 flex flex-col items-center justify-center gap-4 bg-muted/5 hover:bg-muted/10 transition-colors cursor-pointer group"
                   >
                     <div className="w-12 h-12 rounded-full bg-background border border-border flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform">
                       <UploadCloud className="w-6 h-6 text-muted-foreground" />
@@ -417,10 +417,10 @@ export const IncidentDetailsModal = ({
                       {evidenceFiles.map((file, index) => (
                         <div
                           key={index}
-                          className="flex items-center justify-between p-3 rounded-xl border border-border bg-slate-50/50 group/item hover:bg-white hover:border-blue-200 transition-all animate-in slide-in-from-top-2 duration-300"
+                          className="flex items-center justify-between p-3 rounded-xl border border-border bg-muted/30 group/item hover:bg-card hover:border-primary/20 transition-all animate-in slide-in-from-top-2 duration-300"
                         >
                           <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-lg bg-white border border-border flex items-center justify-center shadow-sm">
+                            <div className="w-8 h-8 rounded-lg bg-background border border-border flex items-center justify-center shadow-sm">
                               {file.type.includes("image") ? (
                                 <Image className="w-4 h-4 text-blue-500" />
                               ) : file.name.includes("xls") ||
@@ -465,7 +465,7 @@ export const IncidentDetailsModal = ({
                   </Badge>
                 </div>
 
-                <div className="space-y-6 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px before:h-full before:w-0.5 before:bg-gradient-to-b before:from-blue-100 before:via-slate-100 before:to-transparent">
+                <div className="space-y-6 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px before:h-full before:w-0.5 before:bg-gradient-to-b before:from-primary/10 before:via-muted before:to-transparent">
                   {auditEntries.length > 0 ? (
                     auditEntries.map((entry, index) => (
                       <div
@@ -497,10 +497,10 @@ export const IncidentDetailsModal = ({
                             {entry.details}
                           </p>
                           <div className="flex items-center gap-2 pt-1">
-                            <div className="w-4 h-4 rounded-full bg-slate-100 flex items-center justify-center">
-                              <User className="w-2.5 h-2.5 text-slate-500" />
+                            <div className="w-4 h-4 rounded-full bg-muted flex items-center justify-center">
+                              <User className="w-2.5 h-2.5 text-muted-foreground" />
                             </div>
-                            <span className="text-[10px] font-bold text-slate-500">
+                            <span className="text-[10px] font-bold text-muted-foreground">
                               By {entry.performedByName}
                             </span>
                           </div>
@@ -508,7 +508,7 @@ export const IncidentDetailsModal = ({
                       </div>
                     ))
                   ) : (
-                    <div className="text-center py-12 text-muted-foreground bg-slate-50/50 rounded-2xl border border-dashed">
+                    <div className="text-center py-12 text-muted-foreground bg-muted/10 rounded-2xl border border-dashed">
                       <History className="w-8 h-8 mx-auto mb-3 opacity-20" />
                       <p className="text-sm">No activity recorded yet</p>
                     </div>
@@ -535,7 +535,7 @@ export const IncidentDetailsModal = ({
                           value={selectedAssignee}
                           onValueChange={handleAssigneeChange}
                         >
-                          <SelectTrigger className="h-10 rounded-xl bg-slate-50 border-none shadow-none text-sm">
+                          <SelectTrigger className="h-10 rounded-xl bg-muted/50 border-none shadow-none text-sm">
                             <SelectValue placeholder="Select officer" />
                           </SelectTrigger>
                           <SelectContent className="rounded-xl border-border">
@@ -562,7 +562,7 @@ export const IncidentDetailsModal = ({
                           value={status}
                           onValueChange={handleStatusChange}
                         >
-                          <SelectTrigger className="h-10 rounded-xl bg-slate-50 border-none shadow-none text-sm">
+                          <SelectTrigger className="h-10 rounded-xl bg-muted/50 border-none shadow-none text-sm">
                             <SelectValue placeholder="Update status" />
                           </SelectTrigger>
                           <SelectContent className="rounded-xl border-border">
@@ -588,8 +588,8 @@ export const IncidentDetailsModal = ({
         </div>
 
         {/* Right Column: Discussion */}
-        <div className="w-full md:w-[380px] flex flex-col bg-slate-50/50">
-          <div className="p-6 border-b border-border flex items-center justify-between bg-white">
+        <div className="w-full md:w-[380px] flex flex-col bg-muted/10 md:border-l border-border">
+          <div className="p-6 border-b border-border flex items-center justify-between bg-card">
             <h2 className="font-semibold font-serif text-foreground flex items-center gap-2">
               Discussion
             </h2>
@@ -603,9 +603,9 @@ export const IncidentDetailsModal = ({
                   className={`flex gap-3 ${m.senderName === "You" ? "flex-row-reverse" : ""}`}
                 >
                   {!m.isSystem && (
-                    <Avatar className="w-8 h-8 flex-shrink-0 border border-white shadow-sm">
+                    <Avatar className="w-8 h-8 flex-shrink-0 border-2 border-background shadow-sm">
                       <AvatarImage src={m.avatarUrl} />
-                      <AvatarFallback className="bg-[#1e3e35] text-white text-[10px] font-bold">
+                      <AvatarFallback className="bg-primary/20 text-primary text-[10px] font-bold">
                         {m.senderName
                           .split(" ")
                           .map((n) => n[0])
@@ -627,10 +627,10 @@ export const IncidentDetailsModal = ({
                     <div
                       className={`p-3 rounded-2xl text-sm leading-relaxed shadow-sm ${
                         m.isSystem
-                          ? "bg-white/80 border border-border italic text-muted-foreground w-full"
+                          ? "bg-muted/50 border border-border italic text-muted-foreground w-full"
                           : m.senderName === "You"
                             ? "bg-[#08a86c] text-white rounded-tr-none"
-                            : "bg-white border border-border rounded-tl-none text-foreground"
+                            : "bg-card border border-border rounded-tl-none text-foreground"
                       }`}
                     >
                       {m.content}
@@ -641,7 +641,7 @@ export const IncidentDetailsModal = ({
             </div>
           </ScrollArea>
 
-          <div className="p-6 space-y-4 bg-white border-t border-border">
+          <div className="p-6 space-y-4 bg-card border-t border-border">
             <div className="relative group">
               <Textarea
                 placeholder="Write a message..."
@@ -653,7 +653,7 @@ export const IncidentDetailsModal = ({
                     handleSendMessage();
                   }
                 }}
-                className="min-h-[100px] rounded-xl bg-slate-50 border-border focus:bg-white focus:ring-2 focus:ring-blue-600/20 text-sm p-4 transition-all resize-none shadow-inner"
+                className="min-h-[100px] rounded-xl bg-muted/50 border-border focus:bg-background focus:ring-2 focus:ring-primary/20 text-sm p-4 transition-all resize-none shadow-inner"
               />
               <div className="absolute bottom-3 right-3 flex items-center gap-2">
                 <Button

@@ -24,7 +24,10 @@ import {
   Users,
   CheckSquare,
   BookOpen,
+  Sun,
+  Moon,
 } from 'lucide-react';
+import { useTheme } from '@/components/theme-provider';
 import edusafeLogo from '@/assets/edusafe-logo.jpg';
 
 const getNavItems = (role: string) => {
@@ -92,6 +95,7 @@ import {
     
 export const AppSidebar = () => {
   const { user, logout } = useAuth();
+  const { theme, setTheme } = useTheme();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -144,8 +148,24 @@ export const AppSidebar = () => {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="border-t border-sidebar-border p-4">
-        <div className="flex items-center gap-3 mb-3">
+      <SidebarFooter className="border-t border-sidebar-border p-4 gap-4">
+        {/* Theme Toggle */}
+        <div className="flex items-center justify-between px-2">
+          <span className="text-xs font-medium text-sidebar-foreground opacity-60">Theme</span>
+          <button
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            className="p-1.5 rounded-md border border-sidebar-border hover:bg-sidebar-accent transition-colors"
+            title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+          >
+            {theme === 'dark' ? (
+              <Sun className="w-4 h-4 text-sidebar-foreground" />
+            ) : (
+              <Moon className="w-4 h-4 text-sidebar-foreground" />
+            )}
+          </button>
+        </div>
+
+        <div className="flex items-center gap-3">
           <Avatar className="h-9 w-9">
             <AvatarFallback className="bg-sidebar-accent text-sidebar-accent-foreground text-sm">
               {user.name.split(' ').map(n => n[0]).join('')}
