@@ -1,4 +1,4 @@
-export type UserRole = 'staff' | 'officer' | 'principal';
+export type UserRole = 'staff' | 'officer' | 'principal' | 'admin';
 
 export interface User {
   id: string;
@@ -7,7 +7,7 @@ export interface User {
   role: UserRole;
 }
 
-export type IncidentType = 'safeguarding' | 'behavioral' | 'health-safety';
+export type IncidentType = 'safeguarding' | 'behavioral' | 'health-safety' | 'data-protection' | 'fire-safety';
 
 export type IncidentStatus = 
   | 'draft' 
@@ -20,10 +20,12 @@ export type IncidentSeverity = 'low' | 'medium' | 'high' | 'critical';
 
 export interface Incident {
   id: string;
+  title: string;
   type: IncidentType;
   status: IncidentStatus;
   studentName: string;
   location: string;
+  assignedTo?: string;
   incidentDate: string;
   incidentTime: string;
   description: string;
@@ -64,7 +66,23 @@ export interface AuditEntry {
   details?: string;
 }
 
+export interface Message {
+  id: string;
+  senderName: string;
+  senderRole?: string;
+  content: string;
+  timestamp: string;
+  avatarUrl?: string;
+  isSystem?: boolean;
+}
+
 export const HARDCODED_USERS: User[] = [
+  {
+    id: 'user-admin',
+    email: 'emmanuel.adedeji@eci.co.uk',
+    name: 'Emmanuel Adedeji',
+    role: 'admin',
+  },
   {
     id: 'user-1',
     email: 'samuel.john@opexconsult.co.uk',
