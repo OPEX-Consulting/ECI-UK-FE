@@ -173,7 +173,7 @@ const Login = () => {
         </Card>
 
         {/* Demo Credentials Info */}
-        <Card className="bg-secondary/50 border border-border backdrop-blur-sm transition-colors">
+        {/* <Card className="bg-secondary/50 border border-border backdrop-blur-sm transition-colors">
           <CardContent className="pt-4">
             <p className="text-sm font-medium text-foreground mb-2">
               Demo Accounts (use any password):
@@ -197,7 +197,7 @@ const Login = () => {
               </p>
             </div>
           </CardContent>
-        </Card>
+        </Card> */}
       </div>
     </div>
   );
