@@ -1,10 +1,9 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { saveIncident, generateId, addAuditEntry } from "@/lib/storage";
+import { generateId } from "@/lib/storage";
 import {
   IncidentType,
-  LOCATIONS,
   Incident,
   HARDCODED_USERS,
 } from "@/types/incident";
@@ -21,24 +20,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import {
   Shield,
   Users,
   Heart,
   AlertTriangle,
   Loader2,
-  Save,
-  Send,
   Plus,
   Calendar,
-  MapPin,
   User as UserIcon,
   ChevronRight,
   Database,
   Flame,
   AlertCircle,
-  Clock,
   CheckCircle2,
 } from "lucide-react";
 import { toast } from "sonner";
