@@ -103,9 +103,9 @@ const ServicesSection = () => {
             module fees.
           </p>
           <div className="flex items-center gap-4">
-            <button className="text-sm rounded-full bg-primary text-primary-foreground px-6 py-3 text-sm font-semibold hover:opacity-90 transition-all shadow-sm">
+            {/* <button className="text-sm rounded-full bg-primary text-primary-foreground px-6 py-3 text-sm font-semibold hover:opacity-90 transition-all shadow-sm">
               Get started free
-            </button>
+            </button> */}
             <button className="text-sm rounded-full bg-background border border-border px-6 py-3 text-sm font-semibold text-foreground hover:bg-muted transition-all">
               See pricing
             </button>

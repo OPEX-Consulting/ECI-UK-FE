@@ -123,7 +123,7 @@ const ReportIncident = () => {
         return (
           <Badge
             variant="secondary"
-            className="bg-emerald-50 text-emerald-600 border-emerald-100 hover:bg-emerald-100 font-medium px-3 py-1 text-[11px]"
+            className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20 font-medium px-3 py-1 text-[11px]"
           >
             Action in Progress
           </Badge>
@@ -132,7 +132,7 @@ const ReportIncident = () => {
         return (
           <Badge
             variant="secondary"
-            className="bg-blue-50 text-blue-600 border-blue-100 hover:bg-blue-100 font-medium px-3 py-1 text-[11px]"
+            className="bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20 font-medium px-3 py-1 text-[11px]"
           >
             Open
           </Badge>
@@ -141,7 +141,7 @@ const ReportIncident = () => {
         return (
           <Badge
             variant="secondary"
-            className="bg-slate-100 text-slate-500 border-slate-200 hover:bg-slate-200 font-medium px-3 py-1 text-[11px]"
+            className="bg-slate-500/10 text-slate-700 dark:text-slate-400 border-slate-500/20 font-medium px-3 py-1 text-[11px]"
           >
             Closed
           </Badge>
@@ -163,7 +163,7 @@ const ReportIncident = () => {
       "w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0";
     if (isUrgent) {
       return (
-        <div className={`${iconBase} bg-rose-50 border border-rose-100`}>
+        <div className={`${iconBase} bg-rose-500/10 border border-rose-500/20`}>
           <AlertCircle className="w-5 h-5 text-rose-500" />
         </div>
       );
@@ -172,21 +172,21 @@ const ReportIncident = () => {
     switch (type) {
       case "safeguarding":
         return (
-          <div className={`${iconBase} bg-amber-50 border border-amber-100`}>
+          <div className={`${iconBase} bg-amber-500/10 border border-amber-500/20`}>
             <AlertTriangle className="w-5 h-5 text-amber-500" />
           </div>
         );
       case "fire-safety":
         return (
           <div
-            className={`${iconBase} bg-emerald-50 border border-emerald-100`}
+            className={`${iconBase} bg-emerald-500/10 border border-emerald-500/20`}
           >
             <CheckCircle2 className="w-5 h-5 text-emerald-500" />
           </div>
         );
       default:
         return (
-          <div className={`${iconBase} bg-rose-50 border border-rose-100`}>
+          <div className={`${iconBase} bg-rose-500/10 border border-rose-500/20`}>
             <AlertCircle className="w-5 h-5 text-rose-500" />
           </div>
         );
@@ -270,7 +270,7 @@ const ReportIncident = () => {
 
           <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
             <DialogTrigger asChild>
-              <Button className="bg-[#1e3e35] text-white rounded-md px-6  text-sm shadow-sm transition-all active:scale-95 flex items-center gap-2">
+              <Button className="bg-[#1e3e35] hover:opacity-90 text-white rounded-md px-6 text-sm shadow-sm transition-all active:scale-95 flex items-center gap-2">
                 <Plus className="w-5 h-5" />
                 Report Incident
               </Button>
@@ -300,14 +300,14 @@ const ReportIncident = () => {
                       <SelectTrigger className="w-full h-12 rounded-2xl border-2 border-border bg-card px-4 text-sm font-bold shadow-sm hover:border-primary/50 transition-all focus:ring-primary/20">
                         <SelectValue placeholder="Select incident category" />
                       </SelectTrigger>
-                      <SelectContent className="rounded-2xl border-border shadow-xl p-1">
+                      <SelectContent className="rounded-2xl border-border shadow-xl p-1 bg-popover text-popover-foreground">
                         {incidentTypes.map((t) => (
                           <SelectItem
                             key={t.type}
                             value={t.type}
-                            className="rounded-xl py-3 focus:bg-primary/5 cursor-pointer"
+                            className="rounded-xl py-3 focus:bg-accent cursor-pointer"
                           >
-                            <span className="font-bold text-slate-700">
+                            <span className="font-bold">
                               {t.label}
                             </span>
                           </SelectItem>
@@ -327,7 +327,7 @@ const ReportIncident = () => {
                         name="title"
                         value={formData.title}
                         onChange={handleInputChange}
-                        className="rounded-xl border-border bg-secondary/30"
+                        className="rounded-xl border-border bg-muted/50 focus:bg-background"
                         placeholder="Briefly describe the incident (e.g. Minor fracture in Gym)"
                       />
                     </div>
@@ -343,7 +343,7 @@ const ReportIncident = () => {
                         name="studentName"
                         value={formData.studentName}
                         onChange={handleInputChange}
-                        className="rounded-xl border-border bg-secondary/30"
+                        className="rounded-xl border-border bg-muted/50 focus:bg-background"
                         placeholder="John Doe"
                       />
                     </div>
@@ -359,7 +359,7 @@ const ReportIncident = () => {
                       >
                         <SelectTrigger
                           id="reportedBy"
-                          className="rounded-xl border-border bg-secondary/30"
+                          className="rounded-xl border-border bg-muted/50 focus:bg-background"
                         >
                           <SelectValue placeholder="Select staff member" />
                         </SelectTrigger>
@@ -382,7 +382,7 @@ const ReportIncident = () => {
                         type="date"
                         value={formData.incidentDate}
                         onChange={handleInputChange}
-                        className="rounded-xl border-border bg-secondary/30"
+                        className="rounded-xl border-border bg-muted/50 focus:bg-background"
                       />
                     </div>
                     <div className="space-y-2">
@@ -395,7 +395,7 @@ const ReportIncident = () => {
                         type="time"
                         value={formData.incidentTime}
                         onChange={handleInputChange}
-                        className="rounded-xl border-border bg-secondary/30"
+                        className="rounded-xl border-border bg-muted/50 focus:bg-background"
                       />
                     </div>
                   </div>
@@ -409,7 +409,7 @@ const ReportIncident = () => {
                       name="description"
                       value={formData.description}
                       onChange={handleInputChange}
-                      className="rounded-xl border-border bg-secondary/30 min-h-[120px]"
+                      className="rounded-xl border-border bg-muted/50 focus:bg-background min-h-[120px]"
                       placeholder="Please provide as much detail as possible..."
                     />
                   </div>
@@ -443,7 +443,7 @@ const ReportIncident = () => {
           {incidents.map((incident) => (
             <Card
               key={incident.id}
-              className="group rounded-none bg-[#f9fafb] border hover:border-primary/40 hover:shadow-xl hover:shadow-primary/5 transition-all duration-300 rounded-xl overflow-hidden cursor-pointer"
+              className="group rounded-none bg-card border hover:border-primary/40 hover:shadow-xl hover:shadow-primary/5 transition-all duration-300 rounded-xl overflow-hidden cursor-pointer"
               onClick={() => {
                 setSelectedIncident(incident);
                 setIsDetailsModalOpen(true);
