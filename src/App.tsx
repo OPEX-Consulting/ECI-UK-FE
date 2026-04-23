@@ -41,6 +41,7 @@ import { AdminLayout } from "@/components/admin/AdminLayout";
 import AdminDashboard from "@/pages/admin/AdminDashboard";
 import AdminFrameworks from "@/pages/admin/AdminFrameworks";
 import AdminNewFramework from "@/pages/admin/AdminNewFramework";
+import AdminFrameworkDetail from "@/pages/admin/AdminFrameworkDetail";
 import AdminOrganisations from "@/pages/admin/AdminOrganisations";
 import AdminOrgDetail from "@/pages/admin/AdminOrgDetail";
 import AdminSchoolTypes from "@/pages/admin/AdminSchoolTypes";
@@ -124,6 +125,26 @@ const App = () => (
                     />
                     <Route
                       path="/admin/frameworks/new"
+                      element={
+                        <AdminProtectedRoute>
+                          <AdminLayout>
+                            <AdminNewFramework />
+                          </AdminLayout>
+                        </AdminProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/admin/frameworks/:id"
+                      element={
+                        <AdminProtectedRoute>
+                          <AdminLayout>
+                            <AdminFrameworkDetail />
+                          </AdminLayout>
+                        </AdminProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/admin/frameworks/:id/edit"
                       element={
                         <AdminProtectedRoute>
                           <AdminLayout>
