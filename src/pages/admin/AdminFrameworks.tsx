@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Eye, Pencil, Plus, Search } from 'lucide-react';
+import { Eye, Pencil, Plus, Search, Loader2 } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -8,6 +8,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { getFrameworkDrafts } from '@/services/frameworkService';
+import type { ApiFrameworkDraft } from '@/types/framework';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type FrameworkStatus = 'Published' | 'In Review' | 'Draft' | 'Deprecated';
@@ -22,18 +24,26 @@ interface Framework {
   lastUpdated: string;
 }
 
-// ─── Mock Data ────────────────────────────────────────────────────────────────
-const FRAMEWORKS: Framework[] = [
-  { id: 'fw-1', name: 'Keeping Children Safe in Education (KCSIE)', version: 'v2024.1', status: 'Published', regulator: 'DfE', orgsUsing: 247, lastUpdated: '2024-12-15' },
-  { id: 'fw-2', name: 'ISI Regulatory Compliance', version: 'v3.0', status: 'Published', regulator: 'ISI', orgsUsing: 38, lastUpdated: '2024-11-20' },
-  { id: 'fw-3', name: 'Ofsted EIF Framework', version: 'v2.1', status: 'Published', regulator: 'Ofsted', orgsUsing: 198, lastUpdated: '2024-10-05' },
-  { id: 'fw-4', name: 'Early Years Foundation Stage (EYFS)', version: 'v1.0', status: 'In Review', regulator: 'DfE', orgsUsing: 0, lastUpdated: '2025-03-28' },
-  { id: 'fw-5', name: 'Health & Safety Compliance Framework', version: 'v1.2', status: 'Draft', regulator: 'HSE', orgsUsing: 0, lastUpdated: '2025-04-01' },
-  { id: 'fw-6', name: 'Data Protection in Schools', version: 'v1.0', status: 'Deprecated', regulator: 'ICO', orgsUsing: 15, lastUpdated: '2024-06-10' },
-  { id: 'fw-7', name: 'Prevent Duty Guidance', version: 'v2.0', status: 'Draft', regulator: 'Home Office', orgsUsing: 0, lastUpdated: '2025-04-05' },
-];
-
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+const mapDraftStatus = (status: ApiFrameworkDraft['status']): FrameworkStatus => {
+  switch (status) {
+    case 'published':        return 'Published';
+    case 'ready_for_review': return 'In Review';
+    case 'error':            return 'Deprecated';
+    default:                 return 'Draft';
+  }
+};
+
+const mapDraftToRow = (d: ApiFrameworkDraft): Framework => ({
+  id: d.id,
+  name: d.structured_content?.title ?? `Draft (${d.id.slice(0, 8)}…)`,
+  version: d.structured_content?.version ?? '—',
+  status: mapDraftStatus(d.status),
+  regulator: '—',
+  orgsUsing: 0,
+  lastUpdated: new Date(d.updated_at).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' }),
+});
+
 const statusBadge = (status: FrameworkStatus) => {
   switch (status) {
     case 'Published': return "bg-emerald-500/10 text-emerald-500 border-emerald-500/20";
@@ -50,8 +60,18 @@ const AdminFrameworks = () => {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [frameworks, setFrameworks] = useState<Framework[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
-  const filtered = FRAMEWORKS.filter((fw) => {
+  useEffect(() => {
+    getFrameworkDrafts()
+      .then((drafts) => setFrameworks(drafts.map(mapDraftToRow)))
+      .catch(() => setLoadError('Failed to load frameworks. Please refresh.'))
+      .finally(() => setIsLoading(false));
+  }, []);
+
+  const filtered = frameworks.filter((fw) => {
     const matchesSearch = fw.name.toLowerCase().includes(search.toLowerCase()) ||
       fw.regulator.toLowerCase().includes(search.toLowerCase());
     const matchesStatus = statusFilter === 'all' || fw.status === statusFilter;
@@ -63,7 +83,7 @@ const AdminFrameworks = () => {
       {/* Header */}
       <div className="flex items-start justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold">Framework Library</h1>
+          <h1 className="text-xl font-semibold font-serif">Framework Library</h1>
           <p className="text-sm mt-1 text-muted-foreground">
             Manage compliance frameworks across the platform
           </p>
@@ -119,7 +139,27 @@ const AdminFrameworks = () => {
             </tr>
           </thead>
           <tbody>
-            {filtered.map((fw) => (
+            {isLoading ? (
+              <tr>
+                <td colSpan={7} className="px-5 py-12 text-center text-muted-foreground">
+                  <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2" />
+                  Loading frameworks…
+                </td>
+              </tr>
+            ) : loadError ? (
+              <tr>
+                <td colSpan={7} className="px-5 py-12 text-center text-red-500 text-sm">
+                  {loadError}
+                </td>
+              </tr>
+            ) : filtered.length === 0 ? (
+              <tr>
+                <td colSpan={7} className="px-5 py-12 text-center text-muted-foreground text-sm">
+                  No frameworks found.
+                </td>
+              </tr>
+            ) : (
+              filtered.map((fw) => (
               <tr
                 key={fw.id}
                 className="transition-colors border-b border-border/50 hover:bg-muted/50"
@@ -138,18 +178,27 @@ const AdminFrameworks = () => {
                 <td className="px-5 py-4 text-muted-foreground">{fw.lastUpdated}</td>
                 <td className="px-5 py-4">
                   <div className="flex items-center gap-3">
-                    <button className="transition-colors text-muted-foreground hover:text-foreground">
+                    <button
+                      onClick={() => navigate(`/admin/frameworks/${fw.id}`)}
+                      className="transition-colors text-muted-foreground hover:text-foreground"
+                      title="View"
+                    >
                       <Eye className="w-4 h-4" />
                     </button>
                     {fw.status !== 'Published' && (
-                      <button className="transition-colors text-muted-foreground hover:text-foreground">
+                      <button
+                        onClick={() => navigate(`/admin/frameworks/${fw.id}/edit`)}
+                        className="transition-colors text-muted-foreground hover:text-foreground"
+                        title="Edit"
+                      >
                         <Pencil className="w-4 h-4" />
                       </button>
                     )}
                   </div>
                 </td>
               </tr>
-            ))}
+            ))
+            )}
           </tbody>
         </table>
       </div>

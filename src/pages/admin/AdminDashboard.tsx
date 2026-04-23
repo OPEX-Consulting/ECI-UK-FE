@@ -145,7 +145,7 @@ const AdminDashboard = () => {
     <div className="space-y-6 p-7 transition-colors duration-300">
       {/* Page Header */}
       <div>
-        <h1 className="font-bold text-foreground text-2xl">Dashboard</h1>
+        <h1 className="font-semibold text-foreground text-xl font-serif">Dashboard</h1>
         <p className="mt-0.5 text-muted-foreground text-sm">
           Real-time overview of the ECI ecosystem
         </p>

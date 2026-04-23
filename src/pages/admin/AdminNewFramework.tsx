@@ -1,5 +1,16 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
+import { toast } from 'sonner';
+import {
+  uploadFrameworkDocument,
+  createFrameworkFromUrl,
+  createFrameworkFromText,
+  getFrameworkDraft,
+  updateFrameworkStructure,
+  publishFramework,
+} from '@/services/frameworkService';
+import type { ApiFrameworkDraft, ApiFramework } from '@/types/framework';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { 
   ArrowLeft, Upload, Link2, FileText, Sparkles, 
   Check, ChevronRight, X, File, AlertCircle, 
@@ -18,8 +29,6 @@ import {
 
 type Stage = 'UPLOAD' | 'PROCESSING' | 'EDIT' | 'REVIEW' | 'PUBLISH';
 type UploadMode = 'file' | 'url' | 'text';
-type UserRole = 'Platform Admin' | 'Content Contributor';
-
 interface EvidenceRequirement {
   id: string;
   description: string;
@@ -55,9 +64,134 @@ interface FrameworkDraft {
   themes: Theme[];
 }
 
-// --- Mock Data ---
+// ── API ↔ UI data mappers ────────────────────────────────────────────────────
 
-const MOCK_USER_ROLE: UserRole = 'Platform Admin'; // Change to test roles
+const mapApiDraftToUiFramework = (draft: ApiFrameworkDraft): FrameworkDraft => {
+  const sc = draft.structured_content;
+  // If structured_content exists (after a PATCH/save), use it directly.
+  if (sc) {
+    return {
+      name: sc.title,
+      description: sc.description ?? '',
+      themes: sc.themes.map((t) => ({
+        id: t.id,
+        name: t.title,
+        isExpanded: true,
+        tasks: t.tasks.map((task) => ({
+          id: task.id,
+          title: task.title,
+          description: task.description ?? '',
+          isExpanded: false,
+          actionItems: task.action_items.map((ai) => ({
+            id: ai.id,
+            title: ai.title,
+            description: ai.description ?? '',
+            evidence: {
+              id: ai.evidence_specs[0]?.id ?? `ev-${ai.id}`,
+              description:
+                ai.evidence_specs[0]?.description ??
+                ai.evidence_specs[0]?.title ??
+                '',
+              acceptedFormats: ['PDF'],
+              isMandatory: ai.evidence_specs[0]?.required ?? true,
+            },
+          })),
+        })),
+      })),
+    };
+  }
+
+  // Fall back: map the AI raw_ai_output (action_title / evidence_requirements schema)
+  // into a single theme so the editor is pre-populated after AI completes.
+  const rawTasks = (() => {
+    try {
+      const aiOutput = draft.raw_ai_output?.ai_output;
+      if (!Array.isArray(aiOutput)) return [];
+      return aiOutput as Record<string, unknown>[];
+    } catch {
+      return [];
+    }
+  })();
+
+  if (rawTasks.length > 0) {
+    return {
+      name: 'Extracted Framework',
+      description: '',
+      themes: [{
+        id: `theme-ai-${draft.id}`,
+        name: 'AI-Extracted Requirements',
+        isExpanded: true,
+        tasks: rawTasks.map((t, i) => {
+          const evidenceList = Array.isArray(t.evidence_requirements)
+            ? (t.evidence_requirements as Record<string, unknown>[])
+            : [];
+          const firstEvidence = evidenceList[0] ?? {};
+          const actionItemId = `ai-${draft.id}-${i}`;
+          return {
+            id: `task-ai-${i}`,
+            title: String(t.action_title ?? `Task ${i + 1}`),
+            description: String(t.action_description ?? ''),
+            isExpanded: false,
+            actionItems: [{
+              id: actionItemId,
+              title: String(firstEvidence.label ?? 'Evidence'),
+              description: String(firstEvidence.description ?? ''),
+              evidence: {
+                id: actionItemId,
+                description: String(firstEvidence.description ?? ''),
+                acceptedFormats: Array.isArray(firstEvidence.accepted_formats)
+                  ? (firstEvidence.accepted_formats as string[])
+                  : ['PDF'],
+                isMandatory: Boolean(firstEvidence.required ?? true),
+              },
+            }],
+          };
+        }),
+      }],
+    };
+  }
+
+  return { name: '', description: '', themes: [] };
+};
+
+const mapUiFrameworkToApi = (
+  ui: FrameworkDraft,
+  base?: ApiFrameworkDraft,
+): ApiFramework => ({
+  id: base?.structured_content?.id ?? crypto.randomUUID(),
+  title: ui.name,
+  slug:
+    base?.structured_content?.slug ??
+    ui.name.toLowerCase().replace(/\s+/g, '-'),
+  description: ui.description || undefined,
+  version: base?.structured_content?.version ?? '1.0.0',
+  is_published: false,
+  themes: ui.themes.map((t) => ({
+    id: t.id,
+    title: t.name,
+    tasks: t.tasks.map((task) => ({
+      id: task.id,
+      title: task.title,
+      description: task.description || undefined,
+      action_items: task.actionItems.map((ai) => ({
+        id: ai.id,
+        title: ai.title,
+        description: ai.description || undefined,
+        evidence_specs: ai.evidence
+          ? [{
+              id: ai.evidence.id,
+              title: ai.evidence.description,
+              description: ai.evidence.description,
+              required: ai.evidence.isMandatory,
+            }]
+          : [],
+      })),
+    })),
+  })),
+  created_at:
+    base?.structured_content?.created_at ?? new Date().toISOString(),
+  updated_at: new Date().toISOString(),
+});
 
 // --- Components ---
 
@@ -112,82 +246,125 @@ const Stepper = ({ currentStage }: { currentStage: Stage }) => {
 
 const AdminNewFramework = () => {
   const navigate = useNavigate();
+  const { id: editId } = useParams<{ id?: string }>();
+  const isEditMode = !!editId;
+  const { user } = useCurrentUser();
+  const canPublish =
+    user?.role === 'platform_admin' || user?.role === 'super_admin';
+
   const [stage, setStage] = useState<Stage>('UPLOAD');
   const [uploadMode, setUploadMode] = useState<UploadMode>('file');
   const [uploadedFile, setUploadedFile] = useState<{ name: string; size: string } | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [url, setUrl] = useState('');
   const [rawText, setRawText] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
-  
+  const [draftId, setDraftId] = useState<string | null>(null);
+  const [apiDraft, setApiDraft] = useState<ApiFrameworkDraft | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   // Framework Data State
   const [framework, setFramework] = useState<FrameworkDraft>({
     name: '',
     description: '',
-    themes: []
+    themes: [],
   });
 
-  // Stage 1: Upload Logic
-  const handleStartExtraction = () => {
-    setIsUploading(true);
-    let progress = 0;
-    const interval = setInterval(() => {
-      progress += Math.random() * 30;
-      if (progress >= 100) {
-        progress = 100;
-        clearInterval(interval);
-        setTimeout(() => {
-          // Mock data generation after "processing"
-          setFramework({
-            name: 'Safeguarding and Child Protection Framework',
-            description: 'Comprehensive framework for maintaining school safety and pupil welfare in accordance with national statutory guidance.',
-            themes: [
-              {
-                id: 'theme-1',
-                name: 'Core Safeguarding Policies',
-                isExpanded: true,
-                tasks: [
-                  {
-                    id: 'task-1-1',
-                    title: 'Policy Maintenance & Review',
-                    description: 'Ensure all safeguarding policies are updated annually and approved by the governing body.',
-                    isExpanded: true,
-                    actionItems: [
-                      {
-                        id: 'ai-1-1-1',
-                        title: 'Annual Safeguarding Review',
-                        description: 'Review the current policy against latest DfE guidance.',
-                        evidence: {
-                          id: 'ev-1-1-1',
-                          description: 'Signed board minutes approving the policy',
-                          acceptedFormats: ['PDF'],
-                          isMandatory: true
-                        }
-                      }
-                    ]
-                  }
-                ]
-              },
-              {
-                id: 'theme-2',
-                name: 'Staff Training & Recruitment',
-                isExpanded: false,
-                tasks: []
-              }
-            ]
-          });
-          setStage('PROCESSING');
-          setIsUploading(false);
-        }, 500);
-      }
-      setUploadProgress(progress);
-    }, 400);
+  // Edit mode: load existing draft and jump straight to EDIT stage
+  useEffect(() => {
+    if (!isEditMode || !editId) return;
+    getFrameworkDraft(editId)
+      .then((draft) => {
+        setDraftId(draft.id);
+        setApiDraft(draft);
+        setFramework(mapApiDraftToUiFramework(draft));
+        setStage('EDIT');
+      })
+      .catch(() => {
+        toast.error('Failed to load draft. Returning to frameworks list.');
+        navigate('/admin/frameworks');
+      });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editId]);
+
+  const handleFileSelect = (file: File) => {
+    setSelectedFile(file);
+    const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
+    setUploadedFile({ name: file.name, size: `${sizeMB} MB` });
   };
 
-  const isReadyToExtract = 
-    (uploadMode === 'file' && uploadedFile) || 
-    (uploadMode === 'url' && url) || 
+  // Stage 1: Upload → real API
+  const handleStartExtraction = async () => {
+    setIsUploading(true);
+    setUploadProgress(0);
+    setSubmitError(null);
+    try {
+      let draft: ApiFrameworkDraft;
+      if (uploadMode === 'file' && selectedFile) {
+        draft = await uploadFrameworkDocument(selectedFile, setUploadProgress);
+      } else if (uploadMode === 'url') {
+        draft = await createFrameworkFromUrl(url);
+      } else {
+        draft = await createFrameworkFromText(rawText);
+      }
+      setDraftId(draft.id);
+      setApiDraft(draft);
+      setStage('PROCESSING');
+    } catch (err: unknown) {
+      const msg =
+        err instanceof Error ? err.message : 'Upload failed. Please try again.';
+      setSubmitError(msg);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleFrameworkReady = (draft: ApiFrameworkDraft) => {
+    setApiDraft(draft);
+    setFramework(mapApiDraftToUiFramework(draft));
+    setStage('EDIT');
+  };
+
+  const handleSaveDraft = async () => {
+    if (!draftId || !apiDraft) return;
+    try {
+      const updated = await updateFrameworkStructure(
+        draftId,
+        mapUiFrameworkToApi(framework, apiDraft),
+      );
+      setApiDraft(updated);
+      toast.success('Draft saved');
+    } catch {
+      toast.error('Failed to save draft');
+    }
+  };
+
+  const handlePublishOrSubmit = async () => {
+    if (!draftId) return;
+    try {
+      if (canPublish) {
+        await publishFramework(draftId);
+      } else if (apiDraft) {
+        // Content contributors save their edits; platform admins publish later.
+        await updateFrameworkStructure(
+          draftId,
+          mapUiFrameworkToApi(framework, apiDraft),
+        );
+      }
+      setStage('PUBLISH');
+    } catch {
+      toast.error(
+        canPublish ? 'Failed to publish framework' : 'Failed to submit for review',
+      );
+    }
+  };
+
+  const isReadyToExtract =
+    (uploadMode === 'file' && !!selectedFile) ||
+    (uploadMode === 'url' && url.trim().length > 0) ||
     (uploadMode === 'text' && rawText.length > 50);
 
   return (
@@ -202,7 +379,7 @@ const AdminNewFramework = () => {
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div>
-            <h1 className="text-xl font-bold">Create New Framework</h1>
+            <h1 className="text-xl font-semibold font-mono">Create New Framework</h1>
             <div className="flex items-center gap-2 mt-0.5">
               <span className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground/60">Portal</span>
               <div className="w-1 h-1 rounded-full bg-muted-foreground/30" />
@@ -273,7 +450,8 @@ const AdminNewFramework = () => {
                           onDrop={(e) => {
                             e.preventDefault();
                             setIsDragging(false);
-                            setUploadedFile({ name: 'Safeguarding_Guidance_2025.pdf', size: '2.4 MB' });
+                            const file = e.dataTransfer.files?.[0];
+                            if (file) handleFileSelect(file);
                           }}
                         >
                           <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-4">
@@ -282,11 +460,21 @@ const AdminNewFramework = () => {
                           <p className="text-sm font-medium mb-1">Drag and drop your file here</p>
                           <p className="text-xs text-muted-foreground mb-4">PDF, DOCX, DOC, TXT up to 50MB</p>
                           <button 
-                            onClick={() => setUploadedFile({ name: 'Safeguarding_Guidance_2025.pdf', size: '2.4 MB' })}
+                            onClick={() => fileInputRef.current?.click()}
                             className="px-4 py-2 rounded-lg bg-background border border-border text-sm font-medium hover:bg-accent transition-colors"
                           >
                             Select File
                           </button>
+                          <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept=".pdf,.docx,.doc,.txt"
+                            className="hidden"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) handleFileSelect(file);
+                            }}
+                          />
                         </div>
                       ) : (
                         <div className="bg-muted/30 border border-border rounded-xl p-5 flex items-center justify-between animate-in zoom-in-95 duration-200">
@@ -352,6 +540,12 @@ const AdminNewFramework = () => {
 
                 {/* Status & CTA */}
                 <div className="mt-10">
+                  {submitError && (
+                    <div className="mb-4 flex items-center gap-2 p-3 rounded-lg bg-red-500/5 border border-red-500/20 text-red-500 text-xs font-medium">
+                      <AlertCircle className="w-4 h-4 shrink-0" />
+                      {submitError}
+                    </div>
+                  )}
                   {isUploading ? (
                     <div className="space-y-4">
                       <div className="flex justify-between items-end mb-1">
@@ -384,15 +578,21 @@ const AdminNewFramework = () => {
           </div>
         )}
 
-        {stage === 'PROCESSING' && (
-          <StageProcessing onFinish={() => setStage('EDIT')} />
+        {stage === 'PROCESSING' && draftId && (
+          <StageProcessing
+            draftId={draftId}
+            onFrameworkReady={handleFrameworkReady}
+          />
         )}
 
         {stage === 'EDIT' && (
           <StageEdit 
             framework={framework} 
             setFramework={setFramework} 
-            onNext={() => setStage('REVIEW')} 
+            onNext={() => setStage('REVIEW')}
+            onSaveDraft={handleSaveDraft}
+            canPublish={canPublish}
+            sourceText={apiDraft?.normalized_text ?? null}
           />
         )}
 
@@ -400,24 +600,28 @@ const AdminNewFramework = () => {
           <StageReview 
             framework={framework} 
             onBack={() => setStage('EDIT')} 
-            onNext={() => setStage('PUBLISH')} 
+            onNext={handlePublishOrSubmit}
+            canPublish={canPublish}
           />
         )}
 
         {stage === 'PUBLISH' && (
-          <StagePublish frameworkName={framework.name} />
+          <StagePublish frameworkName={framework.name} canPublish={canPublish} />
         )}
       </div>
     </div>
   );
-};;
+};
 
 // --- Sub-components for Stages ---
 
-const StageEdit = ({ framework, setFramework, onNext }: { 
+const StageEdit = ({ framework, setFramework, onNext, onSaveDraft, canPublish, sourceText }: { 
   framework: FrameworkDraft; 
   setFramework: (f: FrameworkDraft) => void;
   onNext: () => void;
+  onSaveDraft: () => Promise<void>;
+  canPublish: boolean;
+  sourceText: string | null;
 }) => {
   const updateTheme = (themeId: string, updates: Partial<Theme>) => {
     setFramework({
@@ -453,7 +657,7 @@ const StageEdit = ({ framework, setFramework, onNext }: {
   return (
     <div className="flex-1 flex gap-6 overflow-hidden mt-2 animate-in fade-in duration-500">
       {/* Left Panel: Source */}
-      <div className="w-[40%] flex flex-col bg-card border border-border rounded-2xl overflow-hidden">
+      <div className="w-full flex flex-col bg-card border border-border rounded-2xl overflow-hidden">
         <div className="p-4 border-b border-border bg-muted/30 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <FileText className="w-4 h-4 text-muted-foreground" />
@@ -463,170 +667,27 @@ const StageEdit = ({ framework, setFramework, onNext }: {
             <Search className="w-3.5 h-3.5 text-muted-foreground" />
           </button>
         </div>
-        <div className="flex-1 p-6 overflow-y-auto font-serif text-sm leading-relaxed text-muted-foreground/80 bg-background/50">
-          <h3 className="text-foreground font-bold mb-4">Keeping Children Safe in Education 2024</h3>
-          <p className="mb-4">Statutory guidance for schools and colleges in England...</p>
-          <p className="mb-4"><strong>Part one: Safeguarding information for all staff</strong></p>
-          <p className="mb-4">Governing bodies and proprietors should ensure that all staff undergo safeguarding and child protection training (including online safety which, amongst other things, includes an understanding of the expectations, applicable roles and responsibilities in relation to filtering and monitoring) at induction.</p>
-          <p className="mb-4">The training should be updated regularly. In addition, all staff should receive safeguarding and child protection updates (for example, via email, e-bulletins, and staff meetings), as required, and at least annually, to provide them with relevant skills and knowledge to safeguard children effectively.</p>
-          {Array(20).fill(0).map((_, i) => (
-            <p key={i} className="mb-4">
-              Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
-            </p>
-          ))}
+        <div className="flex w-full p-6 overflow-y-auto font-mono text-xs leading-relaxed text-muted-foreground/80 bg-background/50 break-words">
+          {sourceText ? (
+            sourceText
+          ) : (
+            <span className="italic text-muted-foreground/50">Source document text not available.</span>
+          )}
         </div>
       </div>
 
-      {/* Right Panel: Editor */}
-      <div className="flex-1 flex flex-col bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
-        <div className="p-4 border-b border-border bg-muted/30 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-primary" />
-            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">AI-Generated Structure</span>
-          </div>
-          <div className="flex items-center gap-3">
-             <span className="text-[10px] text-muted-foreground font-medium">All changes saved</span>
-             <div className="w-[1px] h-3 bg-border" />
-             <button className="text-[10px] font-bold text-primary hover:underline">Re-generate</button>
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-8 space-y-8 scrollbar-thin">
-          <div className="space-y-4 pb-8 border-b border-border/50">
-            <input 
-              value={framework.name}
-              onChange={(e) => setFramework({ ...framework, name: e.target.value })}
-              className="w-full bg-transparent text-2xl font-bold outline-none border-b border-transparent focus:border-primary/30 transition-colors"
-              placeholder="Framework Name"
-            />
-            <textarea 
-              value={framework.description}
-              onChange={(e) => setFramework({ ...framework, description: e.target.value })}
-              className="w-full bg-transparent text-sm text-muted-foreground outline-none resize-none min-h-[60px]"
-              placeholder="Provide a brief description of this framework..."
-            />
-          </div>
-
-          <div className="space-y-6">
-            {framework.themes.map((theme) => (
-              <div key={theme.id} className="group border border-border rounded-xl overflow-hidden bg-background/40 hover:border-primary/20 transition-all">
-                <div className="flex items-center p-4 bg-muted/20 border-b border-border/10">
-                  <GripVertical className="w-4 h-4 text-muted-foreground/30 cursor-grab active:cursor-grabbing mr-2" />
-                  <button 
-                    onClick={() => updateTheme(theme.id, { isExpanded: !theme.isExpanded })}
-                    className="p-1 rounded hover:bg-muted mr-2"
-                  >
-                    {theme.isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                  </button>
-                  <input 
-                    value={theme.name}
-                    onChange={(e) => updateTheme(theme.id, { name: e.target.value })}
-                    className="flex-1 bg-transparent font-bold text-sm outline-none px-2 py-1 rounded hover:bg-primary/5 focus:bg-primary/5 transition-colors"
-                  />
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground">
-                      <Plus className="w-4 h-4" />
-                    </button>
-                    <button 
-                      onClick={() => setFramework({ ...framework, themes: framework.themes.filter(t => t.id !== theme.id) })}
-                      className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-red-500"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-
-                {theme.isExpanded && (theme.tasks.length > 0 ? (
-                  <div className="p-4 space-y-4">
-                    {theme.tasks.map((task) => (
-                      <div key={task.id} className="ml-4 border-l-2 border-border pl-6 py-2 space-y-3 relative">
-                        <div className="absolute left-[-2px] top-4 w-2 h-2 rounded-full bg-border" />
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="flex-1 space-y-2">
-                             <input 
-                               value={task.title}
-                               onChange={(e) => {
-                                 const updatedTasks = theme.tasks.map(t => t.id === task.id ? { ...t, title: e.target.value } : t);
-                                 updateTheme(theme.id, { tasks: updatedTasks });
-                               }}
-                               className="w-full bg-transparent font-semibold text-sm outline-none"
-                             />
-                             <textarea 
-                               value={task.description}
-                               onChange={(e) => {
-                                 const updatedTasks = theme.tasks.map(t => t.id === task.id ? { ...t, description: e.target.value } : t);
-                                 updateTheme(theme.id, { tasks: updatedTasks });
-                               }}
-                               placeholder="Task description..."
-                               className="w-full bg-transparent text-xs text-muted-foreground outline-none resize-none"
-                             />
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="p-8 text-center border-t border-border/5">
-                    <p className="text-xs text-muted-foreground">No tasks defined for this theme.</p>
-                  </div>
-                ))}
-                
-                {theme.isExpanded && (
-                  <div className="px-4 pb-4">
-                    <button 
-                      onClick={() => addTask(theme.id)}
-                      className="ml-4 flex items-center gap-2 px-3 py-2 rounded-lg border border-dashed border-border text-xs font-semibold text-muted-foreground hover:border-primary/30 hover:text-primary transition-all w-full justify-center"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      Add Task
-                    </button>
-                  </div>
-                )}
-              </div>
-            ))}
-
-            <button 
-              onClick={addTheme}
-              className="w-full py-4 rounded-xl border-2 border-dashed border-border bg-muted/10 flex flex-col items-center justify-center gap-2 hover:bg-primary/5 hover:border-primary/20 transition-all text-muted-foreground hover:text-primary"
-            >
-              <div className="w-8 h-8 rounded-full bg-background border border-border flex items-center justify-center">
-                <Plus className="w-4 h-4" />
-              </div>
-              <span className="text-xs font-bold uppercase tracking-wider">Add New Theme</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Action Bar */}
-        <div className="p-4 border-t border-border bg-muted/30 flex items-center justify-between">
-          <button className="px-4 py-2 rounded-lg text-xs font-bold text-muted-foreground hover:bg-muted transition-colors flex items-center gap-2">
-            <Save className="w-3.5 h-3.5" />
-            Save as Draft
-          </button>
-          <div className="flex items-center gap-3">
-             <button className="px-4 py-2 rounded-lg text-xs font-bold text-primary group transition-colors">
-               Cancel
-             </button>
-             <button 
-               onClick={onNext}
-               className="px-6 py-2.5 rounded-lg bg-primary text-primary-foreground text-xs font-bold shadow-lg shadow-primary/20 hover:opacity-90 active:scale-95 transition-all flex items-center gap-2"
-             >
-               {MOCK_USER_ROLE === 'Platform Admin' ? 'Approve & Publish' : 'Submit for Review'}
-               <ChevronRight className="w-3.5 h-3.5" />
-             </button>
-          </div>
-        </div>
-      </div>
+    
     </div>
   );
 };
 
   // --- Sub-components for Stages ---
 
-const StageReview = ({ framework, onBack, onNext }: { 
+const StageReview = ({ framework, onBack, onNext, canPublish }: { 
   framework: FrameworkDraft; 
   onBack: () => void; 
   onNext: () => void;
+  canPublish: boolean;
 }) => {
   const stats = {
     themes: framework.themes.length,
@@ -640,7 +701,7 @@ const StageReview = ({ framework, onBack, onNext }: {
         <div className="p-8 border-b border-border bg-muted/30">
           <h2 className="text-xl font-semibold mb-2">Final Review</h2>
           <p className="text-sm text-muted-foreground">
-            Review the framework structure before {MOCK_USER_ROLE === 'Platform Admin' ? 'publishing' : 'submitting for approval'}.
+            Review the framework structure before {canPublish ? 'publishing' : 'submitting for approval'}.
           </p>
         </div>
 
@@ -706,7 +767,7 @@ const StageReview = ({ framework, onBack, onNext }: {
             onClick={onNext}
             className="px-8 py-3 rounded-xl bg-primary text-primary-foreground font-bold shadow-lg shadow-primary/20 hover:opacity-90 active:scale-95 transition-all flex items-center gap-3"
           >
-            {MOCK_USER_ROLE === 'Platform Admin' ? (
+            {canPublish ? (
               <>
                 <Send className="w-4 h-4" />
                 Confirm & Publish Framework
@@ -724,7 +785,7 @@ const StageReview = ({ framework, onBack, onNext }: {
   );
 };
 
-const StagePublish = ({ frameworkName }: { frameworkName: string }) => {
+const StagePublish = ({ frameworkName, canPublish }: { frameworkName: string; canPublish: boolean }) => {
   const navigate = useNavigate();
 
   return (
@@ -735,9 +796,9 @@ const StagePublish = ({ frameworkName }: { frameworkName: string }) => {
       </div>
 
       <div className="text-center group">
-        <h2 className="text-3xl font-bold mb-4">Framework {MOCK_USER_ROLE === 'Platform Admin' ? 'Published' : 'Submitted'}!</h2>
+        <h2 className="text-3xl font-bold mb-4">Framework {canPublish ? 'Published' : 'Submitted'}!</h2>
         <p className="text-muted-foreground mb-12 max-w-md mx-auto">
-          The framework <strong>"{frameworkName}"</strong> has been successfully {MOCK_USER_ROLE === 'Platform Admin' ? 'published to the platform' : 'submitted to admins for review'}.
+          The framework <strong>"{frameworkName}"</strong> has been successfully {canPublish ? 'published to the platform' : 'submitted to admins for review'}.
         </p>
 
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -769,69 +830,73 @@ const StagePublish = ({ frameworkName }: { frameworkName: string }) => {
   );
 };
 
-const StageProcessing = ({ onFinish }: { onFinish: () => void }) => {
+const StageProcessing = ({
+  draftId,
+  onFrameworkReady,
+}: {
+  draftId: string;
+  onFrameworkReady: (draft: ApiFrameworkDraft) => void;
+}) => {
   const [currentStep, setCurrentStep] = useState(0);
   const [hasError, setHasError] = useState(false);
   const [progress, setProgress] = useState(0);
 
   const steps = [
-    "Normalising document",
-    "Identifying themes",
-    "Extracting tasks",
-    "Generating evidence requirements"
+    'Normalising document',
+    'Identifying themes',
+    'Extracting tasks',
+    'Generating evidence requirements',
   ];
 
+  // Animate steps to reflect perceived progress while polling
   useEffect(() => {
-    let stepTimer: NodeJS.Timeout;
-    let progressTimer: NodeJS.Timeout;
+    let stepTimer: ReturnType<typeof setTimeout>;
+    const progressTimer = setInterval(() => {
+      setProgress((prev) => (prev >= 95 ? 95 : prev + 0.4));
+    }, 100);
 
-    const startProcessing = () => {
-      setHasError(false);
-      setCurrentStep(0);
-      setProgress(0);
-
-      progressTimer = setInterval(() => {
-        setProgress(prev => {
-          if (prev >= 100) {
-            clearInterval(progressTimer);
-            return 100;
-          }
-          return prev + 0.5;
-        });
-      }, 100);
-
-      const runStep = (index: number) => {
-        if (index >= steps.length) {
-          setTimeout(onFinish, 1000);
-          return;
-        }
-
-        setCurrentStep(index);
-        
-        // Randomly fail at the "Extracting tasks" step for demo
-        if (index === 2 && Math.random() < 0.1) {
-          setTimeout(() => {
-            setHasError(true);
-            clearInterval(progressTimer);
-          }, 2000);
-          return;
-        }
-
-        stepTimer = setTimeout(() => {
-          runStep(index + 1);
-        }, 3000 + Math.random() * 2000);
-      };
-
-      runStep(0);
+    const advanceStep = (index: number) => {
+      if (index >= steps.length) return;
+      setCurrentStep(index);
+      stepTimer = setTimeout(
+        () => advanceStep(index + 1),
+        4000 + Math.random() * 2000,
+      );
     };
-
-    startProcessing();
+    advanceStep(0);
 
     return () => {
       clearTimeout(stepTimer);
       clearInterval(progressTimer);
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Poll backend for completion
+  useEffect(() => {
+    const pollInterval = setInterval(async () => {
+      try {
+        const draft = await getFrameworkDraft(draftId);
+        if (
+          draft.status === 'ready_for_review' ||
+          draft.status === 'published'
+        ) {
+          clearInterval(pollInterval);
+          setProgress(100);
+          setCurrentStep(steps.length);
+          setTimeout(() => onFrameworkReady(draft), 800);
+        } else if (draft.status === 'error') {
+          clearInterval(pollInterval);
+          setHasError(true);
+        }
+      } catch {
+        // network blip — keep polling
+      }
+    }, 4000);
+
+    return () => clearInterval(pollInterval);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftId]);
 
   return (
     <div className="flex-1 flex flex-col items-center justify-center max-w-2xl mx-auto w-full animate-in fade-in duration-700">
