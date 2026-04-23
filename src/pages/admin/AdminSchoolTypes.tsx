@@ -185,7 +185,7 @@ const AdminSchoolTypes = () => {
       {/* Header */}
       <div className="flex justify-between items-start mb-6">
         <div>
-          <h1 className="font-bold text-2xl">School Types</h1>
+          <h1 className="font-semibold text-xl font-serif">School Types</h1>
           <p className="mt-1 text-muted-foreground text-sm">
             Configure school types for the onboarding wizard
           </p>

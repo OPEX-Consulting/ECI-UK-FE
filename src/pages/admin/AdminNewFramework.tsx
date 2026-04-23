@@ -379,7 +379,7 @@ const AdminNewFramework = () => {
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div>
-            <h1 className="text-xl font-bold">Create New Framework</h1>
+            <h1 className="text-xl font-semibold font-mono">Create New Framework</h1>
             <div className="flex items-center gap-2 mt-0.5">
               <span className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground/60">Portal</span>
               <div className="w-1 h-1 rounded-full bg-muted-foreground/30" />
@@ -657,7 +657,7 @@ const StageEdit = ({ framework, setFramework, onNext, onSaveDraft, canPublish, s
   return (
     <div className="flex-1 flex gap-6 overflow-hidden mt-2 animate-in fade-in duration-500">
       {/* Left Panel: Source */}
-      <div className="w-[40%] flex flex-col bg-card border border-border rounded-2xl overflow-hidden">
+      <div className="w-full flex flex-col bg-card border border-border rounded-2xl overflow-hidden">
         <div className="p-4 border-b border-border bg-muted/30 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <FileText className="w-4 h-4 text-muted-foreground" />
@@ -667,7 +667,7 @@ const StageEdit = ({ framework, setFramework, onNext, onSaveDraft, canPublish, s
             <Search className="w-3.5 h-3.5 text-muted-foreground" />
           </button>
         </div>
-        <div className="flex-1 p-6 overflow-y-auto font-mono text-xs leading-relaxed text-muted-foreground/80 bg-background/50 whitespace-pre-wrap break-words">
+        <div className="flex w-full p-6 overflow-y-auto font-mono text-xs leading-relaxed text-muted-foreground/80 bg-background/50 break-words">
           {sourceText ? (
             sourceText
           ) : (
@@ -676,149 +676,7 @@ const StageEdit = ({ framework, setFramework, onNext, onSaveDraft, canPublish, s
         </div>
       </div>
 
-      {/* Right Panel: Editor */}
-      <div className="flex-1 flex flex-col bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
-        <div className="p-4 border-b border-border bg-muted/30 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-primary" />
-            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">AI-Generated Structure</span>
-          </div>
-          <div className="flex items-center gap-3">
-             <span className="text-[10px] text-muted-foreground font-medium">All changes saved</span>
-             <div className="w-[1px] h-3 bg-border" />
-             <button className="text-[10px] font-bold text-primary hover:underline">Re-generate</button>
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-8 space-y-8 scrollbar-thin">
-          <div className="space-y-4 pb-8 border-b border-border/50">
-            <input 
-              value={framework.name}
-              onChange={(e) => setFramework({ ...framework, name: e.target.value })}
-              className="w-full bg-transparent text-2xl font-bold outline-none border-b border-transparent focus:border-primary/30 transition-colors"
-              placeholder="Framework Name"
-            />
-            <textarea 
-              value={framework.description}
-              onChange={(e) => setFramework({ ...framework, description: e.target.value })}
-              className="w-full bg-transparent text-sm text-muted-foreground outline-none resize-none min-h-[60px]"
-              placeholder="Provide a brief description of this framework..."
-            />
-          </div>
-
-          <div className="space-y-6">
-            {framework.themes.map((theme) => (
-              <div key={theme.id} className="group border border-border rounded-xl overflow-hidden bg-background/40 hover:border-primary/20 transition-all">
-                <div className="flex items-center p-4 bg-muted/20 border-b border-border/10">
-                  <GripVertical className="w-4 h-4 text-muted-foreground/30 cursor-grab active:cursor-grabbing mr-2" />
-                  <button 
-                    onClick={() => updateTheme(theme.id, { isExpanded: !theme.isExpanded })}
-                    className="p-1 rounded hover:bg-muted mr-2"
-                  >
-                    {theme.isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                  </button>
-                  <input 
-                    value={theme.name}
-                    onChange={(e) => updateTheme(theme.id, { name: e.target.value })}
-                    className="flex-1 bg-transparent font-bold text-sm outline-none px-2 py-1 rounded hover:bg-primary/5 focus:bg-primary/5 transition-colors"
-                  />
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground">
-                      <Plus className="w-4 h-4" />
-                    </button>
-                    <button 
-                      onClick={() => setFramework({ ...framework, themes: framework.themes.filter(t => t.id !== theme.id) })}
-                      className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-red-500"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-
-                {theme.isExpanded && (theme.tasks.length > 0 ? (
-                  <div className="p-4 space-y-4">
-                    {theme.tasks.map((task) => (
-                      <div key={task.id} className="ml-4 border-l-2 border-border pl-6 py-2 space-y-3 relative">
-                        <div className="absolute left-[-2px] top-4 w-2 h-2 rounded-full bg-border" />
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="flex-1 space-y-2">
-                             <input 
-                               value={task.title}
-                               onChange={(e) => {
-                                 const updatedTasks = theme.tasks.map(t => t.id === task.id ? { ...t, title: e.target.value } : t);
-                                 updateTheme(theme.id, { tasks: updatedTasks });
-                               }}
-                               className="w-full bg-transparent font-semibold text-sm outline-none"
-                             />
-                             <textarea 
-                               value={task.description}
-                               onChange={(e) => {
-                                 const updatedTasks = theme.tasks.map(t => t.id === task.id ? { ...t, description: e.target.value } : t);
-                                 updateTheme(theme.id, { tasks: updatedTasks });
-                               }}
-                               placeholder="Task description..."
-                               className="w-full bg-transparent text-xs text-muted-foreground outline-none resize-none"
-                             />
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="p-8 text-center border-t border-border/5">
-                    <p className="text-xs text-muted-foreground">No tasks defined for this theme.</p>
-                  </div>
-                ))}
-                
-                {theme.isExpanded && (
-                  <div className="px-4 pb-4">
-                    <button 
-                      onClick={() => addTask(theme.id)}
-                      className="ml-4 flex items-center gap-2 px-3 py-2 rounded-lg border border-dashed border-border text-xs font-semibold text-muted-foreground hover:border-primary/30 hover:text-primary transition-all w-full justify-center"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      Add Task
-                    </button>
-                  </div>
-                )}
-              </div>
-            ))}
-
-            <button 
-              onClick={addTheme}
-              className="w-full py-4 rounded-xl border-2 border-dashed border-border bg-muted/10 flex flex-col items-center justify-center gap-2 hover:bg-primary/5 hover:border-primary/20 transition-all text-muted-foreground hover:text-primary"
-            >
-              <div className="w-8 h-8 rounded-full bg-background border border-border flex items-center justify-center">
-                <Plus className="w-4 h-4" />
-              </div>
-              <span className="text-xs font-bold uppercase tracking-wider">Add New Theme</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Action Bar */}
-        <div className="p-4 border-t border-border bg-muted/30 flex items-center justify-between">
-          <button
-            onClick={onSaveDraft}
-            className="px-4 py-2 rounded-lg text-xs font-bold text-muted-foreground hover:bg-muted transition-colors flex items-center gap-2"
-          >
-            <Save className="w-3.5 h-3.5" />
-            Save as Draft
-          </button>
-          <div className="flex items-center gap-3">
-             <button className="px-4 py-2 rounded-lg text-xs font-bold text-primary group transition-colors">
-               Cancel
-             </button>
-             <button 
-               onClick={onNext}
-               className="px-6 py-2.5 rounded-lg bg-primary text-primary-foreground text-xs font-bold shadow-lg shadow-primary/20 hover:opacity-90 active:scale-95 transition-all flex items-center gap-2"
-             >
-               {canPublish ? 'Approve & Publish' : 'Submit for Review'}
-               <ChevronRight className="w-3.5 h-3.5" />
-             </button>
-          </div>
-        </div>
-      </div>
+    
     </div>
   );
 };

@@ -104,7 +104,7 @@ const AdminOrganisations = () => {
     <div className="p-7 min-h-screen text-foreground transition-colors duration-300">
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold">Organisations</h1>
+        <h1 className="text-xl font-serif font-semibold">Organisations</h1>
         <p className="text-sm mt-1 text-muted-foreground">
           Manage all schools on the ECI platform
         </p>

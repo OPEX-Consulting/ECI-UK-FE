@@ -157,7 +157,7 @@ const AdminAuditLog = () => {
     <div className="p-7 min-h-screen text-foreground transition-colors duration-300">
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold">Audit Log</h1>
+        <h1 className="text-xl font-serif font-semibold">Audit Log</h1>
         <p className="text-sm mt-1 text-muted-foreground">
           Immutable record of all platform actions
         </p>

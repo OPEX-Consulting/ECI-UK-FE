@@ -145,7 +145,7 @@ const AdminUsers = () => {
       {/* Header */}
       <div className="flex items-start justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold">Admin Users</h1>
+          <h1 className="text-xl font-serif font-semibold">Admin Users</h1>
           <p className="text-sm mt-1 text-muted-foreground">
             Manage admin portal user accounts and roles
           </p>
