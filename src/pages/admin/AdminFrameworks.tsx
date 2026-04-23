@@ -83,7 +83,7 @@ const AdminFrameworks = () => {
       {/* Header */}
       <div className="flex items-start justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold">Framework Library</h1>
+          <h1 className="text-xl font-semibold font-serif">Framework Library</h1>
           <p className="text-sm mt-1 text-muted-foreground">
             Manage compliance frameworks across the platform
           </p>
