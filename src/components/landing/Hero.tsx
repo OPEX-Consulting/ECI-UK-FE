@@ -40,9 +40,9 @@ const Hero = () => {
 
           {/* CTA Buttons */}
           <div className="flex flex-col sm:flex-row items-center gap-4 w-full justify-center">
-            <button className="w-full sm:w-auto rounded-full bg-primary px-8 py-3 text-sm font-semibold text-primary-foreground hover:opacity-90 transition-all shadow-lg flex items-center justify-center gap-2">
+            {/* <button className="w-full sm:w-auto rounded-full bg-primary px-8 py-3 text-sm font-semibold text-primary-foreground hover:opacity-90 transition-all shadow-lg flex items-center justify-center gap-2">
               Get started free <ArrowRight className="w-5 h-5" />
-            </button>
+            </button> */}
             <button className="w-full sm:w-auto rounded-full bg-background border border-border px-8 py-3 text-sm font-semibold text-foreground hover:bg-muted transition-all">
               See a demo
             </button>
