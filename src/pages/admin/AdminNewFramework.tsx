@@ -43,7 +43,7 @@ import {
 
 // --- Types & Enums ---
 
-type Stage = "UPLOAD" | "PROCESSING" | "EDIT" | "REVIEW" | "PUBLISH";
+type Stage = "UPLOAD" | "PROCESSING" | "EDIT" | "REVIEW";
 type UploadMode = "file" | "url" | "text";
 interface EvidenceRequirement {
   id: string;
@@ -223,8 +223,7 @@ const Stepper = ({ currentStage }: { currentStage: Stage }) => {
     { id: "UPLOAD", label: "Upload" },
     { id: "PROCESSING", label: "Processing" },
     { id: "EDIT", label: "Verify & Edit" },
-    { id: "REVIEW", label: "Review" },
-    { id: "PUBLISH", label: "Publish" },
+    { id: "REVIEW", label: "Review & Publish" },
   ];
 
   const getStageIndex = (s: Stage) => stages.findIndex((st) => st.id === s);
@@ -290,6 +289,7 @@ const AdminNewFramework = () => {
   const [draftId, setDraftId] = useState<string | null>(null);
   const [apiDraft, setApiDraft] = useState<ApiFrameworkDraft | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [isPublishing, setIsPublishing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Framework Data State
@@ -370,6 +370,7 @@ const AdminNewFramework = () => {
 
   const handlePublishOrSubmit = async () => {
     if (!draftId) return;
+    setIsPublishing(true);
     try {
       if (canPublish) {
         await publishFramework(draftId);
@@ -380,13 +381,15 @@ const AdminNewFramework = () => {
           mapUiFrameworkToApi(framework, apiDraft),
         );
       }
-      setStage("PUBLISH");
+      toast.success(canPublish ? "Framework published successfully!" : "Framework submitted for review!");
+      navigate("/admin/frameworks");
     } catch {
       toast.error(
         canPublish
           ? "Failed to publish framework"
           : "Failed to submit for review",
       );
+      setIsPublishing(false);
     }
   };
 
@@ -422,14 +425,24 @@ const AdminNewFramework = () => {
           </div>
         </div>
 
-        {stage === "EDIT" && (
-          <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3">
+          {/* Temporary Dev Button */}
+          {stage !== "EDIT" && (
+            <button
+              onClick={() => setStage("EDIT")}
+              className="px-4 py-2 rounded-lg bg-indigo-500/10 text-indigo-500 text-xs font-bold hover:bg-indigo-500/20 transition-colors"
+            >
+              Dev: Skip to Edit UI
+            </button>
+          )}
+
+          {stage === "EDIT" && (
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/5 border border-emerald-500/10 text-[11px] font-medium text-emerald-500 animate-pulse">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
               Auto-saving...
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {/* Stepper */}
@@ -660,16 +673,8 @@ const AdminNewFramework = () => {
         {stage === "REVIEW" && (
           <StageReview
             framework={framework}
-            onBack={() => setStage("EDIT")}
-            onNext={handlePublishOrSubmit}
-            canPublish={canPublish}
-          />
-        )}
-
-        {stage === "PUBLISH" && (
-          <StagePublish
-            frameworkName={framework.name}
-            canPublish={canPublish}
+            onPublish={handlePublishOrSubmit}
+            isPublishing={isPublishing}
           />
         )}
       </div>
@@ -694,238 +699,313 @@ const StageEdit = ({
   canPublish: boolean;
   sourceText: string | null;
 }) => {
-  const updateTheme = (themeId: string, updates: Partial<Theme>) => {
-    setFramework({
-      ...framework,
-      themes: framework.themes.map((t) =>
-        t.id === themeId ? { ...t, ...updates } : t,
-      ),
-    });
-  };
-
-  const addTheme = () => {
-    const newTheme: Theme = {
-      id: `theme-${Date.now()}`,
-      name: "New Theme",
-      isExpanded: true,
-      tasks: [],
-    };
-    setFramework({ ...framework, themes: [...framework.themes, newTheme] });
-  };
-
-  const addTask = (themeId: string) => {
-    const newTask: Task = {
-      id: `task-${Date.now()}`,
-      title: "New Task",
-      description: "",
-      isExpanded: true,
-      actionItems: [],
-    };
-    setFramework({
-      ...framework,
-      themes: framework.themes.map((t) =>
-        t.id === themeId ? { ...t, tasks: [...t.tasks, newTask] } : t,
-      ),
-    });
-  };
+  const [isSubTaskModalOpen, setIsSubTaskModalOpen] = useState(false);
+  const [isEvidenceModalOpen, setIsEvidenceModalOpen] = useState(false);
 
   return (
-    <div className="flex-1 flex gap-6 overflow-hidden mt-2 animate-in fade-in duration-500">
-      {/* Left Panel: Source */}
-      <div className="w-[40%] flex flex-col bg-card border border-border rounded-2xl overflow-hidden">
-        <div className="p-4 border-b border-border bg-muted/30 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <FileText className="w-4 h-4 text-muted-foreground" />
-            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-              Source document
+    <div className="flex-1 flex w-full h-[calc(100vh-200px)] bg-background overflow-hidden animate-in fade-in duration-500 rounded-2xl border border-border mt-2">
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col h-full overflow-y-auto">
+        {/* Top bar */}
+        <div className="flex items-center justify-between p-4 px-6 border-b border-border bg-card sticky top-0 z-10">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <h2 className="text-sm font-bold">Review queue</h2>
+              <span className="text-xs text-muted-foreground">27 / 63</span>
+            </div>
+            <div className="w-[1px] h-4 bg-border" />
+            <h3 className="text-sm font-semibold">Frequency of Prevent training</h3>
+            <span className="flex items-center gap-1 text-[10px] font-bold text-red-500 bg-red-500/10 px-2.5 py-1 rounded-full">
+              38% confidence
+            </span>
+            <span className="text-[10px] font-bold text-amber-600 bg-amber-500/10 px-2.5 py-1 rounded-full uppercase tracking-wider">
+              pending review
             </span>
           </div>
-          <button className="p-1.5 rounded-md hover:bg-muted transition-colors">
-            <Search className="w-3.5 h-3.5 text-muted-foreground" />
-          </button>
-        </div>
-        <div className="flex w-full p-6 overflow-y-auto font-mono text-xs leading-relaxed text-muted-foreground/80 bg-background/50 break-words">
-          {sourceText ? (
-            sourceText
-          ) : (
-            <span className="italic text-muted-foreground/50">
-              Source document text not available.
-            </span>
-          )}
-        </div>
-      </div>
-
-      {/* Right Panel: Editor */}
-      <div className="flex-1 flex flex-col bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
-        <div className="p-4 border-b border-border bg-muted/30 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-[1px] h-3 bg-border" />
-            <button className="text-[10px] font-bold text-primary hover:underline">
-              Re-generate
+            <button className="px-4 py-1.5 rounded-lg bg-red-500/10 text-red-500 text-xs font-bold hover:bg-red-500/20 transition-colors">
+              Reject
+            </button>
+            <button className="px-4 py-1.5 rounded-lg bg-indigo-500/10 text-indigo-500 text-xs font-bold hover:bg-indigo-500/20 transition-colors">
+              Flag
+            </button>
+            <button 
+              onClick={onNext}
+              className="px-4 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-500 border border-emerald-500/20 text-xs font-bold hover:bg-emerald-500/20 transition-colors flex items-center gap-2"
+            >
+              <Check className="w-3.5 h-3.5" /> Approve
             </button>
           </div>
-          <div className=" flex items-center justify-between">
-            <button className="px-4 py-2 rounded-lg text-xs font-bold text-muted-foreground hover:bg-muted transition-colors flex items-center gap-2">
-              <Save className="w-3.5 h-3.5" />
-              Save as Draft
-            </button>
-            <div className="flex items-center gap-3">
-              <button className="px-4 py-2 rounded-lg text-xs font-bold text-primary group transition-colors">
-                Cancel
-              </button>
-              <button
-                onClick={onNext}
-                className="px-6 py-2.5 rounded-lg bg-primary text-primary-foreground text-xs font-bold shadow-lg shadow-primary/20 hover:opacity-90 active:scale-95 transition-all flex items-center gap-2"
-              >
-                {canPublish ? "Approve & Publish" : "Submit for Review"}
-                <ChevronRight className="w-3.5 h-3.5" />
+        </div>
+
+        {/* Content Body */}
+        <div className="p-8 space-y-8 max-w-5xl mx-auto w-full">
+          {/* Warning Banner */}
+          <div className="p-4 rounded-xl bg-amber-500/5 border border-amber-500/20 flex items-start gap-3">
+            <div className="w-1 h-full bg-amber-500 rounded-full" />
+            <p className="text-sm text-amber-800 dark:text-amber-200">
+              <span className="font-bold">Low confidence (38%)</span> — AI inferred frequency as "annual" from "will vary depending on context." This phrase does not specify a clear frequency. Confirm or override before approving.
+            </p>
+          </div>
+
+          {/* Clause Reference */}
+          <div className="space-y-3">
+            <h4 className="text-[10px] font-bold tracking-wider text-muted-foreground uppercase">Clause Reference</h4>
+            <div className="flex items-center gap-2">
+              <span className="px-3 py-1.5 rounded-lg bg-red-500/5 text-red-500 text-xs font-semibold border border-red-500/20">KCSIE 2024</span>
+              <span className="px-3 py-1.5 rounded-lg bg-muted/50 text-foreground text-xs font-medium border border-border">Part 1 — All staff</span>
+              <span className="px-3 py-1.5 rounded-lg bg-muted/50 text-foreground text-xs font-medium border border-border">Para 34 — Prevent training</span>
+              <button className="px-3 py-1.5 rounded-lg bg-primary/5 text-primary text-xs font-bold hover:bg-primary/10 transition-colors flex items-center gap-2 ml-2 border border-primary/10">
+                <FileText className="w-3.5 h-3.5" /> View source
               </button>
             </div>
           </div>
-        </div>
 
-        <div className="flex-1 overflow-y-auto p-8 space-y-8 scrollbar-thin">
-          <div className="space-y-4 pb-8 border-b border-border/50">
-            <input
-              value={framework.name}
-              onChange={(e) =>
-                setFramework({ ...framework, name: e.target.value })
-              }
-              className="w-full bg-transparent text-2xl font-bold outline-none border-b border-transparent focus:border-primary/30 transition-colors"
-              placeholder="Framework Name"
-            />
+          {/* Action Title & Description */}
+          <div className="space-y-6">
+            <div className="space-y-2">
+              <h4 className="text-[10px] font-bold tracking-wider text-muted-foreground uppercase">Action Title (Verb-First)</h4>
+              <p className="text-base font-semibold text-primary">Train designated safeguarding lead and relevant staff in Prevent awareness</p>
+            </div>
+            <div className="space-y-2">
+              <h4 className="text-[10px] font-bold tracking-wider text-muted-foreground uppercase">Description</h4>
+              <p className="text-sm text-foreground/80 leading-relaxed max-w-3xl">
+                Ensure the DSL and staff who work with children receive Prevent awareness training that is regularly updated to reflect changes in local and national risk context.
+              </p>
+            </div>
           </div>
 
-          {/* <div className="space-y-6">
-            {framework.themes.map((theme) => (
-              <div
-                key={theme.id}
-                className="group border border-border rounded-xl overflow-hidden bg-background/40 hover:border-primary/20 transition-all"
-              >
-                <div className="flex items-center p-4 bg-muted/20 border-b border-border/10">
-                  <GripVertical className="w-4 h-4 text-muted-foreground/30 cursor-grab active:cursor-grabbing mr-2" />
-                  <button
-                    onClick={() =>
-                      updateTheme(theme.id, { isExpanded: !theme.isExpanded })
-                    }
-                    className="p-1 rounded hover:bg-muted mr-2"
-                  >
-                    {theme.isExpanded ? (
-                      <ChevronUp className="w-4 h-4" />
-                    ) : (
-                      <ChevronDown className="w-4 h-4" />
-                    )}
-                  </button>
-                  <input
-                    value={theme.name}
-                    onChange={(e) =>
-                      updateTheme(theme.id, { name: e.target.value })
-                    }
-                    className="flex-1 bg-transparent font-bold text-sm outline-none px-2 py-1 rounded hover:bg-primary/5 focus:bg-primary/5 transition-colors"
-                  />
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground">
-                      <Plus className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() =>
-                        setFramework({
-                          ...framework,
-                          themes: framework.themes.filter(
-                            (t) => t.id !== theme.id,
-                          ),
-                        })
-                      }
-                      className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-red-500"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+          {/* Regulatory Frequency */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-3">
+              <h4 className="text-[10px] font-bold tracking-wider text-muted-foreground uppercase">Regulatory Frequency</h4>
+              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-red-500/5 text-red-500 border border-red-500/20 flex items-center gap-1">
+                <AlertCircle className="w-3 h-3" /> CONFIRM REQUIRED
+              </span>
+            </div>
+            
+            <div className="flex gap-6 items-center">
+              <div className="flex-1 p-4 rounded-xl bg-red-500/5 border border-red-500/20">
+                <p className="text-sm text-red-500 font-semibold mb-1 flex items-center gap-2">
+                  <Sparkles className="w-4 h-4" /> AI inferred: Annual
+                </p>
+                <p className="text-xs text-red-500/80 italic">"will vary depending on context" — Para 34</p>
+              </div>
+              <div className="flex-1 flex flex-col justify-center">
+                <label className="text-[10px] font-bold tracking-wider text-muted-foreground uppercase mb-1.5">Override</label>
+                <Select defaultValue="annual">
+                  <SelectTrigger className="w-full bg-background font-medium">
+                    <SelectValue placeholder="Select frequency" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="annual">Annual (confirm AI inference)</SelectItem>
+                    <SelectItem value="biannual">Biannual</SelectItem>
+                    <SelectItem value="context">Depends on context</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+
+          {/* Sub-tasks and Evidence Requirements */}
+          <div className="grid grid-cols-2 gap-12 pt-6 border-t border-border/50">
+            {/* Sub-Tasks */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h4 className="text-[10px] font-bold tracking-wider text-muted-foreground uppercase">Sub-Tasks</h4>
+                <button onClick={() => setIsSubTaskModalOpen(true)} className="text-[10px] font-bold text-primary hover:underline flex items-center gap-1">
+                  <Plus className="w-3 h-3" /> ADD
+                </button>
+              </div>
+              <ul className="space-y-4">
+                {[
+                  { title: "Complete DSL Prevent e-learning or equivalent", req: true },
+                  { title: "Identify staff requiring Prevent training", req: false },
+                  { title: "Record training completion for all staff", req: true },
+                  { title: "Update Prevent risk assessment post-training", req: false },
+                ].map((st, i) => (
+                  <li key={i} className="flex items-start gap-3">
+                    <div className="w-1.5 h-1.5 rounded-full bg-primary mt-1.5 shrink-0" />
+                    <div>
+                      <p className="text-sm font-medium mb-1.5">{st.title}</p>
+                      <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ${st.req ? 'bg-red-500/5 border border-red-500/20 text-red-500' : 'bg-muted border border-border text-muted-foreground'}`}>
+                        {st.req ? 'evidence req.' : 'optional ev.'}
+                      </span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Evidence Requirements */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h4 className="text-[10px] font-bold tracking-wider text-muted-foreground uppercase">Evidence Requirements</h4>
+                <button onClick={() => setIsEvidenceModalOpen(true)} className="text-[10px] font-bold text-primary hover:underline flex items-center gap-1">
+                  <Plus className="w-3 h-3" /> ADD
+                </button>
+              </div>
+              <div className="space-y-6">
+                <div className="space-y-2">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="text-sm font-bold">Training completion record</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">Certificate or log — DSL + staff. Date and provider name.</p>
+                    </div>
+                    <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-red-500/5 text-red-500 border border-red-500/20">required</span>
+                  </div>
+                  <div className="flex items-center gap-2 pt-1">
+                    <span className="text-[10px] font-bold text-blue-500 bg-blue-500/10 px-2 py-0.5 rounded">365 days</span>
+                    <span className="text-[10px] font-bold text-emerald-600 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">AUTO-START option</span>
                   </div>
                 </div>
 
-                {theme.isExpanded &&
-                  (theme.tasks.length > 0 ? (
-                    <div className="p-4 space-y-4">
-                      {theme.tasks.map((task) => (
-                        <div
-                          key={task.id}
-                          className="ml-4 border-l-2 border-border pl-6 py-2 space-y-3 relative"
-                        >
-                          <div className="absolute left-[-2px] top-4 w-2 h-2 rounded-full bg-border" />
-                          <div className="flex items-start justify-between gap-4">
-                            <div className="flex-1 space-y-2">
-                              <input
-                                value={task.title}
-                                onChange={(e) => {
-                                  const updatedTasks = theme.tasks.map((t) =>
-                                    t.id === task.id
-                                      ? { ...t, title: e.target.value }
-                                      : t,
-                                  );
-                                  updateTheme(theme.id, {
-                                    tasks: updatedTasks,
-                                  });
-                                }}
-                                className="w-full bg-transparent font-semibold text-sm outline-none"
-                              />
-                              <textarea
-                                value={task.description}
-                                onChange={(e) => {
-                                  const updatedTasks = theme.tasks.map((t) =>
-                                    t.id === task.id
-                                      ? { ...t, description: e.target.value }
-                                      : t,
-                                  );
-                                  updateTheme(theme.id, {
-                                    tasks: updatedTasks,
-                                  });
-                                }}
-                                placeholder="Task description..."
-                                className="w-full bg-transparent text-xs text-muted-foreground outline-none resize-none"
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      ))}
+                <div className="space-y-2">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="text-sm font-bold">Training needs assessment</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">Staff list with rationale for inclusion.</p>
                     </div>
-                  ) : (
-                    <div className="p-8 text-center border-t border-border/5">
-                      <p className="text-xs text-muted-foreground">
-                        No tasks defined for this theme.
-                      </p>
-                    </div>
-                  ))}
-
-                {theme.isExpanded && (
-                  <div className="px-4 pb-4">
-                    <button
-                      onClick={() => addTask(theme.id)}
-                      className="ml-4 flex items-center gap-2 px-3 py-2 rounded-lg border border-dashed border-border text-xs font-semibold text-muted-foreground hover:border-primary/30 hover:text-primary transition-all w-full justify-center"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      Add Task
-                    </button>
+                    <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-amber-500/5 text-amber-600 border border-amber-500/20">optional</span>
                   </div>
-                )}
+                  <div className="flex items-center gap-2 pt-1">
+                    <span className="text-[10px] font-bold text-blue-500 bg-blue-500/10 px-2 py-0.5 rounded">365 days</span>
+                  </div>
+                </div>
               </div>
-            ))}
+            </div>
+          </div>
 
-            <button
-              onClick={addTheme}
-              className="w-full py-4 rounded-xl border-2 border-dashed border-border bg-muted/10 flex flex-col items-center justify-center gap-2 hover:bg-primary/5 hover:border-primary/20 transition-all text-muted-foreground hover:text-primary"
-            >
-              <div className="w-8 h-8 rounded-full bg-background border border-border flex items-center justify-center">
-                <Plus className="w-4 h-4" />
+          {/* Scope & Metadata */}
+          <div className="grid grid-cols-4 gap-6 pt-8 border-t border-border/50 pb-8">
+            <div className="col-span-2 space-y-3">
+              <h4 className="text-[10px] font-bold tracking-wider text-muted-foreground uppercase">Institution Scope</h4>
+              <div className="flex flex-wrap gap-2">
+                {["All institutions", "FE colleges", "Training providers", "Independent only"].map((scope, i) => (
+                  <span key={i} className={`text-[11px] px-3 py-1.5 rounded-lg border ${i < 3 ? 'bg-blue-500/5 text-blue-600 border-blue-500/20 font-semibold' : 'bg-transparent text-foreground font-medium border-border'}`}>
+                    {scope}
+                  </span>
+                ))}
               </div>
-              <span className="text-xs font-bold uppercase tracking-wider">
-                Add New Theme
-              </span>
-            </button>
-          </div> */}
+            </div>
+            
+            <div className="space-y-1">
+              <h4 className="text-[10px] font-bold tracking-wider text-muted-foreground uppercase">Priority</h4>
+              <Select defaultValue="high">
+                <SelectTrigger className="w-full bg-transparent border-none shadow-none px-0 font-semibold hover:bg-muted/50 transition-colors text-sm">
+                  <SelectValue placeholder="Priority" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="high">High</SelectItem>
+                  <SelectItem value="medium">Medium</SelectItem>
+                  <SelectItem value="low">Low</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1">
+              <div className="flex gap-6 w-full">
+                <div className="flex-1">
+                  <h4 className="text-[10px] font-bold tracking-wider text-muted-foreground uppercase">Owner Role</h4>
+                  <Select defaultValue="dsl">
+                    <SelectTrigger className="w-full bg-transparent border-none shadow-none px-0 font-semibold hover:bg-muted/50 transition-colors text-sm">
+                      <SelectValue placeholder="Owner" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="dsl">DSL</SelectItem>
+                      <SelectItem value="head">Headteacher</SelectItem>
+                      <SelectItem value="admin">Admin</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex-1">
+                  <h4 className="text-[10px] font-bold tracking-wider text-muted-foreground uppercase">Effort</h4>
+                  <Select defaultValue="medium">
+                    <SelectTrigger className="w-full bg-transparent border-none shadow-none px-0 font-semibold hover:bg-muted/50 transition-colors text-sm">
+                      <SelectValue placeholder="Effort" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="high">High</SelectItem>
+                      <SelectItem value="medium">Medium</SelectItem>
+                      <SelectItem value="low">Low</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+            
+          </div>
+          
         </div>
-
-        {/* Action Bar */}
       </div>
+
+      {/* Sub-Task Modal */}
+      {isSubTaskModalOpen && (
+        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-card border border-border w-full max-w-md rounded-2xl shadow-xl overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-4 border-b border-border flex items-center justify-between">
+              <h3 className="font-bold">Add Sub-Task</h3>
+              <button onClick={() => setIsSubTaskModalOpen(false)} className="p-1 rounded-md hover:bg-muted"><X className="w-4 h-4" /></button>
+            </div>
+            <div className="p-4 space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Title</label>
+                <input type="text" className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all" placeholder="Enter sub-task title" />
+              </div>
+              <div className="flex items-center justify-between p-3 rounded-lg border border-border">
+                <div>
+                  <p className="text-sm font-semibold">Evidence Required?</p>
+                  <p className="text-[10px] text-muted-foreground">Is documentation mandatory for this?</p>
+                </div>
+                <input type="checkbox" className="w-4 h-4 accent-primary" defaultChecked />
+              </div>
+            </div>
+            <div className="p-4 border-t border-border bg-muted/20 flex justify-end gap-2">
+              <button onClick={() => setIsSubTaskModalOpen(false)} className="px-4 py-2 text-xs font-bold text-muted-foreground hover:bg-muted rounded-lg transition-colors">Cancel</button>
+              <button onClick={() => setIsSubTaskModalOpen(false)} className="px-4 py-2 text-xs font-bold bg-primary text-primary-foreground rounded-lg shadow-md hover:opacity-90 transition-opacity">Add Sub-Task</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Evidence Modal */}
+      {isEvidenceModalOpen && (
+        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-card border border-border w-full max-w-md rounded-2xl shadow-xl overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-4 border-b border-border flex items-center justify-between">
+              <h3 className="font-bold">Add Evidence Requirement</h3>
+              <button onClick={() => setIsEvidenceModalOpen(false)} className="p-1 rounded-md hover:bg-muted"><X className="w-4 h-4" /></button>
+            </div>
+            <div className="p-4 space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Title</label>
+                <input type="text" className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all" placeholder="e.g. Training completion record" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Description</label>
+                <textarea className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all resize-none h-20" placeholder="Describe the required evidence..." />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                   <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Type</label>
+                   <Select defaultValue="required">
+                     <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+                     <SelectContent><SelectItem value="required">Required</SelectItem><SelectItem value="optional">Optional</SelectItem></SelectContent>
+                   </Select>
+                </div>
+                <div className="space-y-1.5">
+                   <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Validity (Days)</label>
+                   <input type="number" defaultValue={365} className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all" />
+                </div>
+              </div>
+            </div>
+            <div className="p-4 border-t border-border bg-muted/20 flex justify-end gap-2">
+              <button onClick={() => setIsEvidenceModalOpen(false)} className="px-4 py-2 text-xs font-bold text-muted-foreground hover:bg-muted rounded-lg transition-colors">Cancel</button>
+              <button onClick={() => setIsEvidenceModalOpen(false)} className="px-4 py-2 text-xs font-bold bg-primary text-primary-foreground rounded-lg shadow-md hover:opacity-90 transition-opacity">Add Evidence</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -934,192 +1014,120 @@ const StageEdit = ({
 
 const StageReview = ({
   framework,
-  onBack,
-  onNext,
-  canPublish,
+  onPublish,
+  isPublishing,
 }: {
   framework: FrameworkDraft;
-  onBack: () => void;
-  onNext: () => void;
-  canPublish: boolean;
+  onPublish: () => void;
+  isPublishing: boolean;
 }) => {
-  const stats = {
-    themes: framework.themes.length,
-    tasks: framework.themes.reduce((acc, t) => acc + t.tasks.length, 0),
-    actionItems: framework.themes.reduce(
-      (acc, t) =>
-        acc + t.tasks.reduce((acc2, task) => acc2 + task.actionItems.length, 0),
-      0,
-    ),
-  };
-
   return (
-    <div className="max-w-4xl mx-auto w-full mt-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="bg-card border border-border rounded-2xl shadow-sm overflow-hidden">
-        <div className="p-8 border-b border-border bg-muted/30">
-          <h2 className="text-xl font-semibold mb-2">Final Review</h2>
-          <p className="text-sm text-muted-foreground">
-            Review the framework structure before{" "}
-            {canPublish ? "publishing" : "submitting for approval"}.
-          </p>
+    <div className="max-w-6xl mx-auto w-full mt-10 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-32">
+      {/* Top Stats */}
+      <div className="grid grid-cols-4 gap-8 mb-12">
+        <div className="text-center">
+          <p className="text-4xl font-serif text-[#1e3a8a] mb-2">63</p>
+          <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">task templates</p>
         </div>
+        <div className="text-center">
+          <p className="text-4xl font-serif text-[#059669] mb-2">189</p>
+          <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">sub-tasks</p>
+        </div>
+        <div className="text-center">
+          <p className="text-4xl font-serif text-[#d97706] mb-2">134</p>
+          <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">evidence specs</p>
+        </div>
+        <div className="text-center">
+          <p className="text-4xl font-serif text-[#4f46e5] mb-2">12</p>
+          <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">themes</p>
+        </div>
+      </div>
 
-        <div className="p-8 space-y-8">
-          {/* Summary Cards */}
-          <div className="grid grid-cols-3 gap-4">
-            <div className="p-4 rounded-xl bg-muted/30 border border-border">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
-                Themes
-              </p>
-              <p className="text-2xl font-bold">{stats.themes}</p>
-            </div>
-            <div className="p-4 rounded-xl bg-muted/30 border border-border">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
-                Control Tasks
-              </p>
-              <p className="text-2xl font-bold">{stats.tasks}</p>
-            </div>
-            <div className="p-4 rounded-xl bg-muted/30 border border-border">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
-                Action Items
-              </p>
-              <p className="text-2xl font-bold">{stats.actionItems}</p>
-            </div>
+      {/* Institution Scope Coverage */}
+      <div className="mb-12">
+        <h3 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-6 border-b border-border pb-2">Institution Scope Coverage</h3>
+        <div className="grid grid-cols-2 gap-y-8 gap-x-12">
+          <div>
+            <p className="text-sm font-semibold text-blue-600 mb-1">All institutions</p>
+            <p className="text-sm font-bold mb-0.5">47 tasks</p>
+            <p className="text-xs text-muted-foreground">Safeguarding, H&S, Prevent core obligations</p>
           </div>
-
-          <div className="space-y-4">
-            <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">
-              Framework Details
-            </h3>
-            <div className="p-6 rounded-xl border border-border bg-background/50 space-y-3">
-              <p className="text-lg font-bold">
-                {framework.name || "Untitled Framework"}
-              </p>
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                {framework.description || "No description provided."}
-              </p>
-            </div>
+          <div>
+            <p className="text-sm font-semibold text-emerald-600 mb-1">FE colleges + training providers</p>
+            <p className="text-sm font-bold mb-0.5">8 tasks</p>
+            <p className="text-xs text-muted-foreground">ESFA-specific, post-16 obligations</p>
           </div>
+          <div>
+            <p className="text-sm font-semibold text-amber-700 mb-1">Boarding schools only</p>
+            <p className="text-sm font-bold mb-0.5">5 tasks</p>
+            <p className="text-xs text-muted-foreground">Out-of-hours safeguarding obligations</p>
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-indigo-600 mb-1">EYFS providers only</p>
+            <p className="text-sm font-bold mb-0.5">3 tasks</p>
+            <p className="text-xs text-muted-foreground">Early years-specific welfare duties</p>
+          </div>
+        </div>
+      </div>
 
-          <div className="space-y-4">
-            <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">
-              Governance Check
-            </h3>
-            <div className="space-y-3">
-              <div className="flex items-center gap-3 p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/10">
-                <div className="w-8 h-8 rounded-full bg-emerald-500/10 flex items-center justify-center">
-                  <Check className="w-4 h-4 text-emerald-500" />
+      {/* Update Diff vs KCSIE 2023 */}
+      <div className="mb-12">
+        <h3 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-6 border-b border-border pb-2">Update Diff VS KCSIE 2023</h3>
+        <div className="grid grid-cols-3 gap-1">
+          <div className="p-5 bg-emerald-500/10 border border-emerald-500/20">
+            <p className="text-2xl font-serif text-emerald-700 mb-1">+8</p>
+            <p className="text-xs text-emerald-700/80 font-medium">New tasks added</p>
+          </div>
+          <div className="p-5 bg-amber-500/10 border border-amber-500/20">
+            <p className="text-2xl font-serif text-amber-700 mb-1">~14</p>
+            <p className="text-xs text-amber-700/80 font-medium">Tasks updated</p>
+          </div>
+          <div className="p-5 bg-red-500/10 border border-red-500/20">
+            <p className="text-2xl font-serif text-red-700 mb-1">3</p>
+            <p className="text-xs text-red-700/80 font-medium">Tasks deprecated</p>
+          </div>
+        </div>
+        <p className="text-xs text-muted-foreground mt-3 font-medium">Existing school task records are not affected — schools will be notified and can opt in to the update</p>
+      </div>
+
+      {/* Publish Conditions */}
+      <div className="mb-8">
+        <h3 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-6 border-b border-border pb-2">Publish Conditions</h3>
+        <div className="space-y-6">
+          {[
+            "All 63 task templates have human_reviewed = true",
+            "All regulatory frequencies confirmed (including low-confidence overrides)",
+            "All task titles begin with an approved verb (schema validation passed)",
+            "Every task has at least one required evidence specification",
+            "Institution scope set on all task templates"
+          ].map((condition, i) => (
+            <div key={i} className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-4 h-4 rounded-full bg-emerald-500/20 flex items-center justify-center">
+                  <Check className="w-2.5 h-2.5 text-emerald-600" />
                 </div>
-                <div className="flex-1">
-                  <p className="text-sm font-bold">
-                    Hierarchical integrity verified
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    All tasks are linked to valid themes and action items.
-                  </p>
-                </div>
+                <p className="text-sm font-semibold">{condition}</p>
               </div>
-              <div className="flex items-center gap-3 p-4 rounded-xl bg-amber-500/5 border border-amber-500/10">
-                <div className="w-8 h-8 rounded-full bg-amber-500/10 flex items-center justify-center">
-                  <AlertCircle className="w-4 h-4 text-amber-500" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-bold">Manual review recommended</p>
-                  <p className="text-xs text-muted-foreground">
-                    AI extraction was performed on 1 source. Human verification
-                    is required.
-                  </p>
-                </div>
-              </div>
+              <span className="px-3 py-1 rounded-full border border-emerald-500/20 bg-emerald-500/5 text-emerald-600 text-[10px] font-bold tracking-widest uppercase">passed</span>
             </div>
-          </div>
-        </div>
-
-        <div className="p-8 border-t border-border bg-muted/30 flex items-center justify-between">
-          <button
-            onClick={onBack}
-            className="flex items-center gap-2 text-sm font-bold text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back to editor
-          </button>
-          <button
-            onClick={onNext}
-            className="px-8 py-3 rounded-xl bg-primary text-primary-foreground font-bold shadow-lg shadow-primary/20 hover:opacity-90 active:scale-95 transition-all flex items-center gap-3"
-          >
-            {canPublish ? (
-              <>
-                <Send className="w-4 h-4" />
-                Confirm & Publish Framework
-              </>
-            ) : (
-              <>
-                <Send className="w-4 h-4" />
-                Submit for Final Approval
-              </>
-            )}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const StagePublish = ({
-  frameworkName,
-  canPublish,
-}: {
-  frameworkName: string;
-  canPublish: boolean;
-}) => {
-  const navigate = useNavigate();
-
-  return (
-    <div className="flex-1 flex flex-col items-center justify-center max-w-2xl mx-auto w-full animate-in zoom-in-95 duration-700">
-      <div className="w-24 h-24 rounded-full bg-emerald-500/10 flex items-center justify-center mb-8 relative">
-        <div className="absolute inset-0 rounded-full border-4 border-emerald-500/20 animate-ping duration-[3s]" />
-        <Check className="w-12 h-12 text-emerald-500" />
-      </div>
-
-      <div className="text-center group">
-        <h2 className="text-3xl font-bold mb-4">
-          Framework {canPublish ? "Published" : "Submitted"}!
-        </h2>
-        <p className="text-muted-foreground mb-12 max-w-md mx-auto">
-          The framework <strong>"{frameworkName}"</strong> has been successfully{" "}
-          {canPublish
-            ? "published to the platform"
-            : "submitted to admins for review"}
-          .
-        </p>
-
-        <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <button
-            onClick={() => navigate("/admin/frameworks")}
-            className="px-8 py-4 rounded-xl bg-primary text-primary-foreground font-bold shadow-xl shadow-primary/20 hover:opacity-90 active:scale-95 transition-all"
-          >
-            View All Frameworks
-          </button>
-          <button
-            onClick={() => window.location.reload()}
-            className="px-8 py-4 rounded-xl bg-muted border border-border font-bold hover:bg-muted/80 transition-all"
-          >
-            Create Another
-          </button>
+          ))}
         </div>
       </div>
 
-      <div className="mt-16 p-6 rounded-2xl bg-card border border-border flex items-center gap-4 max-w-sm">
-        <div className="p-3 rounded-xl bg-primary/10">
-          <Sparkles className="w-6 h-6 text-primary" />
-        </div>
-        <div>
-          <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-            What's next?
+      {/* Bottom Banner */}
+      <div className=" p-6 bg-background border-t border-border z-40 shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
+        <div className="max-w-6xl mx-auto flex items-center justify-between gap-8 bg-emerald-500/5 border border-emerald-500/20 p-4 pl-6 rounded-xl">
+          <p className="text-sm text-foreground/80 leading-relaxed font-medium">
+            Publishing <strong className="text-foreground">KCSIE 2024</strong> will make 63 task templates available to the classification engine within 60 seconds. Schools currently using KCSIE 2023 will be notified of the update. This action is irreversible — regulatory frequency fields will become immutable on all published tasks.
           </p>
-          <p className="text-sm text-foreground">
-            Organisations can now subscribe to this framework and begin audits.
-          </p>
+          <button 
+            onClick={onPublish}
+            disabled={isPublishing}
+            className="shrink-0 px-8 py-3.5 rounded-lg bg-[#143425] text-white font-bold shadow-lg hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+          >
+            {isPublishing ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+            {isPublishing ? "Publishing..." : "Publish framework"}
+          </button>
         </div>
       </div>
     </div>
