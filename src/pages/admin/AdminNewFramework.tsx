@@ -290,6 +290,7 @@ const AdminNewFramework = () => {
   const [draftId, setDraftId] = useState<string | null>(null);
   const [apiDraft, setApiDraft] = useState<ApiFrameworkDraft | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [isPublishing, setIsPublishing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Framework Data State
@@ -370,6 +371,7 @@ const AdminNewFramework = () => {
 
   const handlePublishOrSubmit = async () => {
     if (!draftId) return;
+    setIsPublishing(true);
     try {
       if (canPublish) {
         await publishFramework(draftId);
@@ -387,6 +389,8 @@ const AdminNewFramework = () => {
           ? "Failed to publish framework"
           : "Failed to submit for review",
       );
+    } finally {
+      setIsPublishing(false);
     }
   };
 
@@ -663,6 +667,7 @@ const AdminNewFramework = () => {
             onBack={() => setStage("EDIT")}
             onNext={handlePublishOrSubmit}
             canPublish={canPublish}
+            isPublishing={isPublishing}
           />
         )}
 
@@ -765,12 +770,18 @@ const StageEdit = ({
             </button>
           </div>
           <div className=" flex items-center justify-between">
-            <button className="px-4 py-2 rounded-lg text-xs font-bold text-muted-foreground hover:bg-muted transition-colors flex items-center gap-2">
+            <button
+              onClick={onSaveDraft}
+              className="px-4 py-2 rounded-lg text-xs font-bold text-muted-foreground hover:bg-muted transition-colors flex items-center gap-2"
+            >
               <Save className="w-3.5 h-3.5" />
               Save as Draft
             </button>
             <div className="flex items-center gap-3">
-              <button className="px-4 py-2 rounded-lg text-xs font-bold text-primary group transition-colors">
+              <button
+                onClick={() => window.history.back()}
+                className="px-4 py-2 rounded-lg text-xs font-bold text-primary group transition-colors"
+              >
                 Cancel
               </button>
               <button
@@ -937,11 +948,13 @@ const StageReview = ({
   onBack,
   onNext,
   canPublish,
+  isPublishing,
 }: {
   framework: FrameworkDraft;
   onBack: () => void;
   onNext: () => void;
   canPublish: boolean;
+  isPublishing: boolean;
 }) => {
   const stats = {
     themes: framework.themes.length,
@@ -1045,12 +1058,18 @@ const StageReview = ({
           </button>
           <button
             onClick={onNext}
-            className="px-8 py-3 rounded-xl bg-primary text-primary-foreground font-bold shadow-lg shadow-primary/20 hover:opacity-90 active:scale-95 transition-all flex items-center gap-3"
+            disabled={isPublishing}
+            className="px-8 py-3 rounded-xl bg-primary text-primary-foreground font-bold shadow-lg shadow-primary/20 hover:opacity-90 active:scale-95 transition-all flex items-center gap-3 disabled:opacity-60 disabled:cursor-not-allowed disabled:active:scale-100"
           >
-            {canPublish ? (
+            {isPublishing ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                {canPublish ? 'Publishing…' : 'Submitting…'}
+              </>
+            ) : canPublish ? (
               <>
                 <Send className="w-4 h-4" />
-                Confirm & Publish Framework
+                Confirm &amp; Publish Framework
               </>
             ) : (
               <>

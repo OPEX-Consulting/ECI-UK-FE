@@ -32,7 +32,7 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       localStorage.removeItem("token");
       // Redirect to login without importing the router (avoids circular deps)
-      // window.location.href = "/login";
+      window.location.href = "/admin/login";
     }
     return Promise.reject(error);
   },
