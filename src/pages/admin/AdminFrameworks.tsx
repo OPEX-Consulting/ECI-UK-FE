@@ -34,9 +34,17 @@ const mapDraftStatus = (status: ApiFrameworkDraft['status']): FrameworkStatus =>
   }
 };
 
+const getDraftFrameworkName = (draft: ApiFrameworkDraft): string => {
+  const inferredName = draft.raw_ai_output?.framework_name;
+  if (typeof inferredName === 'string' && inferredName.trim().length > 0) {
+    return inferredName.trim();
+  }
+  return `Draft (${draft.id.slice(0, 8)}…)`;
+};
+
 const mapDraftToRow = (d: ApiFrameworkDraft): Framework => ({
   id: d.id,
-  name: d.structured_content?.title ?? `Draft (${d.id.slice(0, 8)}…)`,
+  name: d.structured_content?.title ?? getDraftFrameworkName(d),
   version: d.structured_content?.version ?? '—',
   status: mapDraftStatus(d.status),
   regulator: '—',

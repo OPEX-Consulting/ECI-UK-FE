@@ -17,6 +17,8 @@ const STATUS_CONFIG: Record<
 > = {
   draft:            { label: 'Draft',            colour: 'text-slate-400 bg-slate-500/10 border-slate-500/20',   icon: <Clock className="w-3 h-3" /> },
   processing:       { label: 'Processing',       colour: 'text-amber-400 bg-amber-500/10 border-amber-500/20',   icon: <Loader2 className="w-3 h-3 animate-spin" /> },
+  pending_obligation_selection: { label: 'Obligations Ready', colour: 'text-indigo-400 bg-indigo-500/10 border-indigo-500/20', icon: <AlertTriangle className="w-3 h-3" /> },
+  synthesizing_tasks: { label: 'Generating Tasks', colour: 'text-amber-400 bg-amber-500/10 border-amber-500/20', icon: <Loader2 className="w-3 h-3 animate-spin" /> },
   ready_for_review: { label: 'Ready for Review', colour: 'text-blue-400 bg-blue-500/10 border-blue-500/20',      icon: <AlertTriangle className="w-3 h-3" /> },
   error:            { label: 'Error',            colour: 'text-red-400 bg-red-500/10 border-red-500/20',         icon: <AlertTriangle className="w-3 h-3" /> },
   published:        { label: 'Published',        colour: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20', icon: <CheckCircle2 className="w-3 h-3" /> },
@@ -102,7 +104,11 @@ const AdminFrameworkDetail = () => {
   }
 
   const sc = draft.structured_content;
-  const statusCfg = STATUS_CONFIG[draft.status];
+  const statusCfg = STATUS_CONFIG[draft.status] ?? {
+    label: draft.status.replace(/_/g, ' '),
+    colour: 'text-slate-400 bg-slate-500/10 border-slate-500/20',
+    icon: <Clock className="w-3 h-3" />,
+  };
 
   const stats = {
     themes: sc?.themes.length ?? 0,

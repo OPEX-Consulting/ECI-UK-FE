@@ -63,6 +63,30 @@ export const getFrameworkDraft = async (id: string): Promise<ApiFrameworkDraft> 
   return response.data;
 };
 
+/** Trigger Phase 2 synthesis for selected obligations. */
+export const synthesizeTasks = async (
+  id: string,
+  selectedObligations: string[],
+): Promise<ApiFrameworkDraft> => {
+  const response = await api.post<ApiFrameworkDraft>(
+    `/admin/frameworks/${id}/synthesize`,
+    { selected_obligations: selectedObligations },
+  );
+  return response.data;
+};
+
+/** Re-run Phase 1 extraction with optional admin guidance. */
+export const refineFrameworkObligations = async (
+  id: string,
+  additionalInstructions: string,
+): Promise<ApiFrameworkDraft> => {
+  const response = await api.post<ApiFrameworkDraft>(
+    `/admin/frameworks/${id}/submit`,
+    { additional_instructions: additionalInstructions.trim() },
+  );
+  return response.data;
+};
+
 /** Persist the editor's structured_content back to the backend. */
 export const updateFrameworkStructure = async (
   id: string,
