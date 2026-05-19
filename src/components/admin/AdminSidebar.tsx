@@ -2,6 +2,8 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/components/theme-provider';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { useQuery } from '@tanstack/react-query';
+import { getNotifications } from '@/services/admin/notificationService';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,6 +25,7 @@ import {
   LogOut,
   Sun,
   Moon,
+  Bell,
 } from 'lucide-react';
 
 const adminNavItems = [
@@ -32,6 +35,7 @@ const adminNavItems = [
   { title: 'School Types', icon: School, path: '/admin/school-types' },
   { title: 'Admin Users', icon: Users, path: '/admin/users' },
   { title: 'Audit Log', icon: ScrollText, path: '/admin/audit-log' },
+  { title: 'Notifications', icon: Bell, path: '/admin/notifications' },
 ];
 
 export const AdminSidebar = () => {
@@ -39,6 +43,25 @@ export const AdminSidebar = () => {
   const { theme, setTheme } = useTheme();
   const location = useLocation();
   const navigate = useNavigate();
+
+  const { data: notifications } = useQuery({
+    queryKey: ['adminNotifications'],
+    queryFn: async () => {
+      const mockMode = localStorage.getItem('eci-admin-mock-mode') === 'true';
+      if (mockMode) {
+        const stored = localStorage.getItem('eci-admin-mock-notifications');
+        return stored ? JSON.parse(stored) : [];
+      }
+      try {
+        return await getNotifications();
+      } catch (error) {
+        console.warn("Failed to fetch live notifications, falling back to mock storage:", error);
+        const stored = localStorage.getItem('eci-admin-mock-notifications');
+        return stored ? JSON.parse(stored) : [];
+      }
+    },
+    refetchInterval: 10000,
+  });
 
   if (!user) return null;
 
@@ -74,20 +97,30 @@ export const AdminSidebar = () => {
                 ? location.pathname === '/admin'
                 : location.pathname.startsWith(item.path);
 
+            const isNotifications = item.path === '/admin/notifications';
+            const unreadCount = isNotifications ? (notifications?.filter((n: any) => !n.read).length || 0) : 0;
+
             return (
               <li key={item.path}>
                 <button
                   onClick={() => navigate(item.path)}
-                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors text-left ${
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-sm transition-colors text-left ${
                     isActive 
                       ? 'bg-sidebar-accent text-sidebar-accent-foreground' 
                       : 'text-sidebar-foreground opacity-70 hover:opacity-100 hover:bg-sidebar-accent/50'
                   }`}
                 >
-                  <item.icon
-                    className={`w-4 h-4 shrink-0 ${isActive ? 'text-primary' : 'inherit'}`}
-                  />
-                  <span>{item.title}</span>
+                  <div className="flex items-center gap-3">
+                    <item.icon
+                      className={`w-4 h-4 shrink-0 ${isActive ? 'text-primary' : 'inherit'}`}
+                    />
+                    <span>{item.title}</span>
+                  </div>
+                  {isNotifications && unreadCount > 0 && (
+                    <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white transition-all duration-300">
+                      {unreadCount}
+                    </span>
+                  )}
                 </button>
               </li>
             );

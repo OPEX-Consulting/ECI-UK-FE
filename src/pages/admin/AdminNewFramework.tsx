@@ -594,14 +594,14 @@ const AdminNewFramework = () => {
 
         <div className="flex items-center gap-3">
           {/* Temporary Dev Button */}
-          {stage !== "EDIT" && (
+          {/* {stage !== "EDIT" && (
             <button
               onClick={() => setStage("EDIT")}
               className="px-4 py-2 rounded-lg bg-indigo-500/10 text-indigo-500 text-xs font-bold hover:bg-indigo-500/20 transition-colors"
             >
               Dev: Skip to Edit UI
             </button>
-          )}
+          )} */}
 
           {stage === "EDIT" && (
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/5 border border-emerald-500/10 text-[11px] font-medium text-emerald-500 animate-pulse">

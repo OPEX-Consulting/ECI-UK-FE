@@ -48,6 +48,7 @@ import AdminSchoolTypes from "@/pages/admin/AdminSchoolTypes";
 import AdminUsers from "@/pages/admin/AdminUsers";
 import AdminAuditLog from "@/pages/admin/AdminAuditLog";
 import AdminLogin from "@/pages/admin/AdminLogin";
+import AdminNotifications from "@/pages/admin/AdminNotifications";
 
 const queryClient = new QueryClient();
 
@@ -199,6 +200,16 @@ const App = () => (
                         <AdminProtectedRoute>
                           <AdminLayout>
                             <AdminAuditLog />
+                          </AdminLayout>
+                        </AdminProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/admin/notifications"
+                      element={
+                        <AdminProtectedRoute>
+                          <AdminLayout>
+                            <AdminNotifications />
                           </AdminLayout>
                         </AdminProtectedRoute>
                       }
