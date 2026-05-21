@@ -17,6 +17,8 @@ const STATUS_CONFIG: Record<
 > = {
   draft:            { label: 'Draft',            colour: 'text-slate-400 bg-slate-500/10 border-slate-500/20',   icon: <Clock className="w-3 h-3" /> },
   processing:       { label: 'Processing',       colour: 'text-amber-400 bg-amber-500/10 border-amber-500/20',   icon: <Loader2 className="w-3 h-3 animate-spin" /> },
+  pending_obligation_selection: { label: 'Obligations Ready', colour: 'text-indigo-400 bg-indigo-500/10 border-indigo-500/20', icon: <AlertTriangle className="w-3 h-3" /> },
+  synthesizing_tasks: { label: 'Generating Tasks', colour: 'text-amber-400 bg-amber-500/10 border-amber-500/20', icon: <Loader2 className="w-3 h-3 animate-spin" /> },
   ready_for_review: { label: 'Ready for Review', colour: 'text-blue-400 bg-blue-500/10 border-blue-500/20',      icon: <AlertTriangle className="w-3 h-3" /> },
   error:            { label: 'Error',            colour: 'text-red-400 bg-red-500/10 border-red-500/20',         icon: <AlertTriangle className="w-3 h-3" /> },
   published:        { label: 'Published',        colour: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20', icon: <CheckCircle2 className="w-3 h-3" /> },
@@ -34,6 +36,7 @@ const AdminFrameworkDetail = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedThemes, setExpandedThemes] = useState<Set<string>>(new Set());
+  const [expandedTasks, setExpandedTasks] = useState<Set<string>>(new Set());
   const [isPublishing, setIsPublishing] = useState(false);
 
   useEffect(() => {
@@ -42,8 +45,12 @@ const AdminFrameworkDetail = () => {
       .then((d) => {
         setDraft(d);
         // Expand all themes by default
-        const ids = new Set(d.structured_content?.themes.map((t) => t.id) ?? []);
-        setExpandedThemes(ids);
+        const themeIds = new Set(d.structured_content?.themes.map((t) => t.id) ?? []);
+        const taskIds = new Set(
+          d.structured_content?.themes.flatMap((theme) => theme.tasks.map((task) => task.id)) ?? [],
+        );
+        setExpandedThemes(themeIds);
+        setExpandedTasks(taskIds);
       })
       .catch(() => setError('Failed to load framework. It may have been deleted.'))
       .finally(() => setLoading(false));
@@ -53,6 +60,14 @@ const AdminFrameworkDetail = () => {
     setExpandedThemes((prev) => {
       const next = new Set(prev);
       next.has(themeId) ? next.delete(themeId) : next.add(themeId);
+      return next;
+    });
+  };
+
+  const toggleTask = (taskId: string) => {
+    setExpandedTasks((prev) => {
+      const next = new Set(prev);
+      next.has(taskId) ? next.delete(taskId) : next.add(taskId);
       return next;
     });
   };
@@ -102,16 +117,27 @@ const AdminFrameworkDetail = () => {
   }
 
   const sc = draft.structured_content;
-  const statusCfg = STATUS_CONFIG[draft.status];
+  const statusCfg = STATUS_CONFIG[draft.status] ?? {
+    label: draft.status.replace(/_/g, ' '),
+    colour: 'text-slate-400 bg-slate-500/10 border-slate-500/20',
+    icon: <Clock className="w-3 h-3" />,
+  };
 
   const stats = {
     themes: sc?.themes.length ?? 0,
     tasks: sc?.themes.reduce((a, t) => a + t.tasks.length, 0) ?? 0,
-    actionItems: sc?.themes.reduce(
-      (a, t) => a + t.tasks.reduce((b, task) => b + task.action_items.length, 0),
+    subTasks: sc?.themes.reduce(
+      (a, t) => a + t.tasks.reduce((b, task) => b + (task.sub_tasks ?? []).length, 0),
       0,
     ) ?? 0,
   };
+
+  const taskNumberLookup = new Map<string, number>();
+  sc?.themes.forEach((theme) => {
+    theme.tasks.forEach((task) => {
+      taskNumberLookup.set(task.id, taskNumberLookup.size + 1);
+    });
+  });
 
   return (
     <div className="p-7 min-h-screen text-foreground">
@@ -185,7 +211,7 @@ const AdminFrameworkDetail = () => {
         {[
           { label: 'Themes',       value: stats.themes },
           { label: 'Control Tasks', value: stats.tasks },
-          { label: 'Action Items', value: stats.actionItems },
+          { label: 'Sub-tasks', value: stats.subTasks },
           {
             label: 'Source',
             value: draft.original_file_url.startsWith('http') ? (
@@ -266,56 +292,97 @@ const AdminFrameworkDetail = () => {
               {/* Tasks */}
               {expandedThemes.has(theme.id) && theme.tasks.length > 0 && (
                 <div className="border-t border-border divide-y divide-border/50">
-                  {theme.tasks.map((task, j) => (
-                    <div key={task.id} className="px-6 py-4 hover:bg-muted/20 transition-colors">
-                      <div className="flex items-start gap-3">
-                        <span className="text-[10px] font-bold text-muted-foreground/60 mt-1 shrink-0">
-                          {i + 1}.{j + 1}
-                        </span>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium">{task.title}</p>
-                          {task.description && (
-                            <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                              {task.description}
-                            </p>
-                          )}
-                          {task.action_items.length > 0 && (
-                            <div className="mt-3 space-y-2">
-                              {task.action_items.map((ai) => (
-                                <div
-                                  key={ai.id}
-                                  className="ml-3 pl-3 border-l-2 border-primary/20"
-                                >
-                                  <p className="text-xs font-semibold text-foreground/80">{ai.title}</p>
-                                  {ai.description && (
-                                    <p className="text-[11px] text-muted-foreground mt-0.5">
-                                      {ai.description}
+                  {theme.tasks.map((task) => {
+                    const taskNumber = taskNumberLookup.get(task.id) ?? 0;
+                    const isTaskExpanded = expandedTasks.has(task.id);
+                    const subTasks = task.sub_tasks ?? [];
+
+                    return (
+                      <div key={task.id} className="transition-colors">
+                        <button
+                          className="w-full px-6 py-4 hover:bg-muted/20 transition-colors text-left"
+                          onClick={() => toggleTask(task.id)}
+                        >
+                          <div className="flex items-start gap-3">
+                            <span className="w-8 h-8 rounded-md bg-primary/10 text-primary text-xs font-bold flex items-center justify-center mt-0.5 shrink-0">
+                              {taskNumber}
+                            </span>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-start justify-between gap-4">
+                                <div className="min-w-0">
+                                  <p className="text-sm font-medium">{task.title}</p>
+                                  {task.description && (
+                                    <p className="text-xs text-muted-foreground mt-1 leading-relaxed line-clamp-2">
+                                      {task.description}
                                     </p>
                                   )}
-                                  {ai.evidence_specs.length > 0 && (
-                                    <div className="flex flex-wrap gap-1.5 mt-1.5">
-                                      {ai.evidence_specs.map((ev) => (
-                                        <span
-                                          key={ev.id}
-                                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted text-[10px] text-muted-foreground border border-border"
-                                        >
-                                          <FileText className="w-2.5 h-2.5" />
-                                          {ev.title}
-                                          {ev.required && (
-                                            <span className="text-red-400 font-bold">*</span>
-                                          )}
-                                        </span>
-                                      ))}
-                                    </div>
+                                </div>
+                                <div className="flex items-center gap-2 shrink-0">
+                                  <span className="text-xs text-muted-foreground">
+                                    {subTasks.length} sub-task{subTasks.length !== 1 ? 's' : ''}
+                                  </span>
+                                  {isTaskExpanded ? (
+                                    <ChevronUp className="w-4 h-4 text-muted-foreground" />
+                                  ) : (
+                                    <ChevronDown className="w-4 h-4 text-muted-foreground" />
                                   )}
                                 </div>
-                              ))}
+                              </div>
                             </div>
-                          )}
-                        </div>
+                          </div>
+                        </button>
+
+                        {isTaskExpanded && (
+                          <div className="px-6 pb-5 pl-[68px] space-y-3">
+                            {subTasks.length > 0 ? (
+                              subTasks.map((subTask, subTaskIndex) => (
+                                <div
+                                  key={subTask.id}
+                                  className="border-l-2 border-primary/20 pl-4 py-1.5"
+                                >
+                                  <div className="flex items-start gap-3">
+                                    <span className="text-[11px] font-bold text-primary/80 mt-0.5 shrink-0">
+                                      {taskNumber}.{subTaskIndex + 1}
+                                    </span>
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-xs font-semibold text-foreground/90">
+                                        {subTask.title}
+                                      </p>
+                                      {subTask.description && (
+                                        <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
+                                          {subTask.description}
+                                        </p>
+                                      )}
+                                      {(subTask.evidence_requirements ?? []).length > 0 && (
+                                        <div className="flex flex-wrap gap-1.5 mt-2">
+                                          {(subTask.evidence_requirements ?? []).map((ev) => (
+                                            <span
+                                              key={ev.id}
+                                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted text-[10px] text-muted-foreground border border-border"
+                                            >
+                                              <FileText className="w-2.5 h-2.5" />
+                                              {ev.title}
+                                              {ev.required && (
+                                                <span className="text-red-400 font-bold">*</span>
+                                              )}
+                                            </span>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              ))
+                            ) : (
+                              <div className="py-3 text-xs text-muted-foreground">
+                                No sub-tasks defined for this task.
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
 
