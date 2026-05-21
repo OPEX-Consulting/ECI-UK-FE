@@ -106,3 +106,42 @@ export const publishFramework = async (id: string): Promise<ApiFrameworkDraft> =
   );
   return response.data;
 };
+
+/** Add Subtask */
+export const addSubTask = async (
+  taskId: string,
+  subtask: {
+    title: string;
+    description?: string;
+    evidence_required: boolean;
+    display_order: number;
+  }
+): Promise<any> => {
+  const response = await api.post(`/school/tasks/${taskId}/subtasks`, subtask);
+  return response.data;
+};
+
+/** Update Subtask */
+export const updateSubTask = async (
+  taskId: string,
+  subtaskId: string,
+  subtask: {
+    title: string;
+    description?: string;
+    evidence_required: boolean;
+    display_order?: number;
+  }
+): Promise<any> => {
+  const response = await api.patch(`/school/tasks/${taskId}/subtasks/${subtaskId}`, subtask);
+  return response.data;
+};
+
+/** Delete Subtask */
+export const deleteSubTask = async (
+  taskId: string,
+  subtaskId: string
+): Promise<any> => {
+  const response = await api.delete(`/school/tasks/${taskId}/subtasks/${subtaskId}`);
+  return response.data;
+};
+

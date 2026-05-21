@@ -10,6 +10,9 @@ import {
   publishFramework,
   synthesizeTasks,
   refineFrameworkObligations,
+  addSubTask,
+  updateSubTask,
+  deleteSubTask,
 } from "@/services/frameworkService";
 import type {
   ApiClauseTags,
@@ -34,6 +37,7 @@ import {
   Search,
   Plus,
   Trash2,
+  Pencil,
   GripVertical,
   ChevronDown,
   ChevronUp,
@@ -234,19 +238,19 @@ const mapApiDraftToUiFramework = (draft: ApiFrameworkDraft): FrameworkDraft => {
                     : stIndex + 1,
                 evidenceRequirements: Array.isArray(st.evidence_requirements)
                   ? (st.evidence_requirements as Record<string, unknown>[]).map((ev, evIndex) => ({
-                      id: `ev-${draft.id}-${i}-${stIndex}-${evIndex}`,
-                      title: String(ev.label ?? ev.title ?? "Evidence"),
-                      description: String(ev.description ?? ""),
-                      acceptedFormats: Array.isArray(ev.accepted_formats)
-                        ? (ev.accepted_formats as string[])
-                        : [],
-                      isMandatory: Boolean(ev.required ?? true),
-                      expiryDays:
-                        typeof ev.expiry_days === "number"
-                          ? ev.expiry_days
-                          : null,
-                      autoStart: Boolean(ev.auto_start ?? false),
-                    }))
+                    id: `ev-${draft.id}-${i}-${stIndex}-${evIndex}`,
+                    title: String(ev.label ?? ev.title ?? "Evidence"),
+                    description: String(ev.description ?? ""),
+                    acceptedFormats: Array.isArray(ev.accepted_formats)
+                      ? (ev.accepted_formats as string[])
+                      : [],
+                    isMandatory: Boolean(ev.required ?? true),
+                    expiryDays:
+                      typeof ev.expiry_days === "number"
+                        ? ev.expiry_days
+                        : null,
+                    autoStart: Boolean(ev.auto_start ?? false),
+                  }))
                   : [],
               })),
               evidenceRequirements: [],
@@ -324,16 +328,16 @@ const mapUiFrameworkToApi = (
         description: ai.description || undefined,
         evidence_specs: ai.evidence
           ? [
-              {
-                id: ai.evidence.id,
-                title: ai.evidence.title,
-                description: ai.evidence.description,
-                required: ai.evidence.isMandatory,
-                expiry_days: ai.evidence.expiryDays ?? null,
-                accepted_formats: ai.evidence.acceptedFormats,
-                auto_start: ai.evidence.autoStart ?? false,
-              },
-            ]
+            {
+              id: ai.evidence.id,
+              title: ai.evidence.title,
+              description: ai.evidence.description,
+              required: ai.evidence.isMandatory,
+              expiry_days: ai.evidence.expiryDays ?? null,
+              accepted_formats: ai.evidence.acceptedFormats,
+              auto_start: ai.evidence.autoStart ?? false,
+            },
+          ]
           : [],
       })),
     })),
@@ -382,29 +386,26 @@ const Stepper = ({ currentStage }: { currentStage: Stage }) => {
         <div key={s.id} className="flex items-center flex-1 last:flex-none">
           <div className="flex flex-col items-center relative">
             <div
-              className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 border-2 ${
-                i < currentIndex
-                  ? "bg-primary border-primary text-primary-foreground"
-                  : i === currentIndex
-                    ? "bg-background border-primary text-primary shadow-[0_0_0_4px_rgba(16,185,129,0.1)]"
-                    : "bg-background border-border text-muted-foreground"
-              }`}
+              className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 border-2 ${i < currentIndex
+                ? "bg-primary border-primary text-primary-foreground"
+                : i === currentIndex
+                  ? "bg-background border-primary text-primary shadow-[0_0_0_4px_rgba(16,185,129,0.1)]"
+                  : "bg-background border-border text-muted-foreground"
+                }`}
             >
               {i < currentIndex ? <Check className="w-4 h-4" /> : i + 1}
             </div>
             <span
-              className={`absolute top-10 text-[11px] font-semibold uppercase tracking-wider whitespace-nowrap transition-colors duration-300 ${
-                i <= currentIndex ? "text-foreground" : "text-muted-foreground"
-              }`}
+              className={`absolute top-10 text-[11px] font-semibold uppercase tracking-wider whitespace-nowrap transition-colors duration-300 ${i <= currentIndex ? "text-foreground" : "text-muted-foreground"
+                }`}
             >
               {s.label}
             </span>
           </div>
           {i < stages.length - 1 && (
             <div
-              className={`h-[2px] flex-1 mx-4 transition-all duration-500 ${
-                i < currentIndex ? "bg-primary" : "bg-border"
-              }`}
+              className={`h-[2px] flex-1 mx-4 transition-all duration-500 ${i < currentIndex ? "bg-primary" : "bg-border"
+                }`}
             />
           )}
         </div>
@@ -637,11 +638,10 @@ const AdminNewFramework = () => {
                     <button
                       key={m}
                       onClick={() => setUploadMode(m)}
-                      className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-xs font-semibold transition-all ${
-                        uploadMode === m
-                          ? "bg-background shadow-sm text-foreground"
-                          : "text-muted-foreground hover:text-foreground"
-                      }`}
+                      className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-xs font-semibold transition-all ${uploadMode === m
+                        ? "bg-background shadow-sm text-foreground"
+                        : "text-muted-foreground hover:text-foreground"
+                        }`}
                     >
                       {m === "file" && <Upload className="w-3.5 h-3.5" />}
                       {m === "url" && <Link2 className="w-3.5 h-3.5" />}
@@ -657,11 +657,10 @@ const AdminNewFramework = () => {
                     <>
                       {!uploadedFile ? (
                         <div
-                          className={`border-2 border-dashed rounded-xl flex flex-col items-center justify-center py-12 px-6 transition-all duration-300 ${
-                            isDragging
-                              ? "border-primary bg-primary/5"
-                              : "border-border bg-muted/20 hover:bg-muted/40"
-                          }`}
+                          className={`border-2 border-dashed rounded-xl flex flex-col items-center justify-center py-12 px-6 transition-all duration-300 ${isDragging
+                            ? "border-primary bg-primary/5"
+                            : "border-border bg-muted/20 hover:bg-muted/40"
+                            }`}
                           onDragOver={(e) => {
                             e.preventDefault();
                             setIsDragging(true);
@@ -929,6 +928,19 @@ const StageEdit = ({
   const [selectedSubTaskIndex, setSelectedSubTaskIndex] = useState(0);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
 
+  // Sub-task CRUD States
+  const [subTaskModalMode, setSubTaskModalMode] = useState<"add" | "edit">("add");
+  const [subTaskTitle, setSubTaskTitle] = useState("");
+  const [subTaskDescription, setSubTaskDescription] = useState("");
+  const [subTaskEvidenceRequired, setSubTaskEvidenceRequired] = useState(true);
+  const [editingSubTaskIndex, setEditingSubTaskIndex] = useState<number | null>(null);
+  const [isSubTaskSaving, setIsSubTaskSaving] = useState(false);
+
+  // Sub-task Delete Confirmation Modal States
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [subTaskIndexToDelete, setSubTaskIndexToDelete] = useState<number | null>(null);
+  const [isDeletingSubTask, setIsDeletingSubTask] = useState(false);
+
   const reviewTasks = framework.themes.flatMap((theme) => theme.tasks);
   const queueGroups = {
     all: reviewTasks,
@@ -937,16 +949,16 @@ const StageEdit = ({
     high: reviewTasks.filter((task) => getConfidenceBand(task) === "high"),
   };
   const visibleQueue = queueGroups[activeQueueTab];
-  
+
   const selectedTask = reviewTasks.find((task) => task.id === selectedTaskId) ?? visibleQueue[0] ?? reviewTasks[0];
-  
+
   const selectedSubTasks = selectedTask?.subTasks ?? [];
   const selectedSubTask = selectedSubTasks[selectedSubTaskIndex];
   const selectedEvidence = selectedSubTask?.evidenceRequirements ?? [];
-  
+
   const confidenceBand = selectedTask ? getConfidenceBand(selectedTask) : "low";
-  const confidenceValue = selectedTask?.confidenceScore 
-    ? Math.round(selectedTask.confidenceScore * 100) 
+  const confidenceValue = selectedTask?.confidenceScore
+    ? Math.round(selectedTask.confidenceScore * 100)
     : (confidenceBand === 'high' ? 90 : confidenceBand === 'med' ? 70 : 40);
 
   useEffect(() => {
@@ -958,6 +970,125 @@ const StageEdit = ({
   useEffect(() => {
     setSelectedSubTaskIndex(0);
   }, [selectedTask?.id]);
+
+  // Sub-task mapper helper
+  const mapApiSubTaskToUi = (st: any): SubTask => ({
+    id: st.id ?? crypto.randomUUID(),
+    title: st.title ?? "",
+    description: st.description ?? "",
+    evidenceRequired: st.evidence_required || (st.evidence_requirements ?? []).length > 0,
+    displayOrder: st.display_order ?? 1,
+    evidenceRequirements: (st.evidence_requirements ?? []).map(mapApiEvidenceToUi),
+  });
+
+  // Helper to cleanly update the selected task's subtasks list
+  const updateSelectedTaskSubTasks = (updater: (subTasks: SubTask[]) => SubTask[]) => {
+    if (!selectedTask) return;
+    const updatedSubTasks = updater(selectedTask.subTasks);
+    setFramework({
+      ...framework,
+      themes: framework.themes.map((theme) => ({
+        ...theme,
+        tasks: theme.tasks.map((task) =>
+          task.id === selectedTask.id ? { ...task, subTasks: updatedSubTasks } : task,
+        ),
+      })),
+    });
+  };
+
+  const handleOpenAddSubTaskModal = () => {
+    setSubTaskModalMode("add");
+    setSubTaskTitle("");
+    setSubTaskDescription("");
+    setSubTaskEvidenceRequired(true);
+    setEditingSubTaskIndex(null);
+    setIsSubTaskModalOpen(true);
+  };
+
+  const handleOpenEditSubTaskModal = (index: number) => {
+    const st = selectedSubTasks[index];
+    if (!st) return;
+    setSubTaskModalMode("edit");
+    setSubTaskTitle(st.title);
+    setSubTaskDescription(st.description || "");
+    setSubTaskEvidenceRequired(st.evidenceRequired);
+    setEditingSubTaskIndex(index);
+    setIsSubTaskModalOpen(true);
+  };
+
+  const handleSaveSubTask = async () => {
+    if (!selectedTask) return;
+    if (!subTaskTitle.trim()) {
+      toast.error("Please enter a sub-task title");
+      return;
+    }
+
+    setIsSubTaskSaving(true);
+    try {
+      if (subTaskModalMode === "add") {
+        const result = await addSubTask(selectedTask.id, {
+          title: subTaskTitle.trim(),
+          description: subTaskDescription.trim() || undefined,
+          evidence_required: subTaskEvidenceRequired,
+          display_order: selectedSubTasks.length + 1,
+        });
+        const newSubTask = mapApiSubTaskToUi(result);
+        updateSelectedTaskSubTasks((prev) => [...prev, newSubTask]);
+        toast.success("Sub-task added successfully");
+      } else {
+        if (editingSubTaskIndex === null) return;
+        const targetSubTask = selectedSubTasks[editingSubTaskIndex];
+        if (!targetSubTask) return;
+
+        const result = await updateSubTask(selectedTask.id, targetSubTask.id, {
+          title: subTaskTitle.trim(),
+          description: subTaskDescription.trim() || undefined,
+          evidence_required: subTaskEvidenceRequired,
+        });
+        const updatedSubTask = mapApiSubTaskToUi(result);
+        updateSelectedTaskSubTasks((prev) =>
+          prev.map((st, idx) => (idx === editingSubTaskIndex ? { ...st, ...updatedSubTask } : st))
+        );
+        toast.success("Sub-task updated successfully");
+      }
+      setIsSubTaskModalOpen(false);
+    } catch (error) {
+      console.error("Failed to save subtask", error);
+      toast.error(`Failed to ${subTaskModalMode} sub-task`);
+    } finally {
+      setIsSubTaskSaving(false);
+    }
+  };
+
+  const handleOpenDeleteModal = (index: number) => {
+    setSubTaskIndexToDelete(index);
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleConfirmDeleteSubTask = async () => {
+    if (!selectedTask || subTaskIndexToDelete === null) return;
+    const index = subTaskIndexToDelete;
+    const targetSubTask = selectedSubTasks[index];
+    if (!targetSubTask) return;
+
+    setIsDeletingSubTask(true);
+    try {
+      await deleteSubTask(selectedTask.id, targetSubTask.id);
+      updateSelectedTaskSubTasks((prev) => prev.filter((_, idx) => idx !== index));
+      // Adjust selected index if it is now out of bounds
+      if (selectedSubTaskIndex >= selectedSubTasks.length - 1) {
+        setSelectedSubTaskIndex(Math.max(0, selectedSubTasks.length - 2));
+      }
+      toast.success("Sub-task deleted successfully");
+      setIsDeleteModalOpen(false);
+      setSubTaskIndexToDelete(null);
+    } catch (error) {
+      console.error("Failed to delete subtask", error);
+      toast.error("Failed to delete sub-task");
+    } finally {
+      setIsDeletingSubTask(false);
+    }
+  };
 
   const updateSelectedTask = (updates: Partial<Task>) => {
     if (!selectedTask) return;
@@ -997,21 +1128,20 @@ const StageEdit = ({
               <button
                 key={tab}
                 onClick={() => setActiveQueueTab(tab)}
-                className={`pb-3 text-[10px] font-bold uppercase tracking-wider border-b-2 transition-colors ${
-                  activeQueueTab === tab
-                    ? tab === "low" ? "border-rose-500 text-rose-500"
+                className={`pb-3 text-[10px] font-bold uppercase tracking-wider border-b-2 transition-colors ${activeQueueTab === tab
+                  ? tab === "low" ? "border-rose-500 text-rose-500"
                     : tab === "med" ? "border-amber-500 text-amber-600 dark:text-amber-500"
-                    : tab === "high" ? "border-emerald-500 text-emerald-600 dark:text-emerald-500"
-                    : "border-primary text-primary"
-                    : "border-transparent text-muted-foreground hover:text-foreground"
-                }`}
+                      : tab === "high" ? "border-emerald-500 text-emerald-600 dark:text-emerald-500"
+                        : "border-primary text-primary"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+                  }`}
               >
                 {tab} ({queueGroups[tab].length})
               </button>
             ))}
           </div>
         </div>
-        
+
         <div className="flex-1 overflow-y-auto custom-scrollbar bg-muted/5">
           <div className="divide-y divide-border/50">
             {visibleQueue.length > 0 ? (
@@ -1019,16 +1149,15 @@ const StageEdit = ({
                 const isActive = task.id === selectedTask?.id;
                 const band = getConfidenceBand(task);
                 const score = task.confidenceScore ? Math.round(task.confidenceScore * 100) : (band === 'high' ? 90 : band === 'med' ? 70 : 40);
-                
+
                 return (
                   <button
                     key={task.id}
                     onClick={() => setSelectedTaskId(task.id)}
-                    className={`w-full text-left p-4 cursor-pointer transition-all ${
-                      isActive
-                        ? "bg-background border-l-4 border-l-primary shadow-sm"
-                        : "bg-transparent hover:bg-muted/50 border-l-4 border-l-transparent"
-                    }`}
+                    className={`w-full text-left p-4 cursor-pointer transition-all ${isActive
+                      ? "bg-background border-l-4 border-l-primary shadow-sm"
+                      : "bg-transparent hover:bg-muted/50 border-l-4 border-l-transparent"
+                      }`}
                   >
                     <div className="flex justify-between items-start mb-2">
                       <p className={`text-xs line-clamp-2 pr-2 ${isActive ? "font-bold text-foreground" : "font-medium text-muted-foreground"}`}>
@@ -1037,11 +1166,11 @@ const StageEdit = ({
                       {task.reviewStatus === "approved" && <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0 mt-0.5" />}
                       {task.reviewStatus === "rejected" && <X className="w-3.5 h-3.5 text-rose-500 shrink-0 mt-0.5" />}
                     </div>
-                    
+
                     <div className="flex items-center gap-2 mt-2">
                       <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
-                        <div 
-                          className={`h-full rounded-full ${band === 'low' ? 'bg-rose-500' : band === 'med' ? 'bg-amber-500' : 'bg-emerald-500'}`} 
+                        <div
+                          className={`h-full rounded-full ${band === 'low' ? 'bg-rose-500' : band === 'med' ? 'bg-amber-500' : 'bg-emerald-500'}`}
                           style={{ width: `${score}%` }}
                         />
                       </div>
@@ -1070,7 +1199,7 @@ const StageEdit = ({
             </div>
             <h3 className="text-xl font-bold mb-2">No tasks to review</h3>
             <p className="text-sm text-muted-foreground max-w-md mx-auto leading-relaxed">
-              Extract requirements from a source document first. 
+              Extract requirements from a source document first.
               The AI will automatically populate this queue with identified compliance obligations.
             </p>
           </div>
@@ -1079,39 +1208,36 @@ const StageEdit = ({
             {/* Header / Action Bar */}
             <div className="flex items-center justify-between border-b border-border bg-card/80 backdrop-blur-md sticky top-0 z-20 px-6 py-4">
               <div className="flex items-center gap-3">
-                <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border ${
-                  confidenceBand === "low" ? "bg-rose-500/10 border-rose-500/20 text-rose-600" :
+                <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border ${confidenceBand === "low" ? "bg-rose-500/10 border-rose-500/20 text-rose-600" :
                   confidenceBand === "med" ? "bg-amber-500/10 border-amber-500/20 text-amber-700 dark:text-amber-400" :
-                  "bg-emerald-500/10 border-emerald-500/20 text-emerald-700 dark:text-emerald-400"
-                }`}>
+                    "bg-emerald-500/10 border-emerald-500/20 text-emerald-700 dark:text-emerald-400"
+                  }`}>
                   <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                   <span className="text-xs font-bold uppercase tracking-wider">
                     {confidenceBand === "low" ? "Low Confidence" : confidenceBand === "med" ? "Medium Confidence" : "High Confidence"}
                   </span>
                   <span className="text-xs font-bold pl-2 border-l border-current/20 opacity-80">{confidenceValue}%</span>
                 </div>
-                
+
                 {selectedTask.reviewStatus !== "pending_review" && (
-                  <span className={`text-[10px] font-bold px-2 py-1 rounded-md uppercase tracking-wider ${
-                    selectedTask.reviewStatus === "approved" ? "bg-emerald-500 text-white" :
+                  <span className={`text-[10px] font-bold px-2 py-1 rounded-md uppercase tracking-wider ${selectedTask.reviewStatus === "approved" ? "bg-emerald-500 text-white" :
                     selectedTask.reviewStatus === "rejected" ? "bg-rose-500 text-white" :
-                    "bg-indigo-500 text-white"
-                  }`}>
+                      "bg-indigo-500 text-white"
+                    }`}>
                     {selectedTask.reviewStatus.replace(/_/g, " ")}
                   </span>
                 )}
               </div>
-              
+
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setIsSourceOpen(!isSourceOpen)}
-                  className={`px-3 py-2 rounded-lg text-xs font-bold transition-colors flex items-center gap-2 border ${
-                    isSourceOpen 
-                      ? "bg-primary/10 text-primary border-primary/20" 
-                      : "bg-background text-foreground border-border hover:bg-muted"
-                  }`}
+                  className={`px-3 py-2 rounded-lg text-xs font-bold transition-colors flex items-center gap-2 border ${isSourceOpen
+                    ? "bg-primary/10 text-primary border-primary/20"
+                    : "bg-background text-foreground border-border hover:bg-muted"
+                    }`}
                 >
-                  <FileText className="w-3.5 h-3.5" /> 
+                  <FileText className="w-3.5 h-3.5" />
                   {isSourceOpen ? "Hide Source Text" : "View Source Text"}
                 </button>
                 <div className="w-px h-6 bg-border mx-2" />
@@ -1128,7 +1254,7 @@ const StageEdit = ({
                   Flag
                 </button>
                 <button
-                  onClick={() => updateSelectedTask({ 
+                  onClick={() => updateSelectedTask({
                     reviewStatus: "approved",
                     meta: selectedTask?.meta ? { ...selectedTask.meta, human_reviewed: true } : undefined
                   })}
@@ -1141,7 +1267,7 @@ const StageEdit = ({
 
             <ScrollArea className="flex-1 px-6 py-6">
               <div className="max-w-4xl space-y-8 pb-20">
-                
+
                 {/* Editable Task Title & Description */}
                 <div className="space-y-6 bg-background rounded-2xl p-6 border border-border shadow-sm">
                   <div className="space-y-2">
@@ -1156,7 +1282,7 @@ const StageEdit = ({
                       placeholder="Enter task title"
                     />
                   </div>
-                  
+
                   <div className="space-y-2">
                     <label className="text-[10px] font-bold tracking-widest text-muted-foreground uppercase flex items-center justify-between">
                       Action Description
@@ -1185,7 +1311,7 @@ const StageEdit = ({
                         </span>
                       )}
                     </div>
-                    
+
                     <div className="space-y-3">
                       <div className="p-3 bg-muted/30 rounded-xl border border-border/50">
                         <p className="text-xs text-muted-foreground mb-1 flex items-center gap-1.5 font-medium">
@@ -1195,15 +1321,15 @@ const StageEdit = ({
                           {selectedTask.frequency?.reg_type ? formatScope(selectedTask.frequency.reg_type) : "Unknown"}
                         </p>
                       </div>
-                      
+
                       <div>
                         <label className="text-[10px] font-bold tracking-wider text-muted-foreground uppercase mb-1.5 block">
                           Final Selection
                         </label>
-                        <Select 
+                        <Select
                           value={selectedTask.frequency?.reg_type ?? "unknown"}
-                          onValueChange={(val) => updateSelectedTask({ 
-                            frequency: { ...(selectedTask.frequency || {}), reg_type: val, reg_confidence: "high" } 
+                          onValueChange={(val) => updateSelectedTask({
+                            frequency: { ...(selectedTask.frequency || {}), reg_type: val, reg_confidence: "high" }
                           })}
                         >
                           <SelectTrigger className="w-full bg-background border-border text-sm">
@@ -1241,15 +1367,15 @@ const StageEdit = ({
                         ))}
                       </div>
                     </div>
-                    
+
                     <div className="space-y-2 pt-4 border-t border-border/50">
                       <h4 className="text-[10px] font-bold tracking-wider text-muted-foreground uppercase">
                         Task Priority
                       </h4>
-                      <Select 
+                      <Select
                         value={selectedTask?.meta?.priority ?? "medium"}
-                        onValueChange={(val) => updateSelectedTask({ 
-                          meta: { ...(selectedTask.meta || {}), priority: val } 
+                        onValueChange={(val) => updateSelectedTask({
+                          meta: { ...(selectedTask.meta || {}), priority: val }
                         })}
                       >
                         <SelectTrigger className="w-full bg-background border-border text-sm">
@@ -1274,40 +1400,65 @@ const StageEdit = ({
                         Sub-Tasks <span className="px-1.5 py-0.5 rounded-full bg-muted text-[9px]">{selectedSubTasks.length}</span>
                       </h4>
                       <button
-                        onClick={() => setIsSubTaskModalOpen(true)}
+                        onClick={handleOpenAddSubTaskModal}
                         className="text-[10px] font-bold text-primary hover:underline flex items-center gap-1"
                       >
                         <Plus className="w-3 h-3" /> ADD
                       </button>
                     </div>
-                    
+
                     <ul className="space-y-3">
                       {selectedSubTasks.length > 0 ? selectedSubTasks.map((st, i) => (
                         <li
                           key={i}
                           onClick={() => setSelectedSubTaskIndex(i)}
-                          className={`flex items-start gap-3 p-3 rounded-xl cursor-pointer transition-all border ${
-                            selectedSubTaskIndex === i 
-                              ? "bg-primary/5 border-primary/20 shadow-sm" 
-                              : "bg-background border-border hover:border-primary/30"
-                          }`}
+                          className={`flex items-start gap-3 p-3 rounded-xl cursor-pointer transition-all border ${selectedSubTaskIndex === i
+                            ? "bg-primary/5 border-primary/20 shadow-sm"
+                            : "bg-background border-border hover:border-primary/30"
+                            }`}
                         >
-                          <div className={`w-5 h-5 shrink-0 rounded flex items-center justify-center text-[10px] font-bold mt-0.5 ${
-                            selectedSubTaskIndex === i ? "bg-primary text-white" : "bg-muted text-muted-foreground"
-                          }`}>
+                          <div className={`w-5 h-5 shrink-0 rounded flex items-center justify-center text-[10px] font-bold mt-0.5 ${selectedSubTaskIndex === i ? "bg-primary text-white" : "bg-muted text-muted-foreground"
+                            }`}>
                             {i + 1}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className={`text-sm font-semibold mb-1 leading-snug ${
-                              selectedSubTaskIndex === i ? "text-primary" : "text-foreground"
-                            }`}>
+                            <p className={`text-sm font-semibold mb-1 leading-snug ${selectedSubTaskIndex === i ? "text-primary" : "text-foreground"
+                              }`}>
                               {st.title}
                             </p>
-                            <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${
-                              st.evidenceRequired ? "bg-rose-500/10 text-rose-600 border border-rose-500/20" : "bg-muted text-muted-foreground"
-                            }`}>
-                              {st.evidenceRequired ? "Evidence Required" : "No Evidence"}
-                            </span>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${st.evidenceRequired ? "bg-rose-500/10 text-rose-600 border border-rose-500/20" : "bg-muted text-muted-foreground"
+                                }`}>
+                                {st.evidenceRequired ? "Evidence Required" : "No Evidence"}
+                              </span>
+                              {st.description && (
+                                <span className="text-[9px] text-muted-foreground line-clamp-1 max-w-[120px]">
+                                  {st.description}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1 shrink-0 self-center">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleOpenEditSubTaskModal(i);
+                              }}
+                              className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                              title="Edit Sub-task"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleOpenDeleteModal(i);
+                              }}
+                              className="p-1 rounded hover:bg-rose-500/10 text-muted-foreground hover:text-rose-600 transition-colors"
+                              title="Delete Sub-task"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
                           </div>
                         </li>
                       )) : (
@@ -1337,7 +1488,7 @@ const StageEdit = ({
                         Evidence for: <span className="font-semibold text-foreground">{selectedSubTask.title}</span>
                       </p>
                     )}
-                    
+
                     <div className="space-y-3">
                       {selectedEvidence.length > 0 ? (
                         selectedEvidence.map((ev, i) => (
@@ -1349,9 +1500,8 @@ const StageEdit = ({
                               <p className="text-sm font-bold text-foreground leading-snug">
                                 {ev.title}
                               </p>
-                              <span className={`shrink-0 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${
-                                ev.isMandatory ? "bg-rose-500/10 text-rose-600 border border-rose-500/20" : "bg-amber-500/10 text-amber-600 border border-amber-500/20"
-                              }`}>
+                              <span className={`shrink-0 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${ev.isMandatory ? "bg-rose-500/10 text-rose-600 border border-rose-500/20" : "bg-amber-500/10 text-amber-600 border border-amber-500/20"
+                                }`}>
                                 {ev.isMandatory ? "Mandatory" : "Optional"}
                               </span>
                             </div>
@@ -1389,7 +1539,7 @@ const StageEdit = ({
             </ScrollArea>
           </>
         )}
-        
+
         {/* Bottom Bar: Save & Next */}
         <div className="p-4 bg-card border-t border-border flex items-center justify-between sticky bottom-0 z-10">
           <button
@@ -1398,7 +1548,7 @@ const StageEdit = ({
           >
             <Save className="w-4 h-4" /> Save Draft
           </button>
-          
+
           <button
             onClick={onNext}
             className="px-6 py-2.5 bg-primary text-primary-foreground rounded-xl text-sm font-bold shadow-md hover:opacity-90 transition-all flex items-center gap-2"
@@ -1432,9 +1582,9 @@ const StageEdit = ({
                   <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary/40 rounded-full" />
                   <p className="pl-4 py-1 italic opacity-90">
                     {selectedTask?.sourceText ||
-                     selectedTask?.frequency?.reg_source ||
-                     sourceText?.slice(0, 1500) ||
-                     "No direct source text was captured for this specific task generation."}
+                      selectedTask?.frequency?.reg_source ||
+                      sourceText?.slice(0, 1500) ||
+                      "No direct source text was captured for this specific task generation."}
                   </p>
                 </div>
               </div>
@@ -1448,10 +1598,11 @@ const StageEdit = ({
         <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-card border border-border w-full max-w-md rounded-2xl shadow-xl overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="p-4 border-b border-border flex items-center justify-between">
-              <h3 className="font-bold">Add Sub-Task</h3>
+              <h3 className="font-bold">{subTaskModalMode === "add" ? "Add Sub-Task" : "Edit Sub-Task"}</h3>
               <button
                 onClick={() => setIsSubTaskModalOpen(false)}
-                className="p-1 rounded-md hover:bg-muted"
+                disabled={isSubTaskSaving}
+                className="p-1 rounded-md hover:bg-muted disabled:opacity-50"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -1463,8 +1614,23 @@ const StageEdit = ({
                 </label>
                 <input
                   type="text"
-                  className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all"
+                  value={subTaskTitle}
+                  onChange={(e) => setSubTaskTitle(e.target.value)}
+                  disabled={isSubTaskSaving}
+                  className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all disabled:opacity-60"
                   placeholder="Enter sub-task title"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  Description
+                </label>
+                <textarea
+                  value={subTaskDescription}
+                  onChange={(e) => setSubTaskDescription(e.target.value)}
+                  disabled={isSubTaskSaving}
+                  className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all resize-none h-20 disabled:opacity-60"
+                  placeholder="Enter sub-task description (optional)"
                 />
               </div>
               <div className="flex items-center justify-between p-3 rounded-lg border border-border">
@@ -1476,23 +1642,28 @@ const StageEdit = ({
                 </div>
                 <input
                   type="checkbox"
-                  className="w-4 h-4 accent-primary"
-                  defaultChecked
+                  checked={subTaskEvidenceRequired}
+                  onChange={(e) => setSubTaskEvidenceRequired(e.target.checked)}
+                  disabled={isSubTaskSaving}
+                  className="w-4 h-4 accent-primary disabled:opacity-60 cursor-pointer"
                 />
               </div>
             </div>
             <div className="p-4 border-t border-border bg-muted/20 flex justify-end gap-2">
               <button
                 onClick={() => setIsSubTaskModalOpen(false)}
-                className="px-4 py-2 text-xs font-bold text-muted-foreground hover:bg-muted rounded-lg transition-colors"
+                disabled={isSubTaskSaving}
+                className="px-4 py-2 text-xs font-bold text-muted-foreground hover:bg-muted rounded-lg transition-colors disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
-                onClick={() => setIsSubTaskModalOpen(false)}
-                className="px-4 py-2 text-xs font-bold bg-primary text-primary-foreground rounded-lg shadow-md hover:opacity-90 transition-opacity"
+                onClick={handleSaveSubTask}
+                disabled={isSubTaskSaving}
+                className="px-4 py-2 text-xs font-bold bg-primary text-primary-foreground rounded-lg shadow-md hover:opacity-90 transition-opacity flex items-center gap-1.5 disabled:opacity-50"
               >
-                Add Sub-Task
+                {isSubTaskSaving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                {subTaskModalMode === "add" ? "Add Sub-Task" : "Save Changes"}
               </button>
             </div>
           </div>
@@ -1571,6 +1742,51 @@ const StageEdit = ({
                 className="px-4 py-2 text-xs font-bold bg-primary text-primary-foreground rounded-lg shadow-md hover:opacity-90 transition-opacity"
               >
                 Add Evidence
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {isDeleteModalOpen && subTaskIndexToDelete !== null && (
+        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-card border border-border w-full max-w-sm rounded-2xl shadow-xl overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-6 text-center space-y-4">
+              <div className="mx-auto w-12 h-12 rounded-full bg-rose-500/10 flex items-center justify-center text-rose-600">
+                <AlertCircle className="w-6 h-6" />
+              </div>
+              <div className="space-y-2">
+                <h3 className="text-lg font-bold text-foreground">Confirm Delete</h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  Are you sure you want to delete <span className="font-semibold text-foreground">"{selectedSubTasks[subTaskIndexToDelete]?.title}"</span>? This action cannot be undone and will delete it from the database.
+                </p>
+              </div>
+            </div>
+            <div className="p-4 border-t border-border bg-muted/20 flex gap-3">
+              <button
+                onClick={() => {
+                  setIsDeleteModalOpen(false);
+                  setSubTaskIndexToDelete(null);
+                }}
+                disabled={isDeletingSubTask}
+                className="flex-1 px-4 py-2.5 text-xs font-bold text-muted-foreground hover:bg-muted border border-border rounded-lg transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmDeleteSubTask}
+                disabled={isDeletingSubTask}
+                className="flex-1 px-4 py-2.5 text-xs font-bold bg-rose-600 text-white rounded-lg shadow-md hover:bg-rose-700 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
+              >
+                {isDeletingSubTask ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  "Yes, Delete"
+                )}
               </button>
             </div>
           </div>
@@ -1773,10 +1989,10 @@ const StageProcessing = ({
 
   const steps = isPhase2
     ? [
-        "Processing selected obligations",
-        "Synthesizing tasks and sub-tasks",
-        "Generating evidence requirements",
-      ]
+      "Processing selected obligations",
+      "Synthesizing tasks and sub-tasks",
+      "Generating evidence requirements",
+    ]
     : ["Normalising document", "Scanning for relevant obligations"];
 
   // Animate steps to reflect perceived progress while polling
@@ -1889,15 +2105,14 @@ const StageProcessing = ({
           {steps.map((step, i) => (
             <div key={i} className="flex items-center gap-4">
               <div
-                className={`relative flex items-center justify-center w-6 h-6 rounded-full border-2 transition-all duration-500 ${
-                  i < currentStep
-                    ? "bg-primary border-primary text-primary-foreground"
-                    : i === currentStep && !hasError
-                      ? "border-primary animate-pulse"
-                      : hasError && i === currentStep
-                        ? "border-red-500 bg-red-500/10"
-                        : "border-border"
-                }`}
+                className={`relative flex items-center justify-center w-6 h-6 rounded-full border-2 transition-all duration-500 ${i < currentStep
+                  ? "bg-primary border-primary text-primary-foreground"
+                  : i === currentStep && !hasError
+                    ? "border-primary animate-pulse"
+                    : hasError && i === currentStep
+                      ? "border-red-500 bg-red-500/10"
+                      : "border-border"
+                  }`}
               >
                 {i < currentStep ? (
                   <Check className="w-3.5 h-3.5" />
@@ -1908,9 +2123,8 @@ const StageProcessing = ({
                 ) : null}
               </div>
               <span
-                className={`text-sm font-medium transition-colors duration-500 ${
-                  i <= currentStep ? "text-foreground" : "text-muted-foreground"
-                }`}
+                className={`text-sm font-medium transition-colors duration-500 ${i <= currentStep ? "text-foreground" : "text-muted-foreground"
+                  }`}
               >
                 {step}
               </span>
@@ -2099,11 +2313,10 @@ const StageObligationSelect = ({
               allObligations.map((ob, i) => (
                 <label
                   key={i}
-                  className={`flex items-start gap-4 p-4 rounded-lg border transition-colors cursor-pointer ${
-                    selected.includes(ob)
-                      ? "bg-primary/5 border-primary/20"
-                      : "bg-background border-border hover:bg-muted/50"
-                  }`}
+                  className={`flex items-start gap-4 p-4 rounded-lg border transition-colors cursor-pointer ${selected.includes(ob)
+                    ? "bg-primary/5 border-primary/20"
+                    : "bg-background border-border hover:bg-muted/50"
+                    }`}
                 >
                   <input
                     type="checkbox"
@@ -2127,11 +2340,10 @@ const StageObligationSelect = ({
             <button
               onClick={() => setIsInstructionModalOpen(true)}
               disabled={isSubmitting || isRefining}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border font-semibold transition-all disabled:opacity-50 ${
-                additionalInstructions.trim()
-                  ? "border-primary/30 bg-primary/5 text-primary"
-                  : "border-border bg-background text-foreground hover:bg-muted"
-              }`}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border font-semibold transition-all disabled:opacity-50 ${additionalInstructions.trim()
+                ? "border-primary/30 bg-primary/5 text-primary"
+                : "border-border bg-background text-foreground hover:bg-muted"
+                }`}
             >
               <FileText className="w-4 h-4" />
               {additionalInstructions.trim() ? "Refine Instructions" : "Refine Obligations"}
