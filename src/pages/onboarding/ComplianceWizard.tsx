@@ -1,17 +1,18 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { useOnboarding } from '@/contexts/OnboardingContext';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
 import { classificationService, buildStepPayload } from '@/services/school/classificationService';
+import { getSchoolTypes } from '@/services/organisation';
 
 const STEPS = [
   { id: 'schoolType', title: 'School Type', description: 'What type of educational institution are you?' },
@@ -21,8 +22,6 @@ const STEPS = [
   { id: 'operationalActivities', title: 'Operational Activities', description: 'Select all operational activities that apply.' },
 ];
 
-const STANDARD_SCHOOL_TYPES = ['maintained', 'academy', 'independent', 'special', 'alternative'];
-
 const ComplianceWizard = () => {
   const { state, updateCompliance, nextStep, prevStep } = useOnboarding();
   const navigate = useNavigate();
@@ -30,18 +29,36 @@ const ComplianceWizard = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Initialize state handles "other" values correctly
-  const initialSchoolType = state.compliance.schoolType;
-  const isOtherType = initialSchoolType && !STANDARD_SCHOOL_TYPES.includes(initialSchoolType);
+  // Fetch school types dynamically from database (admin endpoint — may 401 for school users)
+  const { data: apiSchoolTypes, isLoading: isLoadingSchoolTypes } = useQuery({
+    queryKey: ['school-types'],
+    queryFn: () => getSchoolTypes(0, 100),
+    retry: false, // Don't retry if unauthorized — fall back to hardcoded options
+  });
 
   // Local state for current step inputs (synced with context on navigation)
-  const [schoolType, setSchoolType] = useState(isOtherType ? 'other' : initialSchoolType);
-  const [otherSchoolType, setOtherSchoolType] = useState(isOtherType ? initialSchoolType : '');
-  
+  const [schoolType, setSchoolType] = useState(state.compliance.schoolType);
   const [fundingType, setFundingType] = useState(state.compliance.fundingType);
   const [ageRanges, setAgeRanges] = useState<string[]>(state.compliance.ageRanges);
   const [specialProvisions, setSpecialProvisions] = useState<string[]>(state.compliance.specialProvisions);
   const [operationalActivities, setOperationalActivities] = useState<string[]>(state.compliance.operationalActivities);
+
+  // Synchronize state.compliance.schoolType if it was set elsewhere
+  useEffect(() => {
+    if (state.compliance.schoolType && !schoolType) {
+      setSchoolType(state.compliance.schoolType);
+    }
+  }, [state.compliance.schoolType]);
+
+  // If schoolType state is empty and apiSchoolTypes is loaded, automatically set first active school type
+  useEffect(() => {
+    if (!schoolType && apiSchoolTypes && apiSchoolTypes.length > 0) {
+      const activeTypes = apiSchoolTypes.filter(st => st.status.toLowerCase() === 'active');
+      if (activeTypes.length > 0) {
+        setSchoolType(activeTypes[0].id);
+      }
+    }
+  }, [apiSchoolTypes, schoolType]);
 
   const activeStep = STEPS[activeStepIndex];
 
@@ -49,11 +66,10 @@ const ComplianceWizard = () => {
     setError('');
 
     const currentStepId = activeStep.id;
-    const resolvedSchoolType = schoolType === 'other' ? otherSchoolType : schoolType;
 
     // Save current step data to context
     updateCompliance({
-      schoolType: resolvedSchoolType,
+      schoolType,
       fundingType,
       ageRanges,
       specialProvisions,
@@ -67,7 +83,7 @@ const ComplianceWizard = () => {
       await classificationService.saveStep({
         step: activeStepIndex + 1,
         payload: buildStepPayload(currentStepId, {
-          schoolType: resolvedSchoolType,
+          schoolType,
           fundingType,
           ageRanges,
           specialProvisions,
@@ -112,42 +128,58 @@ const ComplianceWizard = () => {
   const renderStepContent = () => {
     switch (activeStep.id) {
       case 'schoolType':
+        if (isLoadingSchoolTypes) {
+          return (
+            <div className="flex flex-col justify-center items-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-primary mb-3" />
+              <p className="text-sm text-muted-foreground">Loading available school classifications...</p>
+            </div>
+          );
+        }
+
+        const activeTypes = (apiSchoolTypes || []).filter(
+          (st) => st.status.toLowerCase() === "active"
+        );
+
+        const options = activeTypes.length > 0
+          ? activeTypes.map((st) => ({
+              value: st.id,
+              label: st.name,
+              desc: st.description,
+            }))
+          : [
+              {
+                value: "bb15c2af-ecd7-4330-826c-5e888f4c8401",
+                label: "Academy / Free School",
+                desc: "State-funded but independent of local authority",
+              },
+            ];
+
         return (
           <RadioGroup value={schoolType} onValueChange={setSchoolType} className="space-y-3">
-            {[
-              { value: 'maintained', label: 'State-funded (Maintained)', desc: 'Funded by local authority' },
-              { value: 'academy', label: 'Academy / Free School', desc: 'State-funded but independent of local authority' },
-              { value: 'independent', label: 'Independent (Private)', desc: 'Fee-paying schools' },
-              { value: 'special', label: 'Special School', desc: 'For students with special educational needs' },
-              { value: 'alternative', label: 'Alternative Provision', desc: 'Education outside of school settings' },
-              { value: 'other', label: 'Other', desc: 'None of the above' }
-            ].map((option) => (
-              <div key={option.value} className=" rounded-md border p-4 hover:bg-accent hover:text-accent-foreground cursor-pointer transition-colors" onClick={() => setSchoolType(option.value)}>
-                <div className="flex items-center space-x-3 space-y-0">
-                    <RadioGroupItem value={option.value} id={option.value} />
-                    <div className="flex-1 cursor-pointer">
-                    <Label htmlFor={option.value} className="font-medium cursor-pointer">{option.label}</Label>
-                    <p className="text-sm text-muted-foreground">{option.desc}</p>
-                    </div>
-                </div>
-                {/* Render Input if 'Other' is selected */}
-                {option.value === 'other' && schoolType === 'other' && (
-                    <div className="mt-3 pl-7" onClick={(e) => e.stopPropagation()}>
-                        <Label htmlFor="other-type" className="sr-only">Specify School Type</Label>
-                        <Input 
-                            id="other-type"
-                            placeholder="Please specify..." 
-                            value={otherSchoolType}
-                            onChange={(e) => setOtherSchoolType(e.target.value)}
-                            className="bg-background"
-                            autoFocus
-                        />
-                    </div>
+            {options.map((option) => (
+              <div
+                key={option.value}
+                className={cn(
+                  "rounded-md border p-4 hover:bg-accent hover:text-accent-foreground cursor-pointer transition-colors",
+                  schoolType === option.value && "border-primary bg-accent/40"
                 )}
+                onClick={() => setSchoolType(option.value)}
+              >
+                <div className="flex items-center space-x-3 space-y-0">
+                  <RadioGroupItem value={option.value} id={option.value} />
+                  <div className="flex-1 cursor-pointer">
+                    <Label htmlFor={option.value} className="font-medium cursor-pointer">
+                      {option.label}
+                    </Label>
+                    <p className="text-sm text-muted-foreground">{option.desc}</p>
+                  </div>
+                </div>
               </div>
             ))}
           </RadioGroup>
         );
+
       case 'fundingType':
         return (
           <RadioGroup value={fundingType} onValueChange={setFundingType} className="space-y-3">
@@ -157,13 +189,23 @@ const ComplianceWizard = () => {
               { value: 'single_academy', label: 'Single Academy Trust' },
               { value: 'proprietor', label: 'Independent Proprietor body' },
             ].map((option) => (
-              <div key={option.value} className="flex items-center space-x-3 space-y-0 rounded-md border p-4 hover:bg-accent hover:text-accent-foreground cursor-pointer transition-colors" onClick={() => setFundingType(option.value)}>
+              <div
+                key={option.value}
+                className={cn(
+                  "flex items-center space-x-3 space-y-0 rounded-md border p-4 hover:bg-accent hover:text-accent-foreground cursor-pointer transition-colors",
+                  fundingType === option.value && "border-primary bg-accent/40"
+                )}
+                onClick={() => setFundingType(option.value)}
+              >
                 <RadioGroupItem value={option.value} id={option.value} />
-                <Label htmlFor={option.value} className="flex-1 font-medium cursor-pointer">{option.label}</Label>
+                <Label htmlFor={option.value} className="flex-1 font-medium cursor-pointer">
+                  {option.label}
+                </Label>
               </div>
             ))}
           </RadioGroup>
         );
+
       case 'ageRanges':
         return (
           <div className="space-y-3">
@@ -173,19 +215,29 @@ const ComplianceWizard = () => {
               { value: 'secondary', label: 'Secondary (11–16)' },
               { value: 'sixth_form', label: 'Sixth Form (16–18)' },
             ].map((option) => (
-              <div key={option.value} className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
-                <Checkbox 
-                  id={option.value} 
+              <div
+                key={option.value}
+                className={cn(
+                  "flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 hover:bg-accent cursor-pointer transition-colors",
+                  ageRanges.includes(option.value) && "border-primary bg-accent/40"
+                )}
+                onClick={() => toggleItem(option.value, ageRanges, setAgeRanges)}
+              >
+                <Checkbox
+                  id={option.value}
                   checked={ageRanges.includes(option.value)}
-                  onCheckedChange={() => toggleItem(option.value, ageRanges, setAgeRanges)}
+                  onCheckedChange={() => {}} // Controlled by outer div onClick
                 />
-                <div className="space-y-1 leading-none">
-                  <Label htmlFor={option.value} className="font-medium cursor-pointer">{option.label}</Label>
+                <div className="space-y-1 leading-none select-none">
+                  <Label htmlFor={option.value} className="font-medium cursor-pointer">
+                    {option.label}
+                  </Label>
                 </div>
               </div>
             ))}
           </div>
         );
+
       case 'specialProvisions':
         return (
           <div className="space-y-3">
@@ -196,19 +248,29 @@ const ComplianceWizard = () => {
               { value: 'international', label: 'International Students' },
               { value: 'ey_attached', label: 'Early Years Attached Provision' },
             ].map((option) => (
-              <div key={option.value} className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
-                <Checkbox 
+              <div
+                key={option.value}
+                className={cn(
+                  "flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 hover:bg-accent cursor-pointer transition-colors",
+                  specialProvisions.includes(option.value) && "border-primary bg-accent/40"
+                )}
+                onClick={() => toggleItem(option.value, specialProvisions, setSpecialProvisions)}
+              >
+                <Checkbox
                   id={option.value}
                   checked={specialProvisions.includes(option.value)}
-                  onCheckedChange={() => toggleItem(option.value, specialProvisions, setSpecialProvisions)}
+                  onCheckedChange={() => {}} // Controlled by outer div onClick
                 />
-                <div className="space-y-1 leading-none">
-                  <Label htmlFor={option.value} className="font-medium cursor-pointer">{option.label}</Label>
+                <div className="space-y-1 leading-none select-none">
+                  <Label htmlFor={option.value} className="font-medium cursor-pointer">
+                    {option.label}
+                  </Label>
                 </div>
               </div>
             ))}
           </div>
         );
+
       case 'operationalActivities':
         return (
           <div className="space-y-3">
@@ -218,20 +280,31 @@ const ComplianceWizard = () => {
               { value: 'cctv', label: 'CCTV in Use' },
               { value: 'placements', label: 'Work Placements' },
               { value: 'biometrics', label: 'Biometric Systems' },
+              { value: 'data_heavy', label: 'Data Heavy Systems (large data sets, cloud systems)' },
             ].map((option) => (
-              <div key={option.value} className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
-                <Checkbox 
+              <div
+                key={option.value}
+                className={cn(
+                  "flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 hover:bg-accent cursor-pointer transition-colors",
+                  operationalActivities.includes(option.value) && "border-primary bg-accent/40"
+                )}
+                onClick={() => toggleItem(option.value, operationalActivities, setOperationalActivities)}
+              >
+                <Checkbox
                   id={option.value}
                   checked={operationalActivities.includes(option.value)}
-                  onCheckedChange={() => toggleItem(option.value, operationalActivities, setOperationalActivities)}
+                  onCheckedChange={() => {}} // Controlled by outer div onClick
                 />
-                <div className="space-y-1 leading-none">
-                  <Label htmlFor={option.value} className="font-medium cursor-pointer">{option.label}</Label>
+                <div className="space-y-1 leading-none select-none">
+                  <Label htmlFor={option.value} className="font-medium cursor-pointer">
+                    {option.label}
+                  </Label>
                 </div>
               </div>
             ))}
           </div>
         );
+
       default:
         return null;
     }
@@ -239,13 +312,14 @@ const ComplianceWizard = () => {
 
   const isStepValid = () => {
     switch (activeStep.id) {
-      case 'schoolType': 
-        if (schoolType === 'other') return !!otherSchoolType && otherSchoolType.trim().length > 0;
+      case 'schoolType':
         return !!schoolType;
-      case 'fundingType': return !!fundingType;
-      case 'ageRanges': return ageRanges.length > 0;
-      // Others are optional or multi-select without mandatory requirement in PRD, but let's assume at least one is NOT required for special/ops
-      default: return true;
+      case 'fundingType':
+        return !!fundingType;
+      case 'ageRanges':
+        return ageRanges.length > 0;
+      default:
+        return true;
     }
   };
 
@@ -283,11 +357,11 @@ const ComplianceWizard = () => {
           {renderStepContent()}
         </CardContent>
         <CardFooter className="flex justify-between">
-          <Button variant="outline" onClick={handleBack}>
+          <Button variant="outline" onClick={handleBack} disabled={isLoading}>
             <ChevronLeft className="mr-2 h-4 w-4" />
             Back
           </Button>
-          <Button onClick={handleNext} disabled={!isStepValid() || isLoading}>
+          <Button onClick={handleNext} disabled={!isStepValid() || isLoading || (activeStep.id === 'schoolType' && isLoadingSchoolTypes)}>
             {isLoading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />

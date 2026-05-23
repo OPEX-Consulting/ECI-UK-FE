@@ -13,7 +13,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle, ArrowRight, Eye, EyeOff } from "lucide-react";
+import { AlertCircle, ArrowRight, Eye, EyeOff, Loader2 } from "lucide-react";
 
 const SignUp = () => {
   const [name, setName] = useState("");
@@ -23,6 +23,7 @@ const SignUp = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const { updateEmail, nextStep } = useOnboarding();
   const navigate = useNavigate();
 
@@ -45,29 +46,31 @@ const SignUp = () => {
       return;
     }
 
-    // Navigate to OTP page immediately — don't wait for the API response.
-    // The email is sent in the background; the user sees the verify page straight away.
-    updateEmail(email);
-    nextStep();
-    navigate("/onboarding/verify");
+    setIsLoading(true);
 
-    // Fire signup in the background — errors (e.g. email already exists) will
-    // surface on the OTP page when the user tries to verify.
-    schoolAuthService.signUp({
-      email,
-      password,
-      confirm_password: confirmPassword,
-      name,
-    }).catch(() => {
-      // Silently ignore here; OTP page handles the next step.
-    });
+    try {
+      await schoolAuthService.signUp({
+        email,
+        password,
+        confirm_password: confirmPassword,
+        name,
+      });
+
+      updateEmail(email);
+      nextStep();
+      navigate("/onboarding/verify");
+    } catch (err: any) {
+      const detail = err.response?.data?.detail;
+      const parsedDetail = Array.isArray(detail) ? detail[0]?.msg : detail;
+      setError(parsedDetail || err.response?.data?.message || err.message || "Failed to create account. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleSSO = (provider: "google" | "microsoft") => {
-    
     // Simulate SSO
     setTimeout(() => {
-     
       updateEmail(`user@${provider}-school.edu`);
       // SSO skips verification
       nextStep(); // Skip verify
@@ -89,10 +92,6 @@ const SignUp = () => {
 
       <Card>
         <CardHeader>
-          {/* <CardTitle>Sign Up</CardTitle> */}
-          {/* <CardDescription>
-            Choose your preferred method to create an account
-          </CardDescription> */}
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-2 gap-4"></div>
@@ -113,7 +112,7 @@ const SignUp = () => {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
-                disabled={false}
+                disabled={isLoading}
               />
             </div>
 
@@ -126,7 +125,7 @@ const SignUp = () => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                disabled={false}
+                disabled={isLoading}
               />
             </div>
 
@@ -139,7 +138,7 @@ const SignUp = () => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  disabled={false}
+                  disabled={isLoading}
                   minLength={8}
                   className="pr-10"
                 />
@@ -149,6 +148,7 @@ const SignUp = () => {
                   size="icon"
                   className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
                   onClick={() => setShowPassword(!showPassword)}
+                  disabled={isLoading}
                 >
                   {showPassword ? (
                     <EyeOff className="h-4 w-4 text-muted-foreground" />
@@ -171,7 +171,7 @@ const SignUp = () => {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required
-                  disabled={false}
+                  disabled={isLoading}
                   minLength={8}
                   className="pr-10"
                 />
@@ -181,6 +181,7 @@ const SignUp = () => {
                   size="icon"
                   className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  disabled={isLoading}
                 >
                   {showConfirmPassword ? (
                     <EyeOff className="h-4 w-4 text-muted-foreground" />
@@ -194,8 +195,17 @@ const SignUp = () => {
               </div>
             </div>
 
-            <Button type="submit" className="w-full">
-              Create Account <ArrowRight className="ml-2 h-4 w-4" />
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Creating Account...
+                </>
+              ) : (
+                <>
+                  Create Account <ArrowRight className="ml-2 h-4 w-4" />
+                </>
+              )}
             </Button>
           </form>
         </CardContent>

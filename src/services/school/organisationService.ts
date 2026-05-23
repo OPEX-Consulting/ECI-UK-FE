@@ -8,11 +8,10 @@ export interface OrganisationSetupRequest {
 }
 
 export interface OrganisationSetupResponse {
-  id: string;
-  organisation_name: string;
-  official_domain: string;
-  country: string;
-  region_or_local_authority: string;
+  status: string;
+  organisation_id: string;
+  dashboard_locked: boolean;
+  message: string;
 }
 
 export const schoolOrganisationService = {

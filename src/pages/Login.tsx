@@ -33,17 +33,16 @@ const Login = () => {
     const result = await login(email, password);
 
     if (result.success) {
-      // Redirect based on role — re-read from context via the login result
-      // We need to read the stored user since context hasn't re-rendered yet
+      // After login the context has updated user; navigate based on role stored in localStorage
       const stored = localStorage.getItem('regtech_current_user');
       const loggedInUser = stored ? JSON.parse(stored) : null;
       if (loggedInUser?.role === 'admin') {
-        navigate('/admin');
+        navigate('/admin/dashboard');
       } else {
         navigate('/dashboard');
       }
     } else {
-      setError(result.error || 'Login failed');
+      setError(result.error || 'Invalid credentials. Please check your email and password.');
     }
 
     setIsLoading(false);
