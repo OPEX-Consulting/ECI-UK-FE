@@ -9,6 +9,9 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { AlertCircle } from 'lucide-react';
+import { classificationService, buildStepPayload } from '@/services/school/classificationService';
 
 const STEPS = [
   { id: 'schoolType', title: 'School Type', description: 'What type of educational institution are you?' },
@@ -25,6 +28,7 @@ const ComplianceWizard = () => {
   const navigate = useNavigate();
   const [activeStepIndex, setActiveStepIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
 
   // Initialize state handles "other" values correctly
   const initialSchoolType = state.compliance.schoolType;
@@ -41,26 +45,49 @@ const ComplianceWizard = () => {
 
   const activeStep = STEPS[activeStepIndex];
 
-  const handleNext = () => {
+  const handleNext = async () => {
+    setError('');
+
+    const currentStepId = activeStep.id;
+    const resolvedSchoolType = schoolType === 'other' ? otherSchoolType : schoolType;
+
     // Save current step data to context
     updateCompliance({
-      schoolType: schoolType === 'other' ? otherSchoolType : schoolType,
+      schoolType: resolvedSchoolType,
       fundingType,
       ageRanges,
       specialProvisions,
       operationalActivities,
     });
 
-    if (activeStepIndex < STEPS.length - 1) {
-      setActiveStepIndex(prev => prev + 1);
-    } else {
-      // Completed wizard
-      setIsLoading(true);
-      setTimeout(() => {
-        setIsLoading(false);
-        nextStep(); // Move to Review/Activate
+    setIsLoading(true);
+
+    try {
+      // POST this step to the API (step is 1-indexed)
+      await classificationService.saveStep({
+        step: activeStepIndex + 1,
+        payload: buildStepPayload(currentStepId, {
+          schoolType: resolvedSchoolType,
+          fundingType,
+          ageRanges,
+          specialProvisions,
+          operationalActivities,
+        }),
+      });
+
+      if (activeStepIndex < STEPS.length - 1) {
+        setActiveStepIndex(prev => prev + 1);
+      } else {
+        // All steps done — move to Review/Activate
+        nextStep();
         navigate('/onboarding/review');
-      }, 500);
+      }
+    } catch (err: any) {
+      const detail = err.response?.data?.detail;
+      const parsedDetail = Array.isArray(detail) ? detail[0]?.msg : detail;
+      setError(parsedDetail || err.response?.data?.message || err.message || 'Failed to save this step. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -246,7 +273,13 @@ const ComplianceWizard = () => {
             {activeStep.description}
           </CardDescription>
         </CardHeader>
-        <CardContent className="min-h-[300px]">
+        <CardContent className="min-h-[300px] space-y-4">
+          {error && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
           {renderStepContent()}
         </CardContent>
         <CardFooter className="flex justify-between">

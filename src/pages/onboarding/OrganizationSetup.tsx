@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useOnboarding } from '@/contexts/OnboardingContext';
+import { schoolOrganisationService } from '@/services/school/organisationService';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -30,13 +31,24 @@ const OrganizationSetup = () => {
 
     setIsLoading(true);
 
-    // Simulate API call to create organization
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      await schoolOrganisationService.setup({
+        organisation_name: name,
+        official_domain: domain,
+        country,
+        region_or_local_authority: region,
+      });
+
       updateOrganization({ name, domain, country, region });
       nextStep();
       navigate('/onboarding/compliance');
-    }, 1000);
+    } catch (err: any) {
+      const detail = err.response?.data?.detail;
+      const parsedDetail = Array.isArray(detail) ? detail[0]?.msg : detail;
+      setError(parsedDetail || err.response?.data?.message || err.message || 'Failed to save organisation details');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
