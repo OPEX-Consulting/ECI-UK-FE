@@ -33,15 +33,15 @@ const typeConfig: Record<IncidentType, {
 
 export const IncidentTypeBadge = ({ type, className, showIcon = true }: IncidentTypeBadgeProps) => {
   const config = typeConfig[type];
-  const Icon = config.icon;
+  const Icon = config?.icon || Shield;
   
   return (
     <Badge 
       variant="outline" 
-      className={cn('gap-1.5', config.className, className)}
+      className={cn('gap-1.5', config?.className, className)}
     >
       {showIcon && <Icon className="w-3 h-3" />}
-      {config.label}
+      {config?.label || type}
     </Badge>
   );
 };

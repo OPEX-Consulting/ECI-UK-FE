@@ -31,8 +31,10 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem("token");
-      // Redirect to login without importing the router (avoids circular deps)
-      window.location.href = "/admin/login";
+      // Redirect to the correct login page based on the request URL
+      const requestUrl = error.config?.url ?? "";
+      const isAdminRoute = requestUrl.includes("/admin/");
+      window.location.href = isAdminRoute ? "/admin/login" : "/login";
     }
     return Promise.reject(error);
   },

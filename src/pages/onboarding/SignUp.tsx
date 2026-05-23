@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useOnboarding } from "@/contexts/OnboardingContext";
+import { schoolAuthService } from "@/services/school/authService";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,16 +13,16 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle, Loader2, ArrowRight, Eye, EyeOff } from "lucide-react";
+import { AlertCircle, ArrowRight, Eye, EyeOff } from "lucide-react";
 
 const SignUp = () => {
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
   const { updateEmail, nextStep } = useOnboarding();
   const navigate = useNavigate();
 
@@ -39,22 +40,34 @@ const SignUp = () => {
       return;
     }
 
-    setIsLoading(true);
+    if (!name.trim()) {
+      setError("Principal's name is required");
+      return;
+    }
 
-    // Simulate API call
-    setTimeout(() => {
-      setIsLoading(false);
-      updateEmail(email);
-      nextStep();
-      navigate("/onboarding/verify");
-    }, 1000);
+    // Navigate to OTP page immediately — don't wait for the API response.
+    // The email is sent in the background; the user sees the verify page straight away.
+    updateEmail(email);
+    nextStep();
+    navigate("/onboarding/verify");
+
+    // Fire signup in the background — errors (e.g. email already exists) will
+    // surface on the OTP page when the user tries to verify.
+    schoolAuthService.signUp({
+      email,
+      password,
+      confirm_password: confirmPassword,
+      name,
+    }).catch(() => {
+      // Silently ignore here; OTP page handles the next step.
+    });
   };
 
   const handleSSO = (provider: "google" | "microsoft") => {
-    setIsLoading(true);
+    
     // Simulate SSO
     setTimeout(() => {
-      setIsLoading(false);
+     
       updateEmail(`user@${provider}-school.edu`);
       // SSO skips verification
       nextStep(); // Skip verify
@@ -76,10 +89,10 @@ const SignUp = () => {
 
       <Card>
         <CardHeader>
-          <CardTitle>Sign Up</CardTitle>
-          <CardDescription>
+          {/* <CardTitle>Sign Up</CardTitle> */}
+          {/* <CardDescription>
             Choose your preferred method to create an account
-          </CardDescription>
+          </CardDescription> */}
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-2 gap-4"></div>
@@ -91,17 +104,29 @@ const SignUp = () => {
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
+            <div className="space-y-2">
+              <Label htmlFor="name">Principal's Name</Label>
+              <Input
+                id="name"
+                type="text"
+                placeholder="Enter principal's name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+                disabled={false}
+              />
+            </div>
 
             <div className="space-y-2">
-              <Label htmlFor="email">School Email</Label>
+              <Label htmlFor="email">Principal's Email</Label>
               <Input
                 id="email"
                 type="email"
-                placeholder="admin@school.edu"
+                placeholder="Enter principal's email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                disabled={isLoading}
+                disabled={false}
               />
             </div>
 
@@ -114,7 +139,7 @@ const SignUp = () => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  disabled={isLoading}
+                  disabled={false}
                   minLength={8}
                   className="pr-10"
                 />
@@ -146,7 +171,7 @@ const SignUp = () => {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required
-                  disabled={isLoading}
+                  disabled={false}
                   minLength={8}
                   className="pr-10"
                 />
@@ -169,17 +194,8 @@ const SignUp = () => {
               </div>
             </div>
 
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Creating account...
-                </>
-              ) : (
-                <>
-                  Create Account <ArrowRight className="ml-2 h-4 w-4" />
-                </>
-              )}
+            <Button type="submit" className="w-full">
+              Create Account <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </form>
         </CardContent>

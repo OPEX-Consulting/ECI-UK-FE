@@ -168,7 +168,7 @@ export const AppSidebar = () => {
         <div className="flex items-center gap-3">
           <Avatar className="h-9 w-9">
             <AvatarFallback className="bg-sidebar-accent text-sidebar-accent-foreground text-sm">
-              {user.name.split(' ').map(n => n[0]).join('')}
+              {user?.name ? user.name.split(' ').map(n => n[0]).join('') : 'U'}
             </AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">

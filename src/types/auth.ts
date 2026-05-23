@@ -57,3 +57,10 @@ export interface LoginResponse {
   access_token: string;
   token_type: string;
 }
+
+export interface SchoolSignUpRequest {
+  email: string;
+  password: string;
+  confirm_password: string;
+  name: string;
+}
