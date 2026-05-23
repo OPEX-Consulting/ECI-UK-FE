@@ -28,4 +28,12 @@ export const schoolOrganisationService = {
     );
     return response.data;
   },
+
+  /**
+   * Get the frameworks assigned to the school's organisation.
+   */
+  getFrameworks: async (): Promise<any[]> => {
+    const response = await api.get<any[]>("/school/organisation/frameworks");
+    return response.data;
+  },
 };

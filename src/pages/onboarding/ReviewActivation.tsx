@@ -273,7 +273,7 @@ const ReviewActivation = () => {
                         className="inline-flex items-center gap-1.5 text-sm bg-slate-50 px-3 py-1.5 rounded-full border"
                       >
                         <CheckCircle2 className="h-3.5 w-3.5 text-green-600 shrink-0" />
-                        {fw}
+                        {fw.name || fw}
                       </span>
                     ))}
                   </div>
@@ -293,19 +293,19 @@ const ReviewActivation = () => {
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
                 <span className="text-muted-foreground">Name:</span>
-                <p className="font-medium">{state.organization.name || '—'}</p>
+                <p className="font-medium">{state.organization?.name || summary?.organization?.name || '—'}</p>
               </div>
               <div>
                 <span className="text-muted-foreground">Domain:</span>
-                <p className="font-medium">{state.organization.domain || '—'}</p>
+                <p className="font-medium">{state.organization?.domain || summary?.organization?.domain || '—'}</p>
               </div>
               <div>
                 <span className="text-muted-foreground">Country:</span>
-                <p className="font-medium">{state.organization.country || '—'}</p>
+                <p className="font-medium">{state.organization?.country || summary?.organization?.country || '—'}</p>
               </div>
               <div>
                 <span className="text-muted-foreground">Region:</span>
-                <p className="font-medium">{state.organization.region || '—'}</p>
+                <p className="font-medium">{state.organization?.region || summary?.organization?.region || '—'}</p>
               </div>
             </div>
           </div>

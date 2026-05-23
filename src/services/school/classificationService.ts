@@ -70,9 +70,15 @@ export interface ClassificationStepResponse {
 
 export interface ClassificationSummaryResponse {
   message: string;
-  frameworks: string[];
+  frameworks: { id: string; name: string }[];
   regulators: string[];
   high_risk_focus_areas: string[];
+  organization?: {
+    name: string;
+    domain: string;
+    country: string;
+    region: string;
+  };
 }
 
 export const classificationService = {

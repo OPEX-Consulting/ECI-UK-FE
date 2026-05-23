@@ -1,6 +1,8 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { useTasks } from './TaskContext';
 import { toast } from 'sonner';
+import { useQuery } from '@tanstack/react-query';
+import { schoolOrganisationService } from '@/services/school/organisationService';
 
 export type FrameworkStatus = 'not-started' | 'in-progress' | 'implemented';
 
@@ -17,6 +19,7 @@ export interface Framework {
 
 interface FrameworkContextType {
   frameworks: Framework[];
+  isLoading: boolean;
   implementFramework: (id: string) => void;
   getFramework: (id: string) => Framework | undefined;
 }
@@ -91,6 +94,27 @@ export const FrameworkProvider = ({ children }: { children: ReactNode }) => {
   const [frameworks, setFrameworks] = useState<Framework[]>(MOCK_FRAMEWORKS);
   const { } = useTasks();
 
+  const { data, isLoading } = useQuery({
+    queryKey: ['organisation-frameworks'],
+    queryFn: schoolOrganisationService.getFrameworks,
+  });
+
+  useEffect(() => {
+    if (data) {
+      const mappedFrameworks: Framework[] = data.map((fw: any) => ({
+        id: fw.id,
+        name: fw.title,
+        description: fw.description || 'Statutory guidance for schools.',
+        authority: fw.authority || 'Department for Education', // Add defaults if not in backend yet
+        cycle: fw.cycle || 'Annual review',
+        status: 'implemented', // Set all fetched to implemented for now since they are returned by this API
+        taskCount: fw.review_summary?.task_count || 0,
+        riskLevel: fw.risk_level || 'critical',
+      }));
+      setFrameworks(mappedFrameworks);
+    }
+  }, [data]);
+
   const implementFramework = (id: string) => {
     // 1. Update status
     setFrameworks(prev => prev.map(fw => 
@@ -110,7 +134,7 @@ export const FrameworkProvider = ({ children }: { children: ReactNode }) => {
   const getFramework = (id: string) => frameworks.find(fw => fw.id === id);
 
   return (
-    <FrameworkContext.Provider value={{ frameworks, implementFramework, getFramework }}>
+    <FrameworkContext.Provider value={{ frameworks, isLoading, implementFramework, getFramework }}>
       {children}
     </FrameworkContext.Provider>
   );
