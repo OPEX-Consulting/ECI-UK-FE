@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { getIncidents, getFinalizedIncidents } from '@/lib/storage';
 import { Incident } from '@/types/incident';
@@ -10,6 +11,7 @@ import { Progress } from '@/components/ui/progress';
 import { StatusBadge } from '@/components/incidents/StatusBadge';
 import { IncidentTypeBadge } from '@/components/incidents/IncidentTypeBadge';
 import { SeverityBadge } from '@/components/incidents/SeverityBadge';
+import { schoolDashboardService } from '@/services/school/dashboardService';
 import { 
   BarChart3, 
   Shield, 
@@ -18,38 +20,56 @@ import {
   CheckCircle, 
   AlertTriangle,
   FileText,
-  Download
+  Download,
+  Loader2
 } from 'lucide-react';
 import { format } from 'date-fns';
 
 export const PrincipalDashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [allIncidents, setAllIncidents] = useState<Incident[]>([]);
   const [finalizedIncidents, setFinalizedIncidents] = useState<Incident[]>([]);
 
   useEffect(() => {
-    setAllIncidents(getIncidents());
     setFinalizedIncidents(getFinalizedIncidents());
   }, []);
 
-  const stats = {
-    total: allIncidents.length,
-    finalized: finalizedIncidents.length,
-    safeguarding: allIncidents.filter(i => i.type === 'safeguarding').length,
-    behavioral: allIncidents.filter(i => i.type === 'behavioral').length,
-    healthSafety: allIncidents.filter(i => i.type === 'health-safety').length,
-    pending: allIncidents.filter(i => i.status !== 'finalized' && i.status !== 'draft').length,
-  };
-
-  // Calculate compliance readiness (simplified)
-  const complianceScore = stats.total > 0 
-    ? Math.round((stats.finalized / stats.total) * 100) 
-    : 100;
+  const { data: dashboardData, isLoading, isError } = useQuery({
+    queryKey: ['principal-dashboard'],
+    queryFn: () => schoolDashboardService.getPrincipalDashboard(),
+  });
 
   const recentFinalized = finalizedIncidents
     .sort((a, b) => new Date(b.finalizedAt || b.updatedAt).getTime() - new Date(a.finalizedAt || a.updatedAt).getTime())
     .slice(0, 5);
+
+  if (isLoading) {
+    return (
+      <AppLayout>
+        <div className="flex h-[50vh] items-center justify-center">
+          <div className="flex flex-col items-center gap-2">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-sm text-muted-foreground">Loading dashboard data...</p>
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
+
+  if (isError || !dashboardData) {
+    return (
+      <AppLayout>
+        <div className="flex h-[50vh] items-center justify-center">
+          <div className="flex flex-col items-center gap-2 text-destructive">
+            <AlertTriangle className="h-8 w-8" />
+            <p className="text-sm">Failed to load dashboard data.</p>
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
+
+  const complianceScore = dashboardData.incident_readiness.percentage || 0;
 
   return (
     <AppLayout>
@@ -86,12 +106,15 @@ export const PrincipalDashboard = () => {
                 <span className="text-2xl font-bold">{complianceScore}%</span>
               </div>
               <Progress value={complianceScore} className="h-3" />
-              {stats.pending > 0 && (
-                <p className="text-sm text-muted-foreground">
-                  <AlertTriangle className="inline w-4 h-4 mr-1 text-status-under-review" />
-                  {stats.pending} incident(s) pending review
-                </p>
-              )}
+              <div className="flex justify-between items-center text-sm text-muted-foreground mt-2">
+                <span>{dashboardData.incident_readiness.completed_tasks} of {dashboardData.incident_readiness.total_tasks} tasks completed</span>
+                {dashboardData.total_incidents.total > dashboardData.total_incidents.finalized && (
+                  <span className="flex items-center gap-1">
+                    <AlertTriangle className="w-4 h-4 text-status-under-review" />
+                    {dashboardData.total_incidents.total - dashboardData.total_incidents.finalized} incident(s) pending review
+                  </span>
+                )}
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -104,9 +127,9 @@ export const PrincipalDashboard = () => {
               <FileText className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.total}</div>
+              <div className="text-2xl font-bold">{dashboardData.total_incidents.total}</div>
               <p className="text-xs text-muted-foreground">
-                {stats.finalized} finalized
+                {dashboardData.total_incidents.finalized} finalized
               </p>
             </CardContent>
           </Card>
@@ -117,8 +140,10 @@ export const PrincipalDashboard = () => {
               <Shield className="h-4 w-4 text-incident-safeguarding" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.safeguarding}</div>
-              <p className="text-xs text-muted-foreground">KCSIE related</p>
+              <div className="text-2xl font-bold">{dashboardData.safeguarding.total}</div>
+              <p className="text-xs text-muted-foreground">
+                {dashboardData.safeguarding.finalized} finalized
+              </p>
             </CardContent>
           </Card>
 
@@ -128,8 +153,10 @@ export const PrincipalDashboard = () => {
               <Users className="h-4 w-4 text-incident-behavioral" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.behavioral}</div>
-              <p className="text-xs text-muted-foreground">EIF Behaviour & Attitudes</p>
+              <div className="text-2xl font-bold">{dashboardData.behavioral.total}</div>
+              <p className="text-xs text-muted-foreground">
+                {dashboardData.behavioral.finalized} finalized
+              </p>
             </CardContent>
           </Card>
 
@@ -139,8 +166,10 @@ export const PrincipalDashboard = () => {
               <Heart className="h-4 w-4 text-incident-health-safety" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.healthSafety}</div>
-              <p className="text-xs text-muted-foreground">H&S regulations</p>
+              <div className="text-2xl font-bold">{dashboardData.health_and_safety.total}</div>
+              <p className="text-xs text-muted-foreground">
+                {dashboardData.health_and_safety.finalized} finalized
+              </p>
             </CardContent>
           </Card>
         </div>
@@ -199,3 +228,4 @@ export const PrincipalDashboard = () => {
     </AppLayout>
   );
 };
+

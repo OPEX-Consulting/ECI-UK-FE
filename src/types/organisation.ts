@@ -117,3 +117,12 @@ export interface ApiOrgDetail {
   framework_count: number;
   last_activity: string | null;
 }
+
+export interface ApiRerunClassificationResponse {
+  org_id: string;
+  old_frameworks: string[];
+  new_frameworks: string[];
+  added: string[];
+  removed: string[];
+  timestamp: string;
+}

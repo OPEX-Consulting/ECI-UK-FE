@@ -5,34 +5,6 @@ export interface ClassificationStepRequest {
   payload: Record<string, unknown>;
 }
 
-// Map UI selection values to API-expected slugs
-const AGE_RANGES_MAP: Record<string, string> = {
-  early_years: "early_years_0_5",
-  primary: "primary_5_11",
-  secondary: "secondary_11_16",
-  sixth_form: "sixth_form_16_18",
-};
-
-const SPECIAL_PROVISIONS_MAP: Record<string, string> = {
-  sen: "sen_provision",
-  boarding: "residential_boarding",
-  pupil_referral: "pupil_referral_ap",
-  international: "international_students",
-  ey_attached: "early_years_attached",
-};
-
-const OPERATIONAL_ACTIVITIES_MAP: Record<string, string> = {
-  transport: "school_transport",
-  remote_learning: "online_remote_learning",
-  cctv: "cctv_in_use",
-  placements: "work_placements",
-  biometrics: "biometric_systems",
-  data_heavy: "data_heavy_systems",
-};
-
-/**
- * Builds the correct payload object for each compliance wizard step.
- */
 export const buildStepPayload = (
   stepId: string,
   data: {
@@ -41,29 +13,40 @@ export const buildStepPayload = (
     ageRanges: string[];
     specialProvisions: string[];
     operationalActivities: string[];
-  }
+  },
+  startupData?: { id: string, group: string, data: Record<string, string> }[]
 ): Record<string, unknown> => {
+  const getMap = (group: string) => startupData?.find(g => g.group === group)?.data || {};
+
   switch (stepId) {
     case "schoolType":
       return { school_type_id: data.schoolType };
-    case "fundingType":
-      return { funding_governance: data.fundingType };
-    case "ageRanges":
+    case "fundingType": {
+      const fMap = getMap("funding_governance");
+      return { funding_governance: fMap[data.fundingType] || data.fundingType };
+    }
+    case "ageRanges": {
+      const aMap = getMap("age_ranges");
       return {
-        age_ranges: data.ageRanges.map((val) => AGE_RANGES_MAP[val] || val),
+        age_ranges: data.ageRanges.map((val) => aMap[val] || val),
       };
-    case "specialProvisions":
+    }
+    case "specialProvisions": {
+      const sMap = getMap("special_provisions");
       return {
         special_provisions: data.specialProvisions.map(
-          (val) => SPECIAL_PROVISIONS_MAP[val] || val
+          (val) => sMap[val] || val
         ),
       };
-    case "operationalActivities":
+    }
+    case "operationalActivities": {
+      const oMap = getMap("operational_activities");
       return {
         operational_activities: data.operationalActivities.map(
-          (val) => OPERATIONAL_ACTIVITIES_MAP[val] || val
+          (val) => oMap[val] || val
         ),
       };
+    }
     default:
       return {};
   }
@@ -114,6 +97,26 @@ export const classificationService = {
     const response = await api.get<ClassificationSummaryResponse>(
       "/school/classification/summary"
     );
+    return response.data;
+  },
+
+  /**
+   * Fetch available school types for the compliance wizard.
+   */
+  getSchoolTypes: async (skip = 0, limit = 100): Promise<import("@/types/organisation").ApiSchoolType[]> => {
+    const response = await api.get<import("@/types/organisation").ApiSchoolType[]>("/school-types", {
+      params: { skip, limit },
+    });
+    return response.data;
+  },
+
+  /**
+   * Fetch startup data mappings for compliance wizard.
+   */
+  getStartupData: async (skip = 0, limit = 100): Promise<{ id: string, group: string, data: Record<string, string> }[]> => {
+    const response = await api.get<{ id: string, group: string, data: Record<string, string> }[]>("/startup-data", {
+      params: { skip, limit },
+    });
     return response.data;
   },
 };

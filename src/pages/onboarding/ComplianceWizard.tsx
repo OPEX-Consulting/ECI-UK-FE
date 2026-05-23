@@ -12,7 +12,6 @@ import { cn } from '@/lib/utils';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
 import { classificationService, buildStepPayload } from '@/services/school/classificationService';
-import { getSchoolTypes } from '@/services/organisation';
 
 const STEPS = [
   { id: 'schoolType', title: 'School Type', description: 'What type of educational institution are you?' },
@@ -22,6 +21,28 @@ const STEPS = [
   { id: 'operationalActivities', title: 'Operational Activities', description: 'Select all operational activities that apply.' },
 ];
 
+const UI_LABELS: Record<string, string> = {
+  la_maintained: 'Local Authority Maintained',
+  academy_trust: 'Multi-Academy Trust (MAT)',
+  single_academy: 'Single Academy Trust',
+  proprietor: 'Independent Proprietor body',
+  early_years: 'Early Years (0–5)',
+  primary: 'Primary (5–11)',
+  secondary: 'Secondary (11–16)',
+  sixth_form: 'Sixth Form (16–18)',
+  sen: 'SEN Provision',
+  boarding: 'Residential / Boarding',
+  pupil_referral: 'Pupil Referral / AP',
+  international: 'International Students',
+  ey_attached: 'Early Years Attached Provision',
+  transport: 'School Transport',
+  remote_learning: 'Online / Remote Learning',
+  cctv: 'CCTV in Use',
+  placements: 'Work Placements',
+  biometrics: 'Biometric Systems',
+  data_heavy: 'Data Heavy Systems (large data sets, cloud systems)',
+};
+
 const ComplianceWizard = () => {
   const { state, updateCompliance, nextStep, prevStep } = useOnboarding();
   const navigate = useNavigate();
@@ -29,11 +50,18 @@ const ComplianceWizard = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Fetch school types dynamically from database (admin endpoint — may 401 for school users)
+  // Fetch school types dynamically from database using the school-facing endpoint
   const { data: apiSchoolTypes, isLoading: isLoadingSchoolTypes } = useQuery({
     queryKey: ['school-types'],
-    queryFn: () => getSchoolTypes(0, 100),
-    retry: false, // Don't retry if unauthorized — fall back to hardcoded options
+    queryFn: () => classificationService.getSchoolTypes(0, 100),
+    retry: 1, // Let it retry once since this is a public/school endpoint now
+  });
+
+  // Fetch startup mappings dynamically
+  const { data: startupData, isLoading: isLoadingStartup } = useQuery({
+    queryKey: ['startup-data'],
+    queryFn: () => classificationService.getStartupData(0, 100),
+    retry: 1,
   });
 
   // Local state for current step inputs (synced with context on navigation)
@@ -88,7 +116,7 @@ const ComplianceWizard = () => {
           ageRanges,
           specialProvisions,
           operationalActivities,
-        }),
+        }, startupData),
       });
 
       if (activeStepIndex < STEPS.length - 1) {
@@ -180,15 +208,13 @@ const ComplianceWizard = () => {
           </RadioGroup>
         );
 
-      case 'fundingType':
+      case 'fundingType': {
+        if (isLoadingStartup) return <div className="py-12 flex justify-center"><Loader2 className="animate-spin text-primary w-8 h-8" /></div>;
+        const groupData = startupData?.find(g => g.group === 'funding_governance')?.data || {};
+        const fundingOptions = Object.keys(groupData).map(k => ({ value: k, label: UI_LABELS[k] || k }));
         return (
           <RadioGroup value={fundingType} onValueChange={setFundingType} className="space-y-3">
-            {[
-              { value: 'la_maintained', label: 'Local Authority Maintained' },
-              { value: 'academy_trust', label: 'Multi-Academy Trust (MAT)' },
-              { value: 'single_academy', label: 'Single Academy Trust' },
-              { value: 'proprietor', label: 'Independent Proprietor body' },
-            ].map((option) => (
+            {fundingOptions.map((option) => (
               <div
                 key={option.value}
                 className={cn(
@@ -205,16 +231,15 @@ const ComplianceWizard = () => {
             ))}
           </RadioGroup>
         );
+      }
 
-      case 'ageRanges':
+      case 'ageRanges': {
+        if (isLoadingStartup) return <div className="py-12 flex justify-center"><Loader2 className="animate-spin text-primary w-8 h-8" /></div>;
+        const groupData = startupData?.find(g => g.group === 'age_ranges')?.data || {};
+        const ageOptions = Object.keys(groupData).map(k => ({ value: k, label: UI_LABELS[k] || k }));
         return (
           <div className="space-y-3">
-            {[
-              { value: 'early_years', label: 'Early Years (0–5)' },
-              { value: 'primary', label: 'Primary (5–11)' },
-              { value: 'secondary', label: 'Secondary (11–16)' },
-              { value: 'sixth_form', label: 'Sixth Form (16–18)' },
-            ].map((option) => (
+            {ageOptions.map((option) => (
               <div
                 key={option.value}
                 className={cn(
@@ -237,17 +262,15 @@ const ComplianceWizard = () => {
             ))}
           </div>
         );
+      }
 
-      case 'specialProvisions':
+      case 'specialProvisions': {
+        if (isLoadingStartup) return <div className="py-12 flex justify-center"><Loader2 className="animate-spin text-primary w-8 h-8" /></div>;
+        const groupData = startupData?.find(g => g.group === 'special_provisions')?.data || {};
+        const specialOptions = Object.keys(groupData).map(k => ({ value: k, label: UI_LABELS[k] || k }));
         return (
           <div className="space-y-3">
-            {[
-              { value: 'sen', label: 'SEN Provision' },
-              { value: 'boarding', label: 'Residential / Boarding' },
-              { value: 'pupil_referral', label: 'Pupil Referral / AP' },
-              { value: 'international', label: 'International Students' },
-              { value: 'ey_attached', label: 'Early Years Attached Provision' },
-            ].map((option) => (
+            {specialOptions.map((option) => (
               <div
                 key={option.value}
                 className={cn(
@@ -270,18 +293,15 @@ const ComplianceWizard = () => {
             ))}
           </div>
         );
+      }
 
-      case 'operationalActivities':
+      case 'operationalActivities': {
+        if (isLoadingStartup) return <div className="py-12 flex justify-center"><Loader2 className="animate-spin text-primary w-8 h-8" /></div>;
+        const groupData = startupData?.find(g => g.group === 'operational_activities')?.data || {};
+        const opOptions = Object.keys(groupData).map(k => ({ value: k, label: UI_LABELS[k] || k }));
         return (
           <div className="space-y-3">
-            {[
-              { value: 'transport', label: 'School Transport' },
-              { value: 'remote_learning', label: 'Online / Remote Learning' },
-              { value: 'cctv', label: 'CCTV in Use' },
-              { value: 'placements', label: 'Work Placements' },
-              { value: 'biometrics', label: 'Biometric Systems' },
-              { value: 'data_heavy', label: 'Data Heavy Systems (large data sets, cloud systems)' },
-            ].map((option) => (
+            {opOptions.map((option) => (
               <div
                 key={option.value}
                 className={cn(
@@ -304,6 +324,7 @@ const ComplianceWizard = () => {
             ))}
           </div>
         );
+      }
 
       default:
         return null;
