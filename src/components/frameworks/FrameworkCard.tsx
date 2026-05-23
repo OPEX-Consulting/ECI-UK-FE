@@ -38,7 +38,7 @@ const FrameworkCard = ({ framework }: FrameworkCardProps) => {
   const navigate = useNavigate();
   const { tasks } = useTasks();
 
-  const frameworkTaskCount = tasks.filter(t => t.frameworkId === framework.id).length;
+  const frameworkTaskCount = framework.taskCount;
 
   return (
     <>

@@ -3,6 +3,7 @@ import { useTasks } from './TaskContext';
 import { toast } from 'sonner';
 import { useQuery } from '@tanstack/react-query';
 import { schoolOrganisationService } from '@/services/school/organisationService';
+import { useAuth } from './AuthContext';
 
 export type FrameworkStatus = 'not-started' | 'in-progress' | 'implemented';
 
@@ -93,10 +94,12 @@ const FrameworkContext = createContext<FrameworkContextType | undefined>(undefin
 export const FrameworkProvider = ({ children }: { children: ReactNode }) => {
   const [frameworks, setFrameworks] = useState<Framework[]>(MOCK_FRAMEWORKS);
   const { } = useTasks();
+  const { user, isLoading: authLoading } = useAuth();
 
   const { data, isLoading } = useQuery({
     queryKey: ['organisation-frameworks'],
     queryFn: schoolOrganisationService.getFrameworks,
+    enabled: !authLoading && !!user && user.role !== 'admin',
   });
 
   useEffect(() => {

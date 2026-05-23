@@ -56,14 +56,14 @@ const queryClient = new QueryClient();
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider defaultTheme="light" storageKey="eci-admin-theme">
-      <TaskProvider>
-        <FrameworkProvider>
-          <OnboardingProvider>
-            <TooltipProvider>
-              <Toaster />
-              <Sonner />
-              <BrowserRouter>
-                <AuthProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <AuthProvider>
+            <TaskProvider>
+              <FrameworkProvider>
+                <OnboardingProvider>
                   <Routes>
                     <Route path="/" element={<Landing />} />
                     <Route path="/about" element={<About />} />
@@ -218,12 +218,12 @@ const App = () => (
 
                     <Route path="*" element={<NotFound />} />
                   </Routes>
-                </AuthProvider>
-              </BrowserRouter>
-            </TooltipProvider>
-          </OnboardingProvider>
-        </FrameworkProvider>
-      </TaskProvider>
+                </OnboardingProvider>
+              </FrameworkProvider>
+            </TaskProvider>
+          </AuthProvider>
+        </BrowserRouter>
+      </TooltipProvider>
     </ThemeProvider>
   </QueryClientProvider>
 );

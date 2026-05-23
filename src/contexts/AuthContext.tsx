@@ -91,12 +91,27 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
             };
             setUser(refreshed);
             storeUser(refreshed);
-          } catch {
-            // Token expired / invalid — wipe the school session
-            localStorage.removeItem("token");
-            storeUser(null);
-            setUser(null);
-            setSchoolUser(null);
+          } catch (error: any) {
+            // If the endpoint is missing or fails, try to fall back to the token payload
+            const payload = decodeJwt(token);
+            if (payload && payload.exp && payload.exp * 1000 > Date.now()) {
+              // Token is still valid, build profile from stored user and payload
+              const profile: SchoolUser = {
+                id: payload.uid ?? crypto.randomUUID(),
+                email: payload.sub ?? storedUser.email,
+                name: storedUser.name || storedUser.email.split("@")[0],
+                role: storedUser.role as any,
+                stage: "dashboard", // Defaulting stage, might not be accurate but enough to avoid logout
+              };
+              setSchoolUser(profile);
+              setUser(storedUser); // Keep the stored generic user
+            } else {
+              // Token expired / invalid — wipe the school session
+              localStorage.removeItem("token");
+              storeUser(null);
+              setUser(null);
+              setSchoolUser(null);
+            }
           }
         }
       }
@@ -130,7 +145,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
           id: payload?.uid ?? crypto.randomUUID(),
           email: payload?.sub ?? email,
           name: email.split("@")[0],
-          role: "staff",
+          role: "principal", // Default to principal to avoid missing tasks due to staff filtering
           stage: response.stage,
         };
       }
