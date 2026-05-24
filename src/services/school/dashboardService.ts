@@ -28,6 +28,15 @@ export interface StaffDashboardResponse {
   term_start: string;
 }
 
+export interface SeverityDistributionResponse {
+  low: number;
+  medium: number;
+  high: number;
+  critical: number;
+  total_documented: number;
+  total_all_time: number;
+}
+
 export const schoolDashboardService = {
   getPrincipalDashboard: async (): Promise<PrincipalDashboardResponse> => {
     const response = await api.get<PrincipalDashboardResponse>("/school/dashboard");
@@ -35,6 +44,10 @@ export const schoolDashboardService = {
   },
   getStaffDashboard: async (): Promise<StaffDashboardResponse> => {
     const response = await api.get<StaffDashboardResponse>("/school/incidents/my-dashboard");
+    return response.data;
+  },
+  getSeverityDistribution: async (): Promise<SeverityDistributionResponse> => {
+    const response = await api.get<SeverityDistributionResponse>("/school/incidents/severity-distribution");
     return response.data;
   },
 };

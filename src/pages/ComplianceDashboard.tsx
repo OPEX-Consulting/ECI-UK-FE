@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { getIncidents, getFinalizedIncidents } from '@/lib/storage';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Incident } from '@/types/incident';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,38 +15,77 @@ import {
   AlertTriangle,
   Download,
   TrendingUp,
-  Clock
+  Clock,
+  Loader2
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { schoolDashboardService } from '@/services/school/dashboardService';
+import { schoolIncidentService } from '@/services/school/incidentService';
 
 const ComplianceDashboard = () => {
-  const [allIncidents, setAllIncidents] = useState<Incident[]>([]);
-  const [finalizedIncidents, setFinalizedIncidents] = useState<Incident[]>([]);
+  const { data: dashboardData, isLoading: dashboardLoading, isError: dashboardError } = useQuery({
+    queryKey: ['principal-dashboard'],
+    queryFn: () => schoolDashboardService.getPrincipalDashboard(),
+  });
 
-  useEffect(() => {
-    setAllIncidents(getIncidents());
-    setFinalizedIncidents(getFinalizedIncidents());
-  }, []);
+  const { data: severityData, isLoading: severityLoading, isError: severityError } = useQuery({
+    queryKey: ['severity-distribution'],
+    queryFn: () => schoolDashboardService.getSeverityDistribution(),
+  });
+
+  const { data: incidents = [], isLoading: incidentsLoading, isError: incidentsError } = useQuery({
+    queryKey: ['all-incidents'],
+    queryFn: () => schoolIncidentService.listIncidents(),
+  });
+
+  const isLoading = dashboardLoading || severityLoading || incidentsLoading;
+  const isError = dashboardError || severityError || incidentsError;
+
+  if (isLoading) {
+    return (
+      <AppLayout>
+        <div className="flex h-[50vh] items-center justify-center">
+          <div className="flex flex-col items-center gap-2">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-sm text-muted-foreground">Loading compliance metrics...</p>
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
+
+  if (isError || !dashboardData || !severityData) {
+    return (
+      <AppLayout>
+        <div className="flex h-[50vh] items-center justify-center">
+          <div className="flex flex-col items-center gap-2 text-destructive">
+            <AlertTriangle className="h-8 w-8" />
+            <p className="text-sm">Failed to load compliance metrics.</p>
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
+
+  const finalizedIncidents = incidents.filter(i => i.status === 'finalized');
 
   const stats = {
-    total: allIncidents.length,
-    finalized: finalizedIncidents.length,
-    pending: allIncidents.filter(i => i.status !== 'finalized' && i.status !== 'draft').length,
-    safeguarding: allIncidents.filter(i => i.type === 'safeguarding').length,
-    behavioral: allIncidents.filter(i => i.type === 'behavioral').length,
-    healthSafety: allIncidents.filter(i => i.type === 'health-safety').length,
-    urgent: allIncidents.filter(i => i.isUrgent && i.status !== 'finalized').length,
+    total: dashboardData.total_incidents.total,
+    finalized: dashboardData.total_incidents.finalized,
+    pending: dashboardData.total_incidents.total - dashboardData.total_incidents.finalized,
+    safeguarding: dashboardData.safeguarding.total,
+    behavioral: dashboardData.behavioral.total,
+    healthSafety: dashboardData.health_and_safety.total,
+    urgent: incidents.filter(i => i.isUrgent && i.status !== 'finalized').length,
   };
 
-  const complianceScore = stats.total > 0 
-    ? Math.round((stats.finalized / stats.total) * 100) 
-    : 100;
+  const complianceScore = dashboardData.incident_readiness.percentage;
 
   const severityCounts = {
-    low: finalizedIncidents.filter(i => i.officerReview?.severity === 'low').length,
-    medium: finalizedIncidents.filter(i => i.officerReview?.severity === 'medium').length,
-    high: finalizedIncidents.filter(i => i.officerReview?.severity === 'high').length,
-    critical: finalizedIncidents.filter(i => i.officerReview?.severity === 'critical').length,
+    low: severityData.low,
+    medium: severityData.medium,
+    high: severityData.high,
+    critical: severityData.critical,
   };
 
   const handleExport = () => {
@@ -232,7 +271,7 @@ const ComplianceDashboard = () => {
                       <div className="w-48 bg-muted rounded-full h-2">
                         <div 
                           className="bg-severity-low h-2 rounded-full" 
-                          style={{ width: `${finalizedIncidents.length > 0 ? (severityCounts.low / finalizedIncidents.length) * 100 : 0}%` }}
+                          style={{ width: `${severityData.total_documented > 0 ? (severityCounts.low / severityData.total_documented) * 100 : 0}%` }}
                         />
                       </div>
                       <span className="text-sm w-8">{severityCounts.low}</span>
@@ -244,7 +283,7 @@ const ComplianceDashboard = () => {
                       <div className="w-48 bg-muted rounded-full h-2">
                         <div 
                           className="bg-severity-medium h-2 rounded-full" 
-                          style={{ width: `${finalizedIncidents.length > 0 ? (severityCounts.medium / finalizedIncidents.length) * 100 : 0}%` }}
+                          style={{ width: `${severityData.total_documented > 0 ? (severityCounts.medium / severityData.total_documented) * 100 : 0}%` }}
                         />
                       </div>
                       <span className="text-sm w-8">{severityCounts.medium}</span>
@@ -256,7 +295,7 @@ const ComplianceDashboard = () => {
                       <div className="w-48 bg-muted rounded-full h-2">
                         <div 
                           className="bg-severity-high h-2 rounded-full" 
-                          style={{ width: `${finalizedIncidents.length > 0 ? (severityCounts.high / finalizedIncidents.length) * 100 : 0}%` }}
+                          style={{ width: `${severityData.total_documented > 0 ? (severityCounts.high / severityData.total_documented) * 100 : 0}%` }}
                         />
                       </div>
                       <span className="text-sm w-8">{severityCounts.high}</span>
@@ -268,7 +307,7 @@ const ComplianceDashboard = () => {
                       <div className="w-48 bg-muted rounded-full h-2">
                         <div 
                           className="bg-severity-critical h-2 rounded-full" 
-                          style={{ width: `${finalizedIncidents.length > 0 ? (severityCounts.critical / finalizedIncidents.length) * 100 : 0}%` }}
+                          style={{ width: `${severityData.total_documented > 0 ? (severityCounts.critical / severityData.total_documented) * 100 : 0}%` }}
                         />
                       </div>
                       <span className="text-sm w-8">{severityCounts.critical}</span>
@@ -286,7 +325,7 @@ const ComplianceDashboard = () => {
                   <TrendingUp className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{stats.total}</div>
+                  <div className="text-2xl font-bold">{severityData.total_all_time}</div>
                   <p className="text-xs text-muted-foreground">
                     All time incidents
                   </p>
@@ -299,7 +338,7 @@ const ComplianceDashboard = () => {
                   <CheckCircle className="h-4 w-4 text-status-finalized" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-status-finalized">{stats.finalized}</div>
+                  <div className="text-2xl font-bold text-status-finalized">{severityData.total_documented}</div>
                   <p className="text-xs text-muted-foreground">
                     Fully documented & reviewed
                   </p>
