@@ -51,6 +51,28 @@ import { schoolIncidentService } from "@/services/school/incidentService";
 import { schoolOrganisationService } from "@/services/school/organisationService";
 import { useAuth } from "@/contexts/AuthContext";
 
+/** Coerces any value to a safe string for JSX rendering */
+const safeStr = (val: any, fallback = ""): string => {
+  if (val === null || val === undefined) return fallback;
+  if (typeof val === "string") return val;
+  if (typeof val === "number" || typeof val === "boolean") return String(val);
+  if (typeof val === "object") {
+    try { return JSON.stringify(val); } catch { return fallback; }
+  }
+  return fallback;
+};
+
+const safeFormatDate = (dateStr: any, formatStr: string, fallback = "N/A") => {
+  if (!dateStr) return fallback;
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return fallback;
+    return format(d, formatStr);
+  } catch (e) {
+    return fallback;
+  }
+};
+
 interface IncidentDetailsModalProps {
   incident: Incident | null;
   isOpen: boolean;
@@ -97,51 +119,7 @@ export const IncidentDetailsModal = ({
     }
   }, [incident]);
 
-  if (!incident) return null;
-
-  // Helper: Retrieve formatted name for display
-  const getAssigneeName = (assignedToId?: string) => {
-    if (!assignedToId) return "Not Assigned";
-    const foundUser = orgUsers.find((u) => u.id === assignedToId);
-    return foundUser ? foundUser.name : "Not Assigned";
-  };
-
-  const getReporterName = (reporterId?: string) => {
-    if (!reporterId) return incident.reporterName || "Staff Member";
-    const foundUser = orgUsers.find((u) => u.id === reporterId);
-    return foundUser ? foundUser.name : (incident.reporterName || "Staff Member");
-  };
-
-  // Robustly map discussion messages
-  const messages: Message[] = (incident.discussion || []).map((m: any) => ({
-    id: m.id || m.message_id || String(Math.random()),
-    senderName: m.senderName || m.sender_name || m.sender?.name || (m.reported_by_staff_id === user?.id ? "You" : "Staff Member"),
-    senderRole: m.senderRole || m.sender_role || m.sender?.role || "Staff",
-    content: m.content || m.message || "",
-    timestamp: m.timestamp || m.created_at || new Date().toISOString(),
-    isSystem: m.isSystem || m.is_system || false,
-  }));
-
-  // Robustly map documents (evidence)
-  const evidenceFiles = (incident.documents || []).map((d: any, idx: number) => ({
-    id: d.id || idx,
-    name: d.name || d.file_name || d.filename || "file",
-    size: d.size || d.file_size || (d.size_bytes ? `${(d.size_bytes / (1024 * 1024)).toFixed(2)} MB` : "Unknown size"),
-    type: d.type || d.file_type || d.content_type || "",
-  }));
-
-  // Robustly map audit entries (history)
-  const auditEntries: AuditEntry[] = (incident.history || []).map((h: any) => ({
-    id: h.id || String(Math.random()),
-    incidentId: incident.id,
-    action: h.action || h.event_type || "Event",
-    performedBy: h.performedBy || h.user_id || "",
-    performedByName: h.performedByName || h.user_name || "User",
-    timestamp: h.timestamp || h.created_at || new Date().toISOString(),
-    details: h.details || h.description || "",
-  }));
-
-  // Mutations
+  // ── ALL MUTATIONS must be declared before any conditional return ──
   const editDetailsMutation = useMutation({
     mutationFn: (data: { title: string; description: string }) =>
       schoolIncidentService.editIncident(incident.id, data),
@@ -249,6 +227,51 @@ export const IncidentDetailsModal = ({
     }
   };
 
+  // Early return AFTER all hooks
+  if (!incident) return null;
+
+  // Helper: Retrieve formatted name for display
+  const getAssigneeName = (assignedToId?: string) => {
+    if (!assignedToId) return "Not Assigned";
+    const foundUser = orgUsers.find((u) => u.id === assignedToId);
+    return foundUser ? foundUser.name : "Not Assigned";
+  };
+
+  const getReporterName = (reporterId?: string) => {
+    if (!reporterId) return incident.reporterName || "Staff Member";
+    const foundUser = orgUsers.find((u) => u.id === reporterId);
+    return foundUser ? foundUser.name : (incident.reporterName || "Staff Member");
+  };
+
+  // Robustly map discussion messages
+  const messages: Message[] = (incident.discussion || []).map((m: any) => ({
+    id: m.id || m.message_id || String(Math.random()),
+    senderName: m.senderName || m.sender_name || m.sender?.name || (m.reported_by_staff_id === user?.id ? "You" : "Staff Member"),
+    senderRole: m.senderRole || m.sender_role || m.sender?.role || "Staff",
+    content: m.content || m.message || "",
+    timestamp: m.timestamp || m.created_at || new Date().toISOString(),
+    isSystem: m.isSystem || m.is_system || false,
+  }));
+
+  // Robustly map documents (evidence)
+  const evidenceFiles = (incident.documents || []).map((d: any, idx: number) => ({
+    id: d.id || idx,
+    name: d.name || d.file_name || d.filename || "file",
+    size: d.size || d.file_size || (d.size_bytes ? `${(d.size_bytes / (1024 * 1024)).toFixed(2)} MB` : "Unknown size"),
+    type: d.type || d.file_type || d.content_type || "",
+  }));
+
+  // Robustly map audit entries (history)
+  const auditEntries: AuditEntry[] = (incident.history || []).map((h: any) => ({
+    id: h.id || String(Math.random()),
+    incidentId: incident.id,
+    action: h.action || h.event_type || "Event",
+    performedBy: h.performedBy || h.user_id || "",
+    performedByName: h.performedByName || h.user_name || "User",
+    timestamp: h.timestamp || h.created_at || new Date().toISOString(),
+    details: h.details || h.description || "",
+  }));
+
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[1240px] w-[95vw] h-[90vh] p-0 overflow-hidden border-none shadow-2xl rounded-2xl flex flex-col md:flex-row bg-background">
@@ -302,7 +325,7 @@ export const IncidentDetailsModal = ({
                 <Calendar className="w-4 h-4" />
                 Date:{" "}
                 <span className="text-foreground">
-                  {format(new Date(incident.incidentDate), "MMM d, yyyy")}
+                  {safeFormatDate(incident.incidentDate, "MMM d, yyyy")}
                 </span>
               </div>
               <div className="flex items-center gap-2">
@@ -319,7 +342,7 @@ export const IncidentDetailsModal = ({
               </div>
               <div className="flex items-center gap-2">
                 <AlertTriangle className="w-4 h-4 text-rose-500" />
-                <span className="text-foreground capitalize">{incident.type.replace("-", " ")}</span>
+                <span className="text-foreground capitalize">{(incident.type || "").replace("-", " ")}</span>
               </div>
               <div className="flex items-center gap-2">
                 <User className="w-4 h-4" />
@@ -477,10 +500,10 @@ export const IncidentDetailsModal = ({
                             </div>
                             <div className="space-y-0.5">
                               <p className="text-xs font-bold text-foreground line-clamp-1">
-                                {file.name}
+                                {safeStr(file.name, "Unnamed file")}
                               </p>
                               <p className="text-[10px] text-muted-foreground font-medium">
-                                {file.size}
+                                {safeStr(file.size, "Unknown size")}
                               </p>
                             </div>
                           </div>
@@ -521,14 +544,11 @@ export const IncidentDetailsModal = ({
                               {entry.action}
                             </h4>
                             <span className="text-[10px] font-bold text-muted-foreground/60 uppercase">
-                              {format(
-                                new Date(entry.timestamp),
-                                "MMM d, h:mm aa",
-                              )}
+                              {safeFormatDate(entry.timestamp, "MMM d, h:mm aa")}
                             </span>
                           </div>
                           <p className="text-sm text-muted-foreground leading-relaxed">
-                            {entry.details}
+                            {safeStr(entry.details)}
                           </p>
                           <div className="flex items-center gap-2 pt-1">
                             <div className="w-4 h-4 rounded-full bg-muted flex items-center justify-center">
@@ -676,7 +696,7 @@ export const IncidentDetailsModal = ({
                       <div className="flex items-center gap-2 text-[10px] font-bold text-foreground">
                         <span>{m.senderName}</span>
                         <span className="text-muted-foreground/60">
-                          {format(new Date(m.timestamp), "MMM d, h:mm aa")}
+                          {safeFormatDate(m.timestamp, "MMM d, h:mm aa")}
                         </span>
                       </div>
                     )}
@@ -689,7 +709,7 @@ export const IncidentDetailsModal = ({
                             : "bg-card border border-border rounded-tl-none text-foreground"
                       }`}
                     >
-                      {m.content}
+                      {safeStr(m.content)}
                     </div>
                   </div>
                 </div>

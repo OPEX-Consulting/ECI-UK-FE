@@ -15,6 +15,17 @@ import { FileText, Search, AlertTriangle, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { schoolIncidentService } from '@/services/school/incidentService';
 
+const safeFormatDate = (dateStr: any, formatStr: string, fallback = "N/A") => {
+  if (!dateStr) return fallback;
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return fallback;
+    return format(d, formatStr);
+  } catch (e) {
+    return fallback;
+  }
+};
+
 const AllIncidents = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -169,7 +180,7 @@ const AllIncidents = () => {
                       </div>
                       <p className="font-medium">{incident.studentName}</p>
                       <p className="text-sm text-muted-foreground">
-                        Reported by {incident.reporterName} • {format(new Date(incident.incidentDate), 'PPP')}
+                        Reported by {incident.reporterName} • {safeFormatDate(incident.incidentDate, 'PPP')}
                       </p>
                       <p className="text-sm text-muted-foreground">
                         {incident.location}

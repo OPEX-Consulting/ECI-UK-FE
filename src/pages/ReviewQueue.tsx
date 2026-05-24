@@ -11,6 +11,17 @@ import { IncidentTypeBadge } from '@/components/incidents/IncidentTypeBadge';
 import { ClipboardCheck, Clock, AlertTriangle, MessageSquare } from 'lucide-react';
 import { format } from 'date-fns';
 
+const safeFormatDate = (dateStr: any, formatStr: string, fallback = "N/A") => {
+  if (!dateStr) return fallback;
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return fallback;
+    return format(d, formatStr);
+  } catch (e) {
+    return fallback;
+  }
+};
+
 const ReviewQueue = () => {
   const navigate = useNavigate();
   const [pending, setPending] = useState<Incident[]>([]);
@@ -59,7 +70,7 @@ const ReviewQueue = () => {
               </div>
               <p className="font-medium">{incident.studentName}</p>
               <p className="text-sm text-muted-foreground">
-                Reported by {incident.reporterName} • {format(new Date(incident.createdAt), 'PPp')}
+                Reported by {incident.reporterName} • {safeFormatDate(incident.createdAt, 'PPp')}
               </p>
               <p className="text-sm text-muted-foreground">
                 {incident.location}

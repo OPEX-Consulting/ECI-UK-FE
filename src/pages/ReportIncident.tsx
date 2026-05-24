@@ -60,6 +60,17 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { format } from "date-fns";
 import { IncidentDetailsModal } from "@/components/incidents/IncidentDetailsModal";
 
+const safeFormatDate = (dateStr: any, formatStr: string, fallback = "N/A") => {
+  if (!dateStr) return fallback;
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return fallback;
+    return format(d, formatStr);
+  } catch (e) {
+    return fallback;
+  }
+};
+
 const incidentTypes: {
   type: IncidentType;
   label: string;
@@ -529,7 +540,7 @@ const ReportIncident = () => {
                       </div>
                       <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground/80">
                         <Calendar className="w-3.5 h-3.5" />
-                        {format(new Date(incident.incidentDate), "MMM d, yyyy")}
+                        {safeFormatDate(incident.incidentDate, "MMM d, yyyy")}
                       </div>
                       <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground/80">
                         <UserIcon className="w-3.5 h-3.5" />

@@ -28,6 +28,17 @@ import { toast } from 'sonner';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { schoolIncidentService } from "@/services/school/incidentService";
 
+const safeFormatDate = (dateStr: any, formatStr: string, fallback = "N/A") => {
+  if (!dateStr) return fallback;
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return fallback;
+    return format(d, formatStr);
+  } catch (e) {
+    return fallback;
+  }
+};
+
 const IncidentDetail = () => {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
@@ -164,7 +175,7 @@ const IncidentDetail = () => {
                 <div>
                   <p className="text-sm text-muted-foreground">Date & Time</p>
                   <p className="font-medium">
-                    {format(new Date(incident.incidentDate), 'PPP')} at {incident.incidentTime}
+                    {safeFormatDate(incident.incidentDate, 'PPP')} at {incident.incidentTime}
                   </p>
                 </div>
               </div>
@@ -290,7 +301,7 @@ const IncidentDetail = () => {
                     <div className="flex-1 pb-4">
                       <p className="font-medium">{entry.action}</p>
                       <p className="text-sm text-muted-foreground">
-                        {entry.performedByName} • {format(new Date(entry.timestamp), 'PPp')}
+                        {entry.performedByName} • {safeFormatDate(entry.timestamp, 'PPp')}
                       </p>
                       {entry.details && (
                         <p className="text-sm mt-1 text-muted-foreground italic">

@@ -14,6 +14,17 @@ import { FileText, Plus, Search, AlertTriangle, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { schoolIncidentService } from '@/services/school/incidentService';
 
+const safeFormatDate = (dateStr: any, formatStr: string, fallback = "N/A") => {
+  if (!dateStr) return fallback;
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return fallback;
+    return format(d, formatStr);
+  } catch (e) {
+    return fallback;
+  }
+};
+
 const MyReports = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -159,7 +170,7 @@ const MyReports = () => {
                       </div>
                       <p className="font-medium">{incident.studentName}</p>
                       <p className="text-sm text-muted-foreground">
-                        {incident.location} • {format(new Date(incident.incidentDate), 'PPP')}
+                        {incident.location} • {safeFormatDate(incident.incidentDate, 'PPP')}
                       </p>
                       {incident.status === 'info-requested' && incident.officerReview?.infoRequestMessage && (
                         <p className="text-sm text-status-info-requested mt-2">
