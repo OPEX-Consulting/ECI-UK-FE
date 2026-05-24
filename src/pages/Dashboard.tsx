@@ -3,6 +3,7 @@ import { StaffDashboard } from './dashboards/StaffDashboard';
 import { OfficerDashboard } from './dashboards/OfficerDashboard';
 import { PrincipalDashboard } from './dashboards/PrincipalDashboard';
 import { Navigate } from 'react-router-dom';
+import { normalizeSchoolRole } from '@/lib/utils';
 
 const Dashboard = () => {
   const { user, isLoading } = useAuth();
@@ -15,7 +16,8 @@ const Dashboard = () => {
     return <Navigate to="/login" replace />;
   }
 
-  switch (user.role) {
+  const normalized = normalizeSchoolRole(user.role);
+  switch (normalized) {
     case 'staff':
       return <StaffDashboard />;
     case 'officer':

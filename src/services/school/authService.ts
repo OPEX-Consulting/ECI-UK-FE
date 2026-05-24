@@ -83,8 +83,8 @@ export const schoolAuthService = {
    * Falls back to decoding the JWT if the endpoint isn't available.
    */
   getCurrentSchoolUser: async (): Promise<SchoolUser> => {
-    const response = await api.get<SchoolUser>("/school/auth/me");
-    return response.data;
+    const response = await api.get<{ user: SchoolUser }>("/school/profile");
+    return response.data.user;
   },
 
   /**

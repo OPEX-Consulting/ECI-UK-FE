@@ -20,11 +20,13 @@ const MyReports = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
 
-  const { data: incidents = [], isLoading, isError } = useQuery({
-    queryKey: ['all-incidents'],
-    queryFn: () => schoolIncidentService.listIncidents(),
+  const { data: responseData, isLoading, isError } = useQuery({
+    queryKey: ['my-incidents'],
+    queryFn: () => schoolIncidentService.listMyReports(),
     enabled: !!user,
   });
+
+  const incidents = responseData?.items || [];
 
   if (isLoading) {
     return (

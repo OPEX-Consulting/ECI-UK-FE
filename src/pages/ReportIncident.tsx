@@ -1,7 +1,5 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
-import { generateId } from "@/lib/storage";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { schoolIncidentService } from "@/services/school/incidentService";
 import {
   IncidentType,
   Incident,
@@ -97,13 +95,19 @@ const incidentTypes: {
 const ReportIncident = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedIncident, setSelectedIncident] = useState<Incident | null>(
     null,
   );
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
-  const [incidents, setIncidents] = useState<Incident[]>(MOCK_INCIDENTS);
+  
+  const queryClient = useQueryClient();
+
+  const { data: incidents = [], isLoading } = useQuery({
+    queryKey: ["incidents"],
+    queryFn: schoolIncidentService.listIncidents,
+    enabled: !!user,
+  });
 
   const [formData, setFormData] = useState({
     type: "" as IncidentType | "",
@@ -115,6 +119,38 @@ const ReportIncident = () => {
     immediateAction: "",
     reportedBy: "",
     isUrgent: false,
+  });
+
+  const createIncidentMutation = useMutation({
+    mutationFn: (data: {
+      category: string;
+      title: string;
+      student_name: string;
+      date: string;
+      time: string;
+      description: string;
+      severity?: string;
+    }) => schoolIncidentService.createIncident(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["incidents"] });
+      toast.success("Incident submitted successfully");
+      setIsModalOpen(false);
+      setFormData({
+        type: "",
+        title: "",
+        studentName: "",
+        incidentDate: "",
+        incidentTime: "",
+        description: "",
+        immediateAction: "",
+        reportedBy: "",
+        isUrgent: false,
+      });
+    },
+    onError: (err: any) => {
+      const msg = err.response?.data?.detail || err.message || "Failed to submit incident";
+      toast.error(typeof msg === "string" ? msg : "Failed to submit incident");
+    }
   });
 
   const getStatusBadge = (status: string) => {
@@ -213,44 +249,14 @@ const ReportIncident = () => {
     if (!formData.description.trim())
       return toast.error("Please describe the incident");
 
-    setIsSubmitting(true);
-    const incidentId = generateId();
-    const now = new Date().toISOString();
-
-    const newIncident: Incident = {
-      id: incidentId,
+    createIncidentMutation.mutate({
+      category: formData.type,
       title: formData.title.trim(),
-      type: formData.type as IncidentType,
-      status: asDraft ? "under-review" : "submitted",
-      studentName: formData.studentName.trim(),
-      location: "Main Site",
-      incidentDate: formData.incidentDate,
-      incidentTime: formData.incidentTime || "00:00",
+      student_name: formData.studentName.trim(),
+      date: formData.incidentDate,
+      time: formData.incidentTime || "00:00",
       description: formData.description.trim(),
-      immediateAction: formData.immediateAction.trim(),
-      isUrgent: formData.isUrgent,
-      reporterId: user.id,
-      reporterName: formData.reportedBy || user.name,
-      createdAt: now,
-      updatedAt: now,
-    };
-
-    setIncidents((prev) => [newIncident, ...prev]);
-    setIsModalOpen(false);
-    toast.success(asDraft ? "Draft saved" : "Incident submitted for review");
-    setIsSubmitting(false);
-
-    // Reset form
-    setFormData({
-      type: "",
-      title: "",
-      studentName: "",
-      incidentDate: "",
-      incidentTime: "",
-      description: "",
-      immediateAction: "",
-      reportedBy: "",
-      isUrgent: false,
+      severity: formData.isUrgent ? "critical" : "low",
     });
   };
 
@@ -424,8 +430,9 @@ const ReportIncident = () => {
                     <Button
                       className="flex-1 rounded-xl h-12 font-bold bg-primary shadow-lg shadow-primary/20"
                       onClick={() => handleSubmit(false)}
+                      disabled={createIncidentMutation.isPending}
                     >
-                      {isSubmitting ? (
+                      {createIncidentMutation.isPending ? (
                         <Loader2 className="w-5 h-5 animate-spin" />
                       ) : (
                         "Submit Report"
@@ -439,9 +446,20 @@ const ReportIncident = () => {
         </div>
 
         {/* List of Incidents */}
-        <div className="space-y-4">
-          {incidents.map((incident) => (
-            <Card
+        {isLoading ? (
+          <div className="flex h-32 items-center justify-center">
+            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          </div>
+        ) : incidents.length === 0 ? (
+          <div className="text-center py-12 text-muted-foreground border-2 border-dashed rounded-xl bg-card">
+            <AlertCircle className="w-12 h-12 mx-auto mb-3 opacity-50" />
+            <p className="font-semibold">No Incidents Reported Yet</p>
+            <p className="text-sm">Submit your first report using the button above.</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {incidents.map((incident) => (
+              <Card
               key={incident.id}
               className="group rounded-none bg-card border hover:border-primary/40 hover:shadow-xl hover:shadow-primary/5 transition-all duration-300 rounded-xl overflow-hidden cursor-pointer"
               onClick={() => {
@@ -501,8 +519,9 @@ const ReportIncident = () => {
                 </div>
               </CardContent>
             </Card>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
 
         <IncidentDetailsModal
           incident={selectedIncident}

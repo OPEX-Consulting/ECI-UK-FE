@@ -20,6 +20,7 @@ import {
   schoolAuthService,
   decodeJwt,
 } from "@/services/school/authService";
+import { normalizeSchoolRole } from "@/lib/utils";
 
 interface AuthContextType {
   user: User | null;
@@ -29,7 +30,7 @@ interface AuthContextType {
   login: (
     email: string,
     password: string,
-  ) => Promise<{ success: boolean; error?: string }>;
+  ) => Promise<{ success: boolean; error?: string; normalizedRole?: string }>;
   loginAdmin: (
     data: LoginRequest,
   ) => Promise<{ success: boolean; error?: string }>;
@@ -83,12 +84,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
           try {
             const profile = await schoolAuthService.getCurrentSchoolUser();
             setSchoolUser(profile);
-            // Sync the generic user slot in case it drifted
             const refreshed: User = {
               id: profile.id,
               email: profile.email,
               name: profile.name,
-              role: profile.role as User["role"],
+              role: normalizeSchoolRole(profile.role),
             };
             setUser(refreshed);
             storeUser(refreshed);
@@ -153,17 +153,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
 
       setSchoolUser(profile);
 
-      // Populate generic user slot (routing logic reads this)
+      const normalizedRole = normalizeSchoolRole(profile.role);
+
       const genericUser: User = {
         id: profile.id,
         email: profile.email,
         name: profile.name,
-        role: profile.role as User["role"],
+        role: normalizedRole,
       };
       setUser(genericUser);
       storeUser(genericUser);
 
-      return { success: true };
+      return { success: true, normalizedRole };
     } catch (error: unknown) {
       const axiosError = error as {
         response?: { data?: { detail?: unknown }; status?: number };
@@ -282,7 +283,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
         id: profile.id,
         email: profile.email,
         name: profile.name,
-        role: profile.role as User["role"],
+        role: normalizeSchoolRole(profile.role),
       };
       setUser(genericUser);
       storeUser(genericUser);

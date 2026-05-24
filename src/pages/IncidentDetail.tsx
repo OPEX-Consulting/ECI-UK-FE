@@ -25,24 +25,47 @@ import {
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { schoolIncidentService } from "@/services/school/incidentService";
+
 const IncidentDetail = () => {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [incident, setIncident] = useState<Incident | null>(null);
-  const [auditLog, setAuditLog] = useState<AuditEntry[]>([]);
   const [additionalInfo, setAdditionalInfo] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    if (id) {
-      const found = getIncidentById(id);
-      if (found) {
-        setIncident(found);
-        setAuditLog(getAuditEntriesForIncident(id));
-      }
+  const { data: incident, isLoading } = useQuery({
+    queryKey: ['incident', id],
+    queryFn: () => schoolIncidentService.getIncidentDetail(id!),
+    enabled: !!id,
+  });
+
+  const submitInfoMutation = useMutation({
+    mutationFn: async () => {
+      await schoolIncidentService.addDiscussionMessage(id!, additionalInfo.trim());
+      await schoolIncidentService.updateStatus(id!, "under-review");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['incident', id] });
+      toast.success('Additional information submitted');
+      setAdditionalInfo('');
+    },
+    onError: (err: any) => {
+      toast.error('Failed to submit additional information');
     }
-  }, [id]);
+  });
+
+  if (isLoading) {
+    return (
+      <AppLayout>
+        <div className="flex h-[50vh] items-center justify-center">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      </AppLayout>
+    );
+  }
 
   if (!incident) {
     return (
@@ -58,6 +81,9 @@ const IncidentDetail = () => {
     );
   }
 
+  const localAuditLog = getAuditEntriesForIncident(id || "");
+  const auditLog = (incident as any)?.history || localAuditLog;
+
   const canAddInfo = user?.role === 'staff' && 
     incident.reporterId === user.id && 
     incident.status === 'info-requested';
@@ -67,30 +93,7 @@ const IncidentDetail = () => {
       toast.error('Please provide additional information');
       return;
     }
-
-    setIsSubmitting(true);
-
-    const updatedIncident: Incident = {
-      ...incident,
-      additionalInfo: additionalInfo.trim(),
-      status: 'under-review',
-      updatedAt: new Date().toISOString(),
-    };
-
-    saveIncident(updatedIncident);
-    addAuditEntry({
-      incidentId: incident.id,
-      action: 'Additional information provided',
-      performedBy: user.id,
-      performedByName: user.name,
-      details: additionalInfo.trim(),
-    });
-
-    setIncident(updatedIncident);
-    setAuditLog(getAuditEntriesForIncident(incident.id));
-    setAdditionalInfo('');
-    toast.success('Additional information submitted');
-    setIsSubmitting(false);
+    submitInfoMutation.mutate();
   };
 
   return (

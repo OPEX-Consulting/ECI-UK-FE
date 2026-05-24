@@ -1,4 +1,12 @@
-export type UserRole = 'staff' | 'officer' | 'principal' | 'admin';
+export type UserRole =
+  | 'staff'
+  | 'officer'
+  | 'principal'
+  | 'admin'
+  | 'role_staff'
+  | 'role_compliance_officer'
+  | 'role_principal'
+  | 'role_admin';
 
 export interface User {
   id: string;

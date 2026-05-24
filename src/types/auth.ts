@@ -72,7 +72,15 @@ export interface SchoolJwtPayload {
   exp: number;
 }
 
-export type SchoolUserRole = "principal" | "officer" | "staff";
+export type SchoolUserRole =
+  | "principal"
+  | "officer"
+  | "staff"
+  | "role_principal"
+  | "role_compliance_officer"
+  | "role_staff"
+  | "role_admin"
+  | "admin";
 
 /** Represents a logged-in school user (derived from JWT + API profile). */
 export interface SchoolUser {

@@ -33,16 +33,16 @@ const Login = () => {
     const result = await login(email, password);
 
     if (result.success) {
-      // After login the context has updated user; navigate based on role stored in localStorage
-      const stored = localStorage.getItem('regtech_current_user');
-      const loggedInUser = stored ? JSON.parse(stored) : null;
-      if (loggedInUser?.role === 'admin') {
+      // Use the normalizedRole returned directly from the login function.
+      // This avoids any timing issues with localStorage or React state updates.
+      // All school roles route to /dashboard; Dashboard.tsx dispatches the
+      // correct sub-dashboard (StaffDashboard / OfficerDashboard / PrincipalDashboard)
+      // based on the user's normalized role via normalizeSchoolRole.
+      if (result.normalizedRole === 'admin') {
+        // Platform admin — go to admin dashboard
         navigate('/admin/dashboard');
-      } else if (loggedInUser?.role === 'principal') {
-        navigate('/dashboard');
-      } else if (loggedInUser?.role === 'officer' || loggedInUser?.role === 'compliance_officer') {
-        navigate('/compliance');
       } else {
+        // All school roles: staff, officer, principal → /dashboard
         navigate('/dashboard');
       }
     } else {

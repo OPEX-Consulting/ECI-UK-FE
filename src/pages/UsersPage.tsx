@@ -21,6 +21,8 @@ import { UserRole } from '@/types/incident';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { schoolOrganisationService } from '@/services/school/organisationService';
 import { toast } from 'sonner';
+import { normalizeSchoolRole } from '@/lib/utils';
+import { classificationService } from '@/services/school/classificationService';
 
 export interface User {
   id: string;
@@ -32,7 +34,8 @@ export interface User {
 }
 
 const getRoleConfig = (role: string) => {
-  switch (role) {
+  const normalized = normalizeSchoolRole(role);
+  switch (normalized) {
     case 'principal':
       return { 
         label: 'Principal / Admin', 
@@ -41,7 +44,6 @@ const getRoleConfig = (role: string) => {
         description: 'Full access to compliance dashboard, all incidents, and user management'
       };
     case 'officer':
-    case 'compliance_officer':
       return { 
         label: 'Officer-in-Charge', 
         icon: ClipboardCheck, 
@@ -75,12 +77,46 @@ const UsersPage = () => {
   } | null>(null);
   const [copied, setCopied] = useState(false);
   const queryClient = useQueryClient();
+
+  const roleToApiKey = (role: string): string => {
+    if (role === 'role_admin' || role === 'admin') return 'admin';
+    if (role === 'role_principal' || role === 'principal') return 'principal';
+    if (role === 'role_compliance_officer' || role === 'compliance_officer' || role === 'officer') return 'compliance_officer';
+    if (role === 'role_staff' || role === 'staff') return 'staff';
+    return 'staff';
+  };
   
   const [formData, setFormData] = useState({
     name: '',
     email: '',
-    role: 'staff' as UserRole
+    role: 'role_staff' as UserRole
   });
+
+  const { data: startupData } = useQuery({
+    queryKey: ['startup-data'],
+    queryFn: () => classificationService.getStartupData()
+  });
+
+  const rolesGroup = startupData?.find(g => g.group === 'school_user_roles');
+  const rolesMap = rolesGroup?.data || {
+    admin: 'role_admin',
+    principal: 'role_principal',
+    compliance_officer: 'role_compliance_officer',
+    staff: 'role_staff'
+  };
+
+  const roleOptions = Object.entries(rolesMap).map(([key, val]) => ({
+    key,
+    value: val,
+    label: key === 'admin' ? 'School Admin' :
+           key === 'principal' ? 'Principal / School Head' :
+           key === 'compliance_officer' ? 'Officer-in-Charge / Compliance Officer' :
+           'Staff Member',
+    description: key === 'admin' ? 'Manages users and settings' :
+                 key === 'principal' ? 'Full access to dashboards' :
+                 key === 'compliance_officer' ? 'Reviews and finalizes reports' :
+                 'Reports incidents and views own submissions'
+  }));
 
   const { data: users = [], isLoading } = useQuery({
     queryKey: ['organisation-invitations'],
@@ -89,8 +125,7 @@ const UsersPage = () => {
 
   const inviteMutation = useMutation({
     mutationFn: ({ email, role, name }: { email: string, role: string, name: string }) => {
-      // Map frontend 'officer' role to backend 'compliance_officer' enum
-      const backendRole = role === 'officer' ? 'compliance_officer' : role;
+      const backendRole = roleToApiKey(role);
       return schoolOrganisationService.inviteUser([email], backendRole, name);
     },
     onSuccess: (data) => {
@@ -109,7 +144,7 @@ const UsersPage = () => {
         });
       } else {
         setIsOpen(false);
-        setFormData({ name: '', email: '', role: 'staff' });
+        setFormData({ name: '', email: '', role: 'role_staff' });
       }
     },
     onError: (err: any) => {
@@ -141,7 +176,7 @@ const UsersPage = () => {
     setIsOpen(open);
     if (!open) {
       setSuccessData(null);
-      setFormData({ name: '', email: '', role: 'staff' });
+      setFormData({ name: '', email: '', role: 'role_staff' });
     }
   };
 
@@ -268,16 +303,17 @@ const UsersPage = () => {
                     <RadioGroup 
                       value={formData.role} 
                       onValueChange={(val) => setFormData({...formData, role: val as UserRole})}
-                      className="col-span-3 flex flex-col sm:flex-row gap-2"
+                      className="col-span-3 flex flex-col gap-3"
                     >
-                      <div className="flex items-center space-x-2 p-3 border rounded-md cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-900 flex-1">
-                        <RadioGroupItem value="staff" id="staff" />
-                        <Label htmlFor="staff" className="cursor-pointer">Staff - Reports incidents</Label>
-                      </div>
-                      <div className="flex items-center space-x-2 p-3 border rounded-md cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-900 flex-1">
-                        <RadioGroupItem value="officer" id="officer" />
-                        <Label htmlFor="officer" className="cursor-pointer">Officer - Reviews incidents</Label>
-                      </div>
+                      {roleOptions.map((opt) => (
+                        <div key={opt.key} className="flex items-start space-x-3 p-3 border rounded-lg cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors">
+                          <RadioGroupItem value={opt.value} id={opt.key} className="mt-1" />
+                          <div className="flex flex-col">
+                            <Label htmlFor={opt.key} className="cursor-pointer font-semibold text-sm">{opt.label}</Label>
+                            <span className="text-xs text-muted-foreground">{opt.description}</span>
+                          </div>
+                        </div>
+                      ))}
                     </RadioGroup>
                   </div>
                 </div>
