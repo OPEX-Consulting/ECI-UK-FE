@@ -13,6 +13,7 @@ import {
   TaskPriority,
   TaskRisk,
 } from "@/contexts/TaskContext";
+import { useFrameworks } from "@/contexts/FrameworkContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -28,6 +29,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { useQuery } from "@tanstack/react-query";
+import { schoolOrganisationService } from "@/services/school/organisationService";
 
 interface TaskListProps {
   onEditTask: (task: Task) => void;
@@ -38,6 +41,19 @@ const TaskList = ({ onEditTask, tasks: propTasks }: TaskListProps) => {
   const { tasks: contextTasks, updateTask } = useTasks();
   const tasks = propTasks || contextTasks;
   const { user } = useAuth();
+  const { getFramework } = useFrameworks();
+
+  const { data: orgUsers = [] } = useQuery({
+    queryKey: ["organisation-users"],
+    queryFn: schoolOrganisationService.getUsers,
+    enabled: !!user && user.role !== "admin",
+  });
+
+  const getAssigneeName = (task: Task) => {
+    return task.assigneeId 
+      ? orgUsers.find((u) => u.id === task.assigneeId)?.name || task.assigneeName 
+      : task.assigneeName;
+  };
 
   // RBAC: Filter tasks based on role
   const visibleTasks =
@@ -128,9 +144,11 @@ const TaskList = ({ onEditTask, tasks: propTasks }: TaskListProps) => {
                     <span className="truncate max-w-[280px] font-semibold text-slate-900">
                       {task.title}
                     </span>
-                    <span className="text-xs text-muted-foreground">
-                      {task.id}
-                    </span>
+                    {task.frameworkId && (
+                      <span className="text-xs text-muted-foreground truncate max-w-[280px]">
+                        {getFramework(task.frameworkId)?.name}
+                      </span>
+                    )}
                   </div>
                 </TableCell>
                 <TableCell>
@@ -169,14 +187,16 @@ const TaskList = ({ onEditTask, tasks: propTasks }: TaskListProps) => {
                   <div className="flex items-center gap-2">
                     <Avatar className="h-6 w-6">
                       <AvatarFallback className="text-[10px] bg-indigo-50 text-indigo-700">
-                        {task.assigneeName
-                          ?.split(" ")
-                          .map((n) => n[0])
-                          .join("")}
+                        {getAssigneeName(task) !== "Unassigned"
+                          ? getAssigneeName(task)
+                              ?.split(" ")
+                              .map((n: string) => n[0])
+                              .join("")
+                          : "?"}
                       </AvatarFallback>
                     </Avatar>
                     <span className="text-sm text-slate-600">
-                      {task.assigneeName}
+                      {getAssigneeName(task)}
                     </span>
                   </div>
                 </TableCell>

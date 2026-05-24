@@ -86,4 +86,19 @@ export const schoolAuthService = {
     const response = await api.get<SchoolUser>("/school/auth/me");
     return response.data;
   },
+
+  /**
+   * Accept an invitation with a token and new password.
+   */
+  acceptInvite: async (data: any): Promise<SchoolLoginResponse> => {
+    const response = await api.post<SchoolLoginResponse>(
+      "/school/invitations/accept",
+      data
+    );
+    const { access_token } = response.data;
+    if (access_token) {
+      localStorage.setItem("token", access_token);
+    }
+    return response.data;
+  },
 };

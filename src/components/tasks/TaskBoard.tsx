@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useTasks, Task, TaskStatus } from "@/contexts/TaskContext";
+import { useFrameworks } from "@/contexts/FrameworkContext";
 import {
   Card,
   CardContent,
@@ -29,6 +30,8 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
+import { useQuery } from "@tanstack/react-query";
+import { schoolOrganisationService } from "@/services/school/organisationService";
 import {
   DndContext,
   DragOverlay,
@@ -66,6 +69,19 @@ const DraggableTaskCard = ({
   task: Task;
   onClick: () => void;
 }) => {
+  const { getFramework } = useFrameworks();
+  const { user } = useAuth();
+  
+  const { data: orgUsers = [] } = useQuery({
+    queryKey: ["organisation-users"],
+    queryFn: schoolOrganisationService.getUsers,
+    enabled: !!user && user.role !== "admin",
+  });
+  
+  const assigneeName = task.assigneeId 
+    ? orgUsers.find(u => u.id === task.assigneeId)?.name 
+    : task.assigneeName;
+
   const { attributes, listeners, setNodeRef, transform, isDragging } =
     useDraggable({
       id: task.id,
@@ -144,9 +160,11 @@ const DraggableTaskCard = ({
             <h4 className="font-semibold text-sm leading-tight text-slate-900 line-clamp-2">
               {task.title}
             </h4>
-            <span className="text-xs text-muted-foreground mt-1 block">
-              {task.id}
-            </span>
+            {task.frameworkId && (
+              <span className="text-xs text-muted-foreground mt-1 block truncate">
+                {getFramework(task.frameworkId)?.name}
+              </span>
+            )}
           </div>
 
           {/* Footer */}
@@ -154,10 +172,9 @@ const DraggableTaskCard = ({
             <div className="flex items-center gap-2">
               <Avatar className="h-6 w-6">
                 <AvatarFallback className="text-[10px] bg-indigo-100 text-indigo-700">
-                  {task.assigneeName
-                    ?.split(" ")
-                    .map((n) => n[0])
-                    .join("")}
+                  {assigneeName && assigneeName !== "Unassigned"
+                    ? assigneeName.split(" ").map((n: string) => n[0]).join("")
+                    : "?"}
                 </AvatarFallback>
               </Avatar>
               {task.dueDate && (

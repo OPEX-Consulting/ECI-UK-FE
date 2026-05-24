@@ -25,6 +25,7 @@ import EmailVerification from "@/pages/onboarding/EmailVerification";
 import OrganizationSetup from "@/pages/onboarding/OrganizationSetup";
 import ComplianceWizard from "@/pages/onboarding/ComplianceWizard";
 import ReviewActivation from "@/pages/onboarding/ReviewActivation";
+import AcceptInvite from "@/pages/onboarding/AcceptInvite";
 
 import { TaskProvider } from "@/contexts/TaskContext";
 import { FrameworkProvider } from "@/contexts/FrameworkContext";
@@ -84,6 +85,7 @@ const App = () => (
                       <Route path="compliance" element={<ComplianceWizard />} />
                       <Route path="review" element={<ReviewActivation />} />
                     </Route>
+                    <Route path="/accept-invite" element={<AcceptInvite />} />
 
                     <Route path="/dashboard" element={<SchoolProtectedRoute><Dashboard /></SchoolProtectedRoute>} />
                     <Route path="/tasks" element={<SchoolProtectedRoute><TaskManager /></SchoolProtectedRoute>} />

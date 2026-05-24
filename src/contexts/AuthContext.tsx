@@ -34,6 +34,7 @@ interface AuthContextType {
     data: LoginRequest,
   ) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
+  checkSession: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -248,9 +249,65 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     navigate("/login", { replace: true });
   };
 
+  const checkSession = async () => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      throw new Error("No token found");
+    }
+
+    try {
+      // Decode JWT to get sub/uid
+      const payload = decodeJwt(token);
+      if (!payload) {
+        throw new Error("Invalid token payload");
+      }
+
+      let profile: SchoolUser;
+      try {
+        profile = await schoolAuthService.getCurrentSchoolUser();
+      } catch (err) {
+        // Fallback: build standard minimal profile
+        profile = {
+          id: payload.uid ?? crypto.randomUUID(),
+          email: payload.sub ?? "",
+          name: payload.sub?.split("@")[0] ?? "User",
+          role: "principal",
+          stage: "dashboard",
+        };
+      }
+
+      setSchoolUser(profile);
+
+      const genericUser: User = {
+        id: profile.id,
+        email: profile.email,
+        name: profile.name,
+        role: profile.role as User["role"],
+      };
+      setUser(genericUser);
+      storeUser(genericUser);
+    } catch (err) {
+      // Wipe session on error
+      localStorage.removeItem("token");
+      storeUser(null);
+      setUser(null);
+      setSchoolUser(null);
+      throw err;
+    }
+  };
+
   return (
     <AuthContext.Provider
-      value={{ user, adminUser, schoolUser, isLoading, login, loginAdmin, logout }}
+      value={{
+        user,
+        adminUser,
+        schoolUser,
+        isLoading,
+        login,
+        loginAdmin,
+        logout,
+        checkSession,
+      }}
     >
       {children}
     </AuthContext.Provider>

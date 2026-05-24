@@ -1,51 +1,58 @@
-import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
-import { getIncidentsByReporter } from '@/lib/storage';
 import { Incident } from '@/types/incident';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/incidents/StatusBadge';
 import { IncidentTypeBadge } from '@/components/incidents/IncidentTypeBadge';
-import { FileText, AlertTriangle, Clock, CheckCircle, Plus } from 'lucide-react';
+import { FileText, AlertTriangle, Clock, CheckCircle, Plus, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
+import { schoolDashboardService } from '@/services/school/dashboardService';
+import { schoolIncidentService } from '@/services/school/incidentService';
 
 export const StaffDashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [incidents, setIncidents] = useState<Incident[]>([]);
 
-  useEffect(() => {
-    const loadIncidents = () => {
-      if (user) {
-        const userIncidents = getIncidentsByReporter(user.id);
-        setIncidents(userIncidents);
-      }
-    };
+  const { data: incidents = [] } = useQuery({
+    queryKey: ['all-incidents'],
+    queryFn: () => schoolIncidentService.listIncidents(),
+    enabled: !!user,
+  });
 
-    loadIncidents();
+  const { data: dashboardData, isLoading, isError } = useQuery({
+    queryKey: ['staff-dashboard'],
+    queryFn: () => schoolDashboardService.getStaffDashboard(),
+    enabled: !!user,
+  });
 
-    // Listen for custom incidents-updated event
-    const handleIncidentsUpdated = () => {
-      loadIncidents();
-    };
+  if (isLoading) {
+    return (
+      <AppLayout>
+        <div className="flex h-[50vh] items-center justify-center">
+          <div className="flex flex-col items-center gap-2">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-sm text-muted-foreground">Loading dashboard data...</p>
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
 
-    window.addEventListener('incidents-updated', handleIncidentsUpdated);
-
-    return () => {
-      window.removeEventListener('incidents-updated', handleIncidentsUpdated);
-    };
-  }, [user]);
-
-  const stats = {
-    total: incidents.length,
-    awaitingReview: incidents.filter(i => 
-      i.status === 'submitted' || i.status === 'under-review'
-    ).length,
-    infoRequested: incidents.filter(i => i.status === 'info-requested').length,
-    finalized: incidents.filter(i => i.status === 'finalized').length,
-  };
+  if (isError || !dashboardData) {
+    return (
+      <AppLayout>
+        <div className="flex h-[50vh] items-center justify-center">
+          <div className="flex flex-col items-center gap-2 text-destructive">
+            <AlertTriangle className="h-8 w-8" />
+            <p className="text-sm">Failed to load dashboard data.</p>
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
 
   const recentIncidents = incidents
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
@@ -76,8 +83,8 @@ export const StaffDashboard = () => {
               <FileText className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.total}</div>
-              <p className="text-xs text-muted-foreground">This term</p>
+              <div className="text-2xl font-bold">{dashboardData.total_this_term}</div>
+              <p className="text-xs text-muted-foreground">{dashboardData.term_label || 'This term'}</p>
             </CardContent>
           </Card>
 
@@ -87,7 +94,7 @@ export const StaffDashboard = () => {
               <Clock className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.awaitingReview}</div>
+              <div className="text-2xl font-bold">{dashboardData.awaiting_review}</div>
               <p className="text-xs text-muted-foreground">Pending officer review</p>
             </CardContent>
           </Card>
@@ -98,7 +105,7 @@ export const StaffDashboard = () => {
               <AlertTriangle className="h-4 w-4 text-status-info-requested" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.infoRequested}</div>
+              <div className="text-2xl font-bold">{dashboardData.info_requested}</div>
               <p className="text-xs text-muted-foreground">Needs your response</p>
             </CardContent>
           </Card>
@@ -109,7 +116,7 @@ export const StaffDashboard = () => {
               <CheckCircle className="h-4 w-4 text-status-finalized" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.finalized}</div>
+              <div className="text-2xl font-bold">{dashboardData.finalized}</div>
               <p className="text-xs text-muted-foreground">Completed reports</p>
             </CardContent>
           </Card>
