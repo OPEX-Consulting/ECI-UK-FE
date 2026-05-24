@@ -153,6 +153,8 @@ const ReviewIncident = () => {
   const canReview = user?.role === 'officer' && 
     (incident.status === 'submitted' || incident.status === 'under-review' || incident.status === 'info-requested');
 
+  const isSubmitting = startReviewMutation.isPending || requestInfoMutation.isPending || finalizeMutation.isPending;
+
   return (
     <AppLayout>
       <div className="grid gap-6 lg:grid-cols-2">

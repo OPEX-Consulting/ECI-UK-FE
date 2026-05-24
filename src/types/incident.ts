@@ -62,6 +62,11 @@ export interface Incident {
   // Finalization
   finalizedAt?: string;
   finalizedBy?: string;
+
+  // Real backend fields for API integration
+  documents?: any[];
+  discussion?: any[];
+  history?: any[];
 }
 
 export interface AuditEntry {

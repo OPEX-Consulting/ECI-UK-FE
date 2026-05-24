@@ -1,10 +1,22 @@
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { schoolIncidentService } from "@/services/school/incidentService";
+import api from "@/lib/api";
 import {
   IncidentType,
   Incident,
-  HARDCODED_USERS,
 } from "@/types/incident";
+
+/** Maps frontend IncidentType slugs → backend IncidentCategory enum values */
+const categoryToBackend: Record<IncidentType, string> = {
+  safeguarding: "safeguarding",
+  behavioral: "behavioral",
+  "health-safety": "health & safety",
+  "data-protection": "data_protection",
+  "fire-safety": "fire_safety",
+};
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -109,6 +121,19 @@ const ReportIncident = () => {
     enabled: !!user,
   });
 
+  const filteredIncidents = incidents.filter(
+    (incident) => incident.reporterId === user?.id || incident.assignedTo === user?.id
+  );
+
+  const { data: orgUsers = [] } = useQuery<{ id: string; name: string; role?: string }[]>({
+    queryKey: ["org-users"],
+    queryFn: async () => {
+      const res = await api.get("/school/organisation/users");
+      return (res.data || []).filter((u: any) => u.status === "active" || u.invite_status === "accepted");
+    },
+    enabled: !!user,
+  });
+
   const [formData, setFormData] = useState({
     type: "" as IncidentType | "",
     title: "",
@@ -126,6 +151,7 @@ const ReportIncident = () => {
       category: string;
       title: string;
       student_name: string;
+      reported_by_staff_id: string;
       date: string;
       time: string;
       description: string;
@@ -249,10 +275,14 @@ const ReportIncident = () => {
     if (!formData.description.trim())
       return toast.error("Please describe the incident");
 
+    const backendCategory = categoryToBackend[formData.type as IncidentType];
+    if (!backendCategory) return toast.error("Invalid incident category");
+
     createIncidentMutation.mutate({
-      category: formData.type,
+      category: backendCategory,
       title: formData.title.trim(),
       student_name: formData.studentName.trim(),
+      reported_by_staff_id: user.id,
       date: formData.incidentDate,
       time: formData.incidentTime || "00:00",
       description: formData.description.trim(),
@@ -370,11 +400,17 @@ const ReportIncident = () => {
                           <SelectValue placeholder="Select staff member" />
                         </SelectTrigger>
                         <SelectContent className="rounded-xl border-border">
-                          {HARDCODED_USERS.map((u) => (
-                            <SelectItem key={u.id} value={u.name}>
-                              {u.name}
+                          {orgUsers.length > 0 ? (
+                            orgUsers.map((u) => (
+                              <SelectItem key={u.id} value={u.id}>
+                                {u.name}
+                              </SelectItem>
+                            ))
+                          ) : (
+                            <SelectItem value={user?.id || ""} disabled={false}>
+                              {user?.name || "Loading users..."}
                             </SelectItem>
-                          ))}
+                          )}
                         </SelectContent>
                       </Select>
                     </div>
@@ -450,7 +486,7 @@ const ReportIncident = () => {
           <div className="flex h-32 items-center justify-center">
             <Loader2 className="w-8 h-8 animate-spin text-primary" />
           </div>
-        ) : incidents.length === 0 ? (
+        ) : filteredIncidents.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground border-2 border-dashed rounded-xl bg-card">
             <AlertCircle className="w-12 h-12 mx-auto mb-3 opacity-50" />
             <p className="font-semibold">No Incidents Reported Yet</p>
@@ -458,7 +494,7 @@ const ReportIncident = () => {
           </div>
         ) : (
           <div className="space-y-4">
-            {incidents.map((incident) => (
+            {filteredIncidents.map((incident) => (
               <Card
               key={incident.id}
               className="group rounded-none bg-card border hover:border-primary/40 hover:shadow-xl hover:shadow-primary/5 transition-all duration-300 rounded-xl overflow-hidden cursor-pointer"

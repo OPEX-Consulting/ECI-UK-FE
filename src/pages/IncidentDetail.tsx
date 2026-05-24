@@ -256,9 +256,9 @@ const IncidentDetail = () => {
               </div>
               <Button 
                 onClick={handleSubmitAdditionalInfo}
-                disabled={isSubmitting || !additionalInfo.trim()}
+                disabled={submitInfoMutation.isPending || !additionalInfo.trim()}
               >
-                {isSubmitting ? (
+                {submitInfoMutation.isPending ? (
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                 ) : (
                   <Send className="w-4 h-4 mr-2" />

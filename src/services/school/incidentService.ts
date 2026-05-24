@@ -72,7 +72,10 @@ export const mapBackendIncidentToFrontend = (item: BackendIncident): Incident =>
       officerId: item.assigned_officer_id || '',
       officerName: 'Compliance Officer',
       severity: item.severity as IncidentSeverity,
-    } : undefined
+    } : undefined,
+    documents: item.documents || [],
+    discussion: item.discussion || [],
+    history: item.history || []
   };
 };
 
@@ -98,7 +101,7 @@ export const schoolIncidentService = {
     category: string;
     title: string;
     student_name: string;
-    reported_by_staff_id?: string;
+    reported_by_staff_id: string;
     date: string;
     time: string;
     description: string;
