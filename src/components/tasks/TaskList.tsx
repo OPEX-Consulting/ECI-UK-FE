@@ -29,8 +29,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { schoolOrganisationService } from "@/services/school/organisationService";
+import { schoolTaskService } from "@/services/school/taskService";
 
 interface TaskListProps {
   onEditTask: (task: Task) => void;
@@ -42,6 +43,7 @@ const TaskList = ({ onEditTask, tasks: propTasks }: TaskListProps) => {
   const tasks = propTasks || contextTasks;
   const { user } = useAuth();
   const { getFramework } = useFrameworks();
+  const queryClient = useQueryClient();
 
   const { data: orgUsers = [] } = useQuery({
     queryKey: ["organisation-users"],
@@ -49,10 +51,33 @@ const TaskList = ({ onEditTask, tasks: propTasks }: TaskListProps) => {
     enabled: !!user && user.role !== "admin",
   });
 
-  const getAssigneeName = (task: Task) => {
-    return task.assigneeId 
-      ? orgUsers.find((u) => u.id === task.assigneeId)?.name || task.assigneeName 
-      : task.assigneeName;
+  const getAssigneeName = (task: Task): string => {
+    // Prefer already-resolved assigneeName from TaskManager
+    if (task.assigneeName && task.assigneeName !== 'Unassigned') {
+      return task.assigneeName;
+    }
+    // Secondary lookup by id (in case task came from local context)
+    if (task.assigneeId) {
+      const found = (orgUsers as any[]).find((u) => u.id === task.assigneeId);
+      if (found) return found.name || found.email || 'Unknown';
+    }
+    return 'Unassigned';
+  };
+
+  const handleStatusChange = (task: Task, newStatus: TaskStatus) => {
+    // Optimistic local update
+    updateTask(task.id, { status: newStatus });
+
+    // Persist to backend
+    schoolTaskService.updateTaskStatus(task.id, newStatus)
+      .then(() => {
+        queryClient.invalidateQueries({ queryKey: ['school-tasks'] });
+      })
+      .catch((err) => {
+        console.error('Failed to update task status:', err);
+        // Revert on failure
+        updateTask(task.id, { status: task.status });
+      });
   };
 
   // RBAC: Filter tasks based on role
@@ -248,9 +273,7 @@ const TaskList = ({ onEditTask, tasks: propTasks }: TaskListProps) => {
                               disabled={task.status === key}
                               onClick={(e) => {
                                 e.stopPropagation();
-                                updateTask(task.id, {
-                                  status: key as TaskStatus,
-                                });
+                                handleStatusChange(task, key as TaskStatus);
                               }}
                             >
                               {label}

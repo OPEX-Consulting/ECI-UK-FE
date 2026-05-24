@@ -56,8 +56,8 @@ export const schoolOrganisationService = {
   /**
    * Invite new users to the organisation.
    */
-  inviteUser: async (emails: string[], role: string): Promise<any> => {
-    const response = await api.post<any>("/school/invitations", { emails, role });
+  inviteUser: async (emails: string[], role: string, name?: string): Promise<any> => {
+    const response = await api.post<any>("/school/invitations", { emails, role, name: name ?? "" });
     return response.data;
   },
 };

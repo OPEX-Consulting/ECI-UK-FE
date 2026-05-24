@@ -38,6 +38,10 @@ const Login = () => {
       const loggedInUser = stored ? JSON.parse(stored) : null;
       if (loggedInUser?.role === 'admin') {
         navigate('/admin/dashboard');
+      } else if (loggedInUser?.role === 'principal') {
+        navigate('/dashboard');
+      } else if (loggedInUser?.role === 'officer' || loggedInUser?.role === 'compliance_officer') {
+        navigate('/compliance');
       } else {
         navigate('/dashboard');
       }

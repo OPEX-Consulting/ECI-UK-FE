@@ -28,7 +28,7 @@ import {
 } from "@/contexts/TaskContext";
 import { schoolOrganisationService } from "@/services/school/organisationService";
 import { schoolTaskService } from "@/services/school/taskService";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { Badge } from "@/components/ui/badge";
 import { Calendar } from "@/components/ui/calendar";
@@ -123,7 +123,8 @@ const TaskModal = ({
     const assignee = orgUsers.find((u) => u.id === assigneeId);
 
     if (task) {
-      // Update locally
+      // ── Edit existing task ────────────────────────────────────────────────
+      // Optimistic local update first
       updateTask(task.id, {
         title,
         description,
@@ -137,9 +138,9 @@ const TaskModal = ({
         attachments,
         frameworkId,
       });
-      
-      // Update via API
+
       try {
+        // 1. Update core fields
         await schoolTaskService.updateTask(task.id, {
           title,
           description,
@@ -147,32 +148,49 @@ const TaskModal = ({
           risk,
           dueDate: dueDate ? format(dueDate, "yyyy-MM-dd") : "",
         });
-        
+
+        // 2. Update status if changed
         if (task.status !== status) {
           await schoolTaskService.updateTaskStatus(task.id, status);
         }
-        
+
+        // 3. Update assignee if changed
         if (assigneeId && assigneeId !== task.assigneeId) {
           await schoolTaskService.assignTask(task.id, assigneeId);
         }
-        
+
         queryClient.invalidateQueries({ queryKey: ['school-tasks'] });
       } catch (err) {
         console.error("Failed to update task via API", err);
       }
     } else {
-      // Create locally (if backend create is not implemented yet)
-      addTask({
-        title,
-        description,
-        status,
-        priority,
-        risk,
-        assigneeId,
-        assigneeName: assignee?.name || "Unassigned",
-        dueDate: dueDate ? format(dueDate, "yyyy-MM-dd") : "",
-        frameworkId,
-      });
+      // ── Create new task ───────────────────────────────────────────────────
+      try {
+        await schoolTaskService.createTask({
+          title,
+          description: description || undefined,
+          framework_id: frameworkId || undefined,
+          priority,
+          risk_level: risk,
+          due_date: dueDate ? format(dueDate, "yyyy-MM-dd") : undefined,
+          assigned_to: assigneeId ? [assigneeId] : undefined,
+        });
+        queryClient.invalidateQueries({ queryKey: ['school-tasks'] });
+      } catch (err) {
+        console.error("Failed to create task via API, falling back to local", err);
+        // Fallback: add to local context so the UI still shows something
+        addTask({
+          title,
+          description,
+          status,
+          priority,
+          risk,
+          assigneeId,
+          assigneeName: assignee?.name || "Unassigned",
+          dueDate: dueDate ? format(dueDate, "yyyy-MM-dd") : "",
+          frameworkId,
+        });
+      }
     }
     onClose();
   };

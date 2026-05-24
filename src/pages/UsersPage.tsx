@@ -69,6 +69,7 @@ const UsersPage = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [successData, setSuccessData] = useState<{
     email: string;
+    name: string;
     role: string;
     inviteLink: string;
   } | null>(null);
@@ -87,10 +88,10 @@ const UsersPage = () => {
   });
 
   const inviteMutation = useMutation({
-    mutationFn: ({ email, role }: { email: string, role: string }) => {
+    mutationFn: ({ email, role, name }: { email: string, role: string, name: string }) => {
       // Map frontend 'officer' role to backend 'compliance_officer' enum
       const backendRole = role === 'officer' ? 'compliance_officer' : role;
-      return schoolOrganisationService.inviteUser([email], backendRole);
+      return schoolOrganisationService.inviteUser([email], backendRole, name);
     },
     onSuccess: (data) => {
       toast.success('Invitation sent successfully');
@@ -102,6 +103,7 @@ const UsersPage = () => {
         const link = `${window.location.origin}/accept-invite?token=${detail.invite_token}`;
         setSuccessData({
           email: detail.email,
+          name: formData.name,
           role: formData.role,
           inviteLink: link
         });
@@ -117,11 +119,15 @@ const UsersPage = () => {
   });
 
   const handleSendInvite = () => {
+    if (!formData.name.trim()) {
+      toast.error('Name is required');
+      return;
+    }
     if (!formData.email) {
       toast.error('Email is required');
       return;
     }
-    inviteMutation.mutate({ email: formData.email, role: formData.role });
+    inviteMutation.mutate({ email: formData.email, role: formData.role, name: formData.name.trim() });
   };
 
   const handleCopyLink = (link: string) => {
@@ -175,11 +181,14 @@ const UsersPage = () => {
 
                 <div className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-4 space-y-3 text-left">
                   <div className="flex justify-between text-xs font-semibold text-slate-500 border-b pb-2 dark:border-slate-800">
-                    <span>RECIPIENT EMAIL</span>
+                    <span>RECIPIENT</span>
                     <span>ROLE</span>
                   </div>
                   <div className="flex justify-between text-sm font-medium text-slate-950 dark:text-slate-50">
-                    <span className="truncate max-w-[240px]">{successData.email}</span>
+                    <div className="flex flex-col gap-0.5">
+                      <span className="font-semibold">{successData.name || successData.email}</span>
+                      {successData.name && <span className="text-xs text-muted-foreground truncate max-w-[220px]">{successData.email}</span>}
+                    </div>
                     <span className="capitalize">{getRoleConfig(successData.role).label}</span>
                   </div>
                 </div>

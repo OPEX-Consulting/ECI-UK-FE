@@ -30,8 +30,9 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { schoolOrganisationService } from "@/services/school/organisationService";
+import { schoolTaskService } from "@/services/school/taskService";
 import {
   DndContext,
   DragOverlay,
@@ -78,9 +79,18 @@ const DraggableTaskCard = ({
     enabled: !!user && user.role !== "admin",
   });
   
-  const assigneeName = task.assigneeId 
-    ? orgUsers.find(u => u.id === task.assigneeId)?.name 
-    : task.assigneeName;
+  const assigneeName = useMemo(() => {
+    // Prefer already-resolved assigneeName from TaskManager
+    if (task.assigneeName && task.assigneeName !== 'Unassigned') {
+      return task.assigneeName;
+    }
+    // Fallback: lookup by id
+    if (task.assigneeId) {
+      const found = (orgUsers as any[]).find((u) => u.id === task.assigneeId);
+      if (found) return found.name || found.email || 'Unknown';
+    }
+    return null;
+  }, [task.assigneeName, task.assigneeId, orgUsers]);
 
   const { attributes, listeners, setNodeRef, transform, isDragging } =
     useDraggable({
@@ -249,6 +259,7 @@ const TaskBoard = ({ onEditTask, tasks: propTasks }: TaskBoardProps) => {
   const { tasks: contextTasks, updateTask } = useTasks();
   const tasks = propTasks || contextTasks;
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [activeTask, setActiveTask] = useState<Task | null>(null);
 
   const sensors = useSensors(
@@ -268,14 +279,7 @@ const TaskBoard = ({ onEditTask, tasks: propTasks }: TaskBoardProps) => {
       ? tasks.filter((t) => t.assigneeId === user.id)
       : tasks;
 
-  // Officer view only - disable drag?
-  // We can just not wrap in DndContext or disable sensors if officer.
-  // Better: DndContext works but onDragEnd checks permission.
-  // Officer view now has full access
-  const isOfficer = false;
-
   const handleDragStart = (event: DragStartEvent) => {
-    if (isOfficer) return;
     const { active } = event;
     const task = visibleTasks.find((t) => t.id === active.id);
     if (task) setActiveTask(task);
@@ -283,7 +287,6 @@ const TaskBoard = ({ onEditTask, tasks: propTasks }: TaskBoardProps) => {
 
   const handleDragEnd = (event: DragEndEvent) => {
     setActiveTask(null);
-    if (isOfficer) return;
 
     const { active, over } = event;
 
@@ -293,7 +296,19 @@ const TaskBoard = ({ onEditTask, tasks: propTasks }: TaskBoardProps) => {
     const newStatus = over.id as TaskStatus;
 
     if (activeTask && activeTask.status !== newStatus) {
+      // Optimistic local update
       updateTask(taskId, { status: newStatus });
+
+      // Persist to backend
+      schoolTaskService.updateTaskStatus(taskId, newStatus)
+        .then(() => {
+          queryClient.invalidateQueries({ queryKey: ['school-tasks'] });
+        })
+        .catch((err) => {
+          console.error('Failed to update task status via drag:', err);
+          // Revert local update on failure
+          updateTask(taskId, { status: activeTask.status });
+        });
     }
   };
 
