@@ -33,17 +33,20 @@ const Login = () => {
     const result = await login(email, password);
 
     if (result.success) {
-      // Redirect based on role — re-read from context via the login result
-      // We need to read the stored user since context hasn't re-rendered yet
-      const stored = localStorage.getItem('regtech_current_user');
-      const loggedInUser = stored ? JSON.parse(stored) : null;
-      if (loggedInUser?.role === 'admin') {
-        navigate('/admin');
+      // Use the normalizedRole returned directly from the login function.
+      // This avoids any timing issues with localStorage or React state updates.
+      // All school roles route to /dashboard; Dashboard.tsx dispatches the
+      // correct sub-dashboard (StaffDashboard / OfficerDashboard / PrincipalDashboard)
+      // based on the user's normalized role via normalizeSchoolRole.
+      if (result.normalizedRole === 'admin') {
+        // Platform admin — go to admin dashboard
+        navigate('/admin/dashboard');
       } else {
+        // All school roles: staff, officer, principal → /dashboard
         navigate('/dashboard');
       }
     } else {
-      setError(result.error || 'Login failed');
+      setError(result.error || 'Invalid credentials. Please check your email and password.');
     }
 
     setIsLoading(false);

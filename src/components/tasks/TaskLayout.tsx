@@ -10,8 +10,9 @@ import {
   List as ListIcon,
   Filter,
 } from "lucide-react";
-import { useTasks } from "@/contexts/TaskContext";
 import { AppLayout } from "@/components/layout/AppLayout";
+import TaskFilters, { TaskFiltersState, defaultFilters } from "./TaskFilters";
+import { useState } from "react";
 
 interface TaskLayoutProps {
   children: ReactNode;
@@ -19,6 +20,10 @@ interface TaskLayoutProps {
   setView: (view: "board" | "list") => void;
   onNewTask: () => void;
   title?: string;
+  filters: TaskFiltersState;
+  onFiltersChange: (filters: TaskFiltersState) => void;
+  searchQuery: string;
+  onSearchChange: (q: string) => void;
 }
 
 const TaskLayout = ({
@@ -27,12 +32,20 @@ const TaskLayout = ({
   setView,
   onNewTask,
   title,
+  filters,
+  onFiltersChange,
+  searchQuery,
+  onSearchChange,
 }: TaskLayoutProps) => {
   const { user } = useAuth();
-  const { tasks } = useTasks();
+  const [showFilters, setShowFilters] = useState(false);
 
   // RBAC: Principal and Officer can create tasks
   const canCreateTask = user?.role === "principal" || user?.role === "officer";
+
+  const activeFilterCount = Object.values(filters).filter(
+    (v) => v !== "all"
+  ).length;
 
   return (
     <AppLayout>
@@ -53,6 +66,8 @@ const TaskLayout = ({
               <Input
                 placeholder="Search tasks..."
                 className="pl-9 w-[200px] md:w-[300px]"
+                value={searchQuery}
+                onChange={(e) => onSearchChange(e.target.value)}
               />
             </div>
             {canCreateTask && (
@@ -65,7 +80,7 @@ const TaskLayout = ({
         </div>
 
         {/* Toolbar */}
-        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <Tabs
             value={view}
             onValueChange={(v) => setView(v as "board" | "list")}
@@ -83,10 +98,20 @@ const TaskLayout = ({
             </TabsList>
           </Tabs>
 
-          <div className="flex items-center gap-2 overflow-x-auto pb-2 sm:pb-0">
-            <Button variant="outline" size="sm" className="h-8 border-dashed">
-              <Filter className="mr-2 h-3.5 w-3.5" />
+          <div className="flex items-center gap-2">
+            <Button
+              variant={showFilters ? "secondary" : "outline"}
+              size="sm"
+              className="h-8 gap-1.5"
+              onClick={() => setShowFilters((prev) => !prev)}
+            >
+              <Filter className="h-3.5 w-3.5" />
               Filter
+              {activeFilterCount > 0 && (
+                <span className="ml-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] text-primary-foreground">
+                  {activeFilterCount}
+                </span>
+              )}
             </Button>
           </div>
 
@@ -97,6 +122,16 @@ const TaskLayout = ({
             </Button>
           )}
         </div>
+
+        {/* Filter Panel */}
+        {showFilters && (
+          <div className="mb-4 p-3 rounded-lg border bg-slate-50/70 flex flex-wrap gap-2 items-center">
+            <span className="text-xs font-medium text-slate-500 mr-1">
+              Filter by:
+            </span>
+            <TaskFilters filters={filters} onChange={onFiltersChange} />
+          </div>
+        )}
 
         {/* Content */}
         <div className="flex-1 overflow-hidden">{children}</div>

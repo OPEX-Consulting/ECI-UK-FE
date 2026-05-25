@@ -1,12 +1,22 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { generateId } from "@/lib/storage";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { schoolIncidentService } from "@/services/school/incidentService";
+import api from "@/lib/api";
 import {
   IncidentType,
   Incident,
-  HARDCODED_USERS,
 } from "@/types/incident";
+
+/** Maps frontend IncidentType slugs → backend IncidentCategory enum values */
+const categoryToBackend: Record<IncidentType, string> = {
+  safeguarding: "safeguarding",
+  behavioral: "behavioral",
+  "health-safety": "health & safety",
+  "data-protection": "data_protection",
+  "fire-safety": "fire_safety",
+};
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -49,6 +59,17 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { format } from "date-fns";
 import { IncidentDetailsModal } from "@/components/incidents/IncidentDetailsModal";
+
+const safeFormatDate = (dateStr: any, formatStr: string, fallback = "N/A") => {
+  if (!dateStr) return fallback;
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return fallback;
+    return format(d, formatStr);
+  } catch (e) {
+    return fallback;
+  }
+};
 
 const incidentTypes: {
   type: IncidentType;
@@ -97,13 +118,32 @@ const incidentTypes: {
 const ReportIncident = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedIncident, setSelectedIncident] = useState<Incident | null>(
     null,
   );
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
-  const [incidents, setIncidents] = useState<Incident[]>(MOCK_INCIDENTS);
+  
+  const queryClient = useQueryClient();
+
+  const { data: incidents = [], isLoading } = useQuery({
+    queryKey: ["incidents"],
+    queryFn: schoolIncidentService.listIncidents,
+    enabled: !!user,
+  });
+
+  const filteredIncidents = incidents.filter(
+    (incident) => incident.reporterId === user?.id || incident.assignedTo === user?.id
+  );
+
+  const { data: orgUsers = [] } = useQuery<{ id: string; name: string; role?: string }[]>({
+    queryKey: ["org-users"],
+    queryFn: async () => {
+      const res = await api.get("/school/organisation/users");
+      return (res.data || []).filter((u: any) => u.status === "active" || u.invite_status === "accepted");
+    },
+    enabled: !!user,
+  });
 
   const [formData, setFormData] = useState({
     type: "" as IncidentType | "",
@@ -115,6 +155,39 @@ const ReportIncident = () => {
     immediateAction: "",
     reportedBy: "",
     isUrgent: false,
+  });
+
+  const createIncidentMutation = useMutation({
+    mutationFn: (data: {
+      category: string;
+      title: string;
+      student_name: string;
+      reported_by_staff_id: string;
+      date: string;
+      time: string;
+      description: string;
+      severity?: string;
+    }) => schoolIncidentService.createIncident(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["incidents"] });
+      toast.success("Incident submitted successfully");
+      setIsModalOpen(false);
+      setFormData({
+        type: "",
+        title: "",
+        studentName: "",
+        incidentDate: "",
+        incidentTime: "",
+        description: "",
+        immediateAction: "",
+        reportedBy: "",
+        isUrgent: false,
+      });
+    },
+    onError: (err: any) => {
+      const msg = err.response?.data?.detail || err.message || "Failed to submit incident";
+      toast.error(typeof msg === "string" ? msg : "Failed to submit incident");
+    }
   });
 
   const getStatusBadge = (status: string) => {
@@ -213,44 +286,18 @@ const ReportIncident = () => {
     if (!formData.description.trim())
       return toast.error("Please describe the incident");
 
-    setIsSubmitting(true);
-    const incidentId = generateId();
-    const now = new Date().toISOString();
+    const backendCategory = categoryToBackend[formData.type as IncidentType];
+    if (!backendCategory) return toast.error("Invalid incident category");
 
-    const newIncident: Incident = {
-      id: incidentId,
+    createIncidentMutation.mutate({
+      category: backendCategory,
       title: formData.title.trim(),
-      type: formData.type as IncidentType,
-      status: asDraft ? "under-review" : "submitted",
-      studentName: formData.studentName.trim(),
-      location: "Main Site",
-      incidentDate: formData.incidentDate,
-      incidentTime: formData.incidentTime || "00:00",
+      student_name: formData.studentName.trim(),
+      reported_by_staff_id: user.id,
+      date: formData.incidentDate,
+      time: formData.incidentTime || "00:00",
       description: formData.description.trim(),
-      immediateAction: formData.immediateAction.trim(),
-      isUrgent: formData.isUrgent,
-      reporterId: user.id,
-      reporterName: formData.reportedBy || user.name,
-      createdAt: now,
-      updatedAt: now,
-    };
-
-    setIncidents((prev) => [newIncident, ...prev]);
-    setIsModalOpen(false);
-    toast.success(asDraft ? "Draft saved" : "Incident submitted for review");
-    setIsSubmitting(false);
-
-    // Reset form
-    setFormData({
-      type: "",
-      title: "",
-      studentName: "",
-      incidentDate: "",
-      incidentTime: "",
-      description: "",
-      immediateAction: "",
-      reportedBy: "",
-      isUrgent: false,
+      severity: formData.isUrgent ? "critical" : "low",
     });
   };
 
@@ -364,11 +411,17 @@ const ReportIncident = () => {
                           <SelectValue placeholder="Select staff member" />
                         </SelectTrigger>
                         <SelectContent className="rounded-xl border-border">
-                          {HARDCODED_USERS.map((u) => (
-                            <SelectItem key={u.id} value={u.name}>
-                              {u.name}
+                          {orgUsers.length > 0 ? (
+                            orgUsers.map((u) => (
+                              <SelectItem key={u.id} value={u.id}>
+                                {u.name}
+                              </SelectItem>
+                            ))
+                          ) : (
+                            <SelectItem value={user?.id || ""} disabled={false}>
+                              {user?.name || "Loading users..."}
                             </SelectItem>
-                          ))}
+                          )}
                         </SelectContent>
                       </Select>
                     </div>
@@ -424,8 +477,9 @@ const ReportIncident = () => {
                     <Button
                       className="flex-1 rounded-xl h-12 font-bold bg-primary shadow-lg shadow-primary/20"
                       onClick={() => handleSubmit(false)}
+                      disabled={createIncidentMutation.isPending}
                     >
-                      {isSubmitting ? (
+                      {createIncidentMutation.isPending ? (
                         <Loader2 className="w-5 h-5 animate-spin" />
                       ) : (
                         "Submit Report"
@@ -439,9 +493,20 @@ const ReportIncident = () => {
         </div>
 
         {/* List of Incidents */}
-        <div className="space-y-4">
-          {incidents.map((incident) => (
-            <Card
+        {isLoading ? (
+          <div className="flex h-32 items-center justify-center">
+            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          </div>
+        ) : filteredIncidents.length === 0 ? (
+          <div className="text-center py-12 text-muted-foreground border-2 border-dashed rounded-xl bg-card">
+            <AlertCircle className="w-12 h-12 mx-auto mb-3 opacity-50" />
+            <p className="font-semibold">No Incidents Reported Yet</p>
+            <p className="text-sm">Submit your first report using the button above.</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {filteredIncidents.map((incident) => (
+              <Card
               key={incident.id}
               className="group rounded-none bg-card border hover:border-primary/40 hover:shadow-xl hover:shadow-primary/5 transition-all duration-300 rounded-xl overflow-hidden cursor-pointer"
               onClick={() => {
@@ -475,7 +540,7 @@ const ReportIncident = () => {
                       </div>
                       <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground/80">
                         <Calendar className="w-3.5 h-3.5" />
-                        {format(new Date(incident.incidentDate), "MMM d, yyyy")}
+                        {safeFormatDate(incident.incidentDate, "MMM d, yyyy")}
                       </div>
                       <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground/80">
                         <UserIcon className="w-3.5 h-3.5" />
@@ -501,8 +566,9 @@ const ReportIncident = () => {
                 </div>
               </CardContent>
             </Card>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
 
         <IncidentDetailsModal
           incident={selectedIncident}

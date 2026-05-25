@@ -1,11 +1,13 @@
 import { useState, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, RefreshCw, Loader2, AlertCircle } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   getOrganisationDetail,
   getAuditLogs,
+  rerunClassification,
 } from "@/services/organisation";
+import { useToast } from "@/components/ui/use-toast";
 
 type Tab = "profile" | "compliance" | "users" | "audit";
 
@@ -121,6 +123,8 @@ const AdminOrgDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [tab, setTab] = useState<Tab>("profile");
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   // Fetch organisation detail
   const {
@@ -139,6 +143,26 @@ const AdminOrgDetail = () => {
     queryKey: ["audit-logs", "org", id],
     queryFn: () => getAuditLogs(0, 50),
     enabled: !!id && tab === "audit",
+  });
+
+  const rerunMutation = useMutation({
+    mutationFn: () => rerunClassification(id!),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["org-detail", id] });
+      queryClient.invalidateQueries({ queryKey: ["audit-logs", "org", id] });
+      toast({
+        title: "Classification Complete",
+        description: `Added ${data.added.length} and removed ${data.removed.length} frameworks.`,
+      });
+    },
+    onError: (err: any) => {
+      const msg = err.response?.data?.detail || err.message || "Failed to rerun classification";
+      toast({
+        title: "Classification Failed",
+        description: msg,
+        variant: "destructive",
+      });
+    },
   });
 
   // Filter audit logs for this org
@@ -223,8 +247,17 @@ const AdminOrgDetail = () => {
             {schoolType} • {region}
           </p>
         </div>
-        <button className="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all bg-secondary text-secondary-foreground border border-border hover:bg-accent">
-          <RefreshCw className="w-4 h-4" /> Re-run Classification
+        <button
+          onClick={() => rerunMutation.mutate()}
+          disabled={rerunMutation.isPending}
+          className="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all bg-secondary text-secondary-foreground border border-border hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {rerunMutation.isPending ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <RefreshCw className="w-4 h-4" />
+          )}
+          {rerunMutation.isPending ? "Running..." : "Re-run Classification"}
         </button>
       </div>
 

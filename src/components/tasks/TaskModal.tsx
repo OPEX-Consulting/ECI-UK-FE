@@ -26,7 +26,9 @@ import {
   TaskStatus,
   TaskAttachment,
 } from "@/contexts/TaskContext";
-import { HARDCODED_USERS } from "@/types/incident";
+import { schoolOrganisationService } from "@/services/school/organisationService";
+import { schoolTaskService } from "@/services/school/taskService";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { Badge } from "@/components/ui/badge";
 import { Calendar } from "@/components/ui/calendar";
@@ -64,6 +66,14 @@ const TaskModal = ({
   const { addTask, updateTask } = useTasks();
   const { user } = useAuth();
   const { frameworks } = useFrameworks();
+  const queryClient = useQueryClient();
+
+  // Fetch users for assignment
+  const { data: orgUsers = [] } = useQuery({
+    queryKey: ["organisation-users"],
+    queryFn: schoolOrganisationService.getUsers,
+    enabled: isOpen && !!user && user.role !== "admin",
+  });
 
   // Form State
   const [title, setTitle] = useState("");
@@ -107,13 +117,14 @@ const TaskModal = ({
     }
   }, [isOpen, task, defaultFrameworkId]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const assignee = HARDCODED_USERS.find((u) => u.id === assigneeId);
+    const assignee = orgUsers.find((u) => u.id === assigneeId);
 
     if (task) {
-      // Update
+      // ── Edit existing task ────────────────────────────────────────────────
+      // Optimistic local update first
       updateTask(task.id, {
         title,
         description,
@@ -121,25 +132,65 @@ const TaskModal = ({
         priority,
         risk,
         assigneeId,
-        assigneeName: assignee?.name,
+        assigneeName: assignee?.name || "Unassigned",
         dueDate: dueDate ? format(dueDate, "yyyy-MM-dd") : "",
         evidenceUploaded,
         attachments,
         frameworkId,
       });
+
+      try {
+        // 1. Update core fields
+        await schoolTaskService.updateTask(task.id, {
+          title,
+          description,
+          priority,
+          risk,
+          dueDate: dueDate ? format(dueDate, "yyyy-MM-dd") : "",
+        });
+
+        // 2. Update status if changed
+        if (task.status !== status) {
+          await schoolTaskService.updateTaskStatus(task.id, status);
+        }
+
+        // 3. Update assignee if changed
+        if (assigneeId && assigneeId !== task.assigneeId) {
+          await schoolTaskService.assignTask(task.id, assigneeId);
+        }
+
+        queryClient.invalidateQueries({ queryKey: ['school-tasks'] });
+      } catch (err) {
+        console.error("Failed to update task via API", err);
+      }
     } else {
-      // Create
-      addTask({
-        title,
-        description,
-        status,
-        priority,
-        risk,
-        assigneeId,
-        assigneeName: assignee?.name,
-        dueDate: dueDate ? format(dueDate, "yyyy-MM-dd") : "",
-        frameworkId,
-      });
+      // ── Create new task ───────────────────────────────────────────────────
+      try {
+        await schoolTaskService.createTask({
+          title,
+          description: description || undefined,
+          framework_id: frameworkId || undefined,
+          priority,
+          risk_level: risk,
+          due_date: dueDate ? format(dueDate, "yyyy-MM-dd") : undefined,
+          assigned_to: assigneeId ? [assigneeId] : undefined,
+        });
+        queryClient.invalidateQueries({ queryKey: ['school-tasks'] });
+      } catch (err) {
+        console.error("Failed to create task via API, falling back to local", err);
+        // Fallback: add to local context so the UI still shows something
+        addTask({
+          title,
+          description,
+          status,
+          priority,
+          risk,
+          assigneeId,
+          assigneeName: assignee?.name || "Unassigned",
+          dueDate: dueDate ? format(dueDate, "yyyy-MM-dd") : "",
+          frameworkId,
+        });
+      }
     }
     onClose();
   };
@@ -246,7 +297,7 @@ const TaskModal = ({
                   <SelectValue placeholder="Select staff member" />
                 </SelectTrigger>
                 <SelectContent>
-                  {HARDCODED_USERS.map((u) => (
+                  {orgUsers.map((u) => (
                     <SelectItem key={u.id} value={u.id}>
                       {u.name} ({u.role})
                     </SelectItem>

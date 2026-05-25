@@ -58,6 +58,39 @@ export interface LoginResponse {
   token_type: string;
 }
 
+export interface SchoolLoginResponse {
+  access_token: string;
+  token_type: string;
+  stage: "activated" | "pending" | "suspended" | string;
+}
+
+/** Shape of a decoded school JWT payload (sub=email, uid, typ, exp). */
+export interface SchoolJwtPayload {
+  sub: string; // email
+  uid: string;
+  typ: string; // "school_user"
+  exp: number;
+}
+
+export type SchoolUserRole =
+  | "principal"
+  | "officer"
+  | "staff"
+  | "role_principal"
+  | "role_compliance_officer"
+  | "role_staff"
+  | "role_admin"
+  | "admin";
+
+/** Represents a logged-in school user (derived from JWT + API profile). */
+export interface SchoolUser {
+  id: string;
+  email: string;
+  name: string;
+  role: SchoolUserRole;
+  stage: string;
+}
+
 export interface SchoolSignUpRequest {
   email: string;
   password: string;

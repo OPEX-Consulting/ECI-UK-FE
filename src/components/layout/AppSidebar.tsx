@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import { useTheme } from '@/components/theme-provider';
 import edusafeLogo from '@/assets/edusafe-logo.jpg';
+import { normalizeSchoolRole } from '@/lib/utils';
 
 const getNavItems = (role: string) => {
   const staffItems = [
@@ -56,7 +57,8 @@ const getNavItems = (role: string) => {
     { title: 'Users', icon: Users, path: '/users' },
   ];
 
-  switch (role) {
+  const normalized = normalizeSchoolRole(role);
+  switch (normalized) {
     case 'staff':
       return staffItems;
     case 'officer':
@@ -69,7 +71,8 @@ const getNavItems = (role: string) => {
 };
 
 const getRoleLabel = (role: string) => {
-  switch (role) {
+  const normalized = normalizeSchoolRole(role);
+  switch (normalized) {
     case 'staff':
       return 'Staff Member';
     case 'officer':

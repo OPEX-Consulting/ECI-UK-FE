@@ -30,11 +30,33 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem("token");
-      // Redirect to the correct login page based on the request URL
       const requestUrl = error.config?.url ?? "";
-      const isAdminRoute = requestUrl.includes("/admin/");
-      window.location.href = isAdminRoute ? "/admin/login" : "/login";
+      const currentPath = window.location.pathname;
+
+      // Don't redirect on login or signup/auth attempts — let the caller handle the error
+      const isAuthAttempt =
+        requestUrl.includes("/auth/login") ||
+        requestUrl.includes("/auth/signup") ||
+        requestUrl.includes("/auth/verify") ||
+        requestUrl.includes("/auth/resend");
+
+      // Don't redirect when the user is in the onboarding flow — a 401 from
+      // an admin-only endpoint (e.g. /admin/school-types) should NOT log out
+      // the school user; the component will handle the error gracefully.
+      const isOnboardingPage = currentPath.startsWith("/onboarding");
+
+      // If the request targets an admin endpoint but the user is NOT on an
+      // admin page, it's a cross-context call (e.g. school user fetching admin
+      // data) — skip the redirect and let the caller handle the error.
+      const isAdminEndpoint = requestUrl.includes("/admin/");
+      const isAdminPage = currentPath.startsWith("/admin");
+      const isCrossContextCall = isAdminEndpoint && !isAdminPage;
+
+      if (!isAuthAttempt && !isOnboardingPage && !isCrossContextCall) {
+        localStorage.removeItem("token");
+        localStorage.removeItem("regtech_current_user");
+        window.location.href = isAdminPage ? "/admin/login" : "/login";
+      }
     }
     return Promise.reject(error);
   },

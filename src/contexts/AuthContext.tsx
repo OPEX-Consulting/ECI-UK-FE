@@ -7,7 +7,7 @@ import React, {
   ReactNode,
 } from "react";
 import { useNavigate } from "react-router-dom";
-import { User, HARDCODED_USERS } from "@/types/incident";
+import { User } from "@/types/incident";
 import {
   getCurrentUser as getStoredUser,
   setCurrentUser as storeUser,
@@ -15,20 +15,27 @@ import {
 } from "@/lib/storage";
 import { useMutation } from "@tanstack/react-query";
 import { adminLogin, getCurrentUser } from "@/services/authService";
-import { LoginRequest, CurrentUser } from "@/types/auth";
+import { LoginRequest, CurrentUser, SchoolUser } from "@/types/auth";
+import {
+  schoolAuthService,
+  decodeJwt,
+} from "@/services/school/authService";
+import { normalizeSchoolRole } from "@/lib/utils";
 
 interface AuthContextType {
   user: User | null;
   adminUser: CurrentUser | null;
+  schoolUser: SchoolUser | null;
   isLoading: boolean;
   login: (
     email: string,
     password: string,
-  ) => Promise<{ success: boolean; error?: string }>;
+  ) => Promise<{ success: boolean; error?: string; normalizedRole?: string }>;
   loginAdmin: (
     data: LoginRequest,
   ) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
+  checkSession: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -47,6 +54,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
 }) => {
   const [user, setUser] = useState<User | null>(null);
   const [adminUser, setAdminUser] = useState<CurrentUser | null>(null);
+  const [schoolUser, setSchoolUser] = useState<SchoolUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -59,18 +67,53 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
         setUser(storedUser);
       }
 
-      // If there is a token and the stored user is an admin role,
-      // re-fetch the real profile so `adminUser` survives a page reload.
-      if (token && storedUser?.role === "admin") {
-        try {
-          const profile = await getCurrentUser();
-          setAdminUser(profile);
-          console.log("[Auth] Current admin user:", profile);
-        } catch {
-          // Token expired / invalid — wipe the session
-          localStorage.removeItem("token");
-          storeUser(null);
-          setUser(null);
+      if (token) {
+        if (storedUser?.role === "admin") {
+          // ── Restore admin session ──────────────────────────────────────────
+          try {
+            const profile = await getCurrentUser();
+            setAdminUser(profile);
+          } catch {
+            // Token expired / invalid — wipe the admin session
+            localStorage.removeItem("token");
+            storeUser(null);
+            setUser(null);
+          }
+        } else if (storedUser) {
+          // ── Restore school user session ────────────────────────────────────
+          try {
+            const profile = await schoolAuthService.getCurrentSchoolUser();
+            setSchoolUser(profile);
+            const refreshed: User = {
+              id: profile.id,
+              email: profile.email,
+              name: profile.name,
+              role: normalizeSchoolRole(profile.role),
+            };
+            setUser(refreshed);
+            storeUser(refreshed);
+          } catch (error: any) {
+            // If the endpoint is missing or fails, try to fall back to the token payload
+            const payload = decodeJwt(token);
+            if (payload && payload.exp && payload.exp * 1000 > Date.now()) {
+              // Token is still valid, build profile from stored user and payload
+              const profile: SchoolUser = {
+                id: payload.uid ?? crypto.randomUUID(),
+                email: payload.sub ?? storedUser.email,
+                name: storedUser.name || storedUser.email.split("@")[0],
+                role: storedUser.role as any,
+                stage: "dashboard", // Defaulting stage, might not be accurate but enough to avoid logout
+              };
+              setSchoolUser(profile);
+              setUser(storedUser); // Keep the stored generic user
+            } else {
+              // Token expired / invalid — wipe the school session
+              localStorage.removeItem("token");
+              storeUser(null);
+              setUser(null);
+              setSchoolUser(null);
+            }
+          }
         }
       }
 
@@ -82,24 +125,66 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
 
   const adminLoginMutation = useMutation({ mutationFn: adminLogin });
 
-  // ── Hardcoded (non-admin) login ──────────────────────────────────────────
+  // ── School login (real API) ──────────────────────────────────────────────
   const login = async (
     email: string,
     password: string,
-  ): Promise<{ success: boolean; error?: string }> => {
-    await new Promise((resolve) => setTimeout(resolve, 500));
+  ): Promise<{ success: boolean; error?: string; normalizedRole?: string }> => {
+    try {
+      const response = await schoolAuthService.login(email, password);
 
-    const foundUser = HARDCODED_USERS.find(
-      (u) => u.email.toLowerCase() === email.toLowerCase(),
-    );
-    if (!foundUser)
-      return { success: false, error: "Invalid email address. Access denied." };
-    if (password.length < 1)
-      return { success: false, error: "Please enter a password." };
+      // Decode the JWT to get the user's uid/email before fetching the profile
+      const payload = decodeJwt(response.access_token);
 
-    setUser(foundUser);
-    storeUser(foundUser);
-    return { success: true };
+      // Fetch the real profile so we have name + role
+      let profile: SchoolUser;
+      try {
+        profile = await schoolAuthService.getCurrentSchoolUser();
+      } catch {
+        // Fallback: build a minimal profile from the JWT payload if /me fails
+        profile = {
+          id: payload?.uid ?? crypto.randomUUID(),
+          email: payload?.sub ?? email,
+          name: email.split("@")[0],
+          role: "principal", // Default to principal to avoid missing tasks due to staff filtering
+          stage: response.stage,
+        };
+      }
+
+      setSchoolUser(profile);
+
+      const normalizedRole = normalizeSchoolRole(profile.role);
+
+      const genericUser: User = {
+        id: profile.id,
+        email: profile.email,
+        name: profile.name,
+        role: normalizedRole,
+      };
+      setUser(genericUser);
+      storeUser(genericUser);
+
+      return { success: true, normalizedRole };
+    } catch (error: unknown) {
+      const axiosError = error as {
+        response?: { data?: { detail?: unknown }; status?: number };
+      };
+      const status = axiosError.response?.status;
+      const detail = axiosError.response?.data?.detail;
+
+      let errorMessage: string;
+      if (status === 401 || status === 403) {
+        errorMessage = "Invalid credentials. Please check your email and password.";
+      } else if (typeof detail === "string") {
+        errorMessage = detail;
+      } else if (Array.isArray(detail)) {
+        errorMessage = (detail[0] as { msg?: string })?.msg ?? "Login failed.";
+      } else {
+        errorMessage = "Login failed. Please check your credentials.";
+      }
+
+      return { success: false, error: errorMessage };
+    }
   };
 
   // ── Admin login ──────────────────────────────────────────────────────────
@@ -114,7 +199,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
       // 2. Fetch real profile (token is now in localStorage, interceptor picks it up)
       const profile = await getCurrentUser();
       setAdminUser(profile);
-      console.log("[Auth] Logged in admin user:", profile);
 
       // 3. Populate generic user slot (AdminProtectedRoute checks role === "admin")
       const genericUser: User = {
@@ -136,15 +220,22 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
       return { success: true };
     } catch (error: unknown) {
       const axiosError = error as {
-        response?: { data?: { detail?: unknown } };
+        response?: { data?: { detail?: unknown }; status?: number };
       };
+      const status = axiosError.response?.status;
       const detail = axiosError.response?.data?.detail;
-      const errorMessage =
-        typeof detail === "string"
-          ? detail
-          : Array.isArray(detail)
-            ? ((detail[0] as { msg?: string })?.msg ?? "Login failed.")
-            : "Login failed. Please check your credentials.";
+
+      let errorMessage: string;
+      if (status === 401 || status === 403) {
+        errorMessage = "Invalid credentials. Please check your email and password.";
+      } else if (typeof detail === "string") {
+        errorMessage = detail;
+      } else if (Array.isArray(detail)) {
+        errorMessage = (detail[0] as { msg?: string })?.msg ?? "Login failed.";
+      } else {
+        errorMessage = "Login failed. Please check your credentials.";
+      }
+
       return { success: false, error: errorMessage };
     }
   };
@@ -153,14 +244,71 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
   const logout = () => {
     setUser(null);
     setAdminUser(null);
+    setSchoolUser(null);
     storeUser(null);
     setToken(null);
     navigate("/login", { replace: true });
   };
 
+  const checkSession = async () => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      throw new Error("No token found");
+    }
+
+    try {
+      // Decode JWT to get sub/uid
+      const payload = decodeJwt(token);
+      if (!payload) {
+        throw new Error("Invalid token payload");
+      }
+
+      let profile: SchoolUser;
+      try {
+        profile = await schoolAuthService.getCurrentSchoolUser();
+      } catch (err) {
+        // Fallback: build standard minimal profile
+        profile = {
+          id: payload.uid ?? crypto.randomUUID(),
+          email: payload.sub ?? "",
+          name: payload.sub?.split("@")[0] ?? "User",
+          role: "principal",
+          stage: "dashboard",
+        };
+      }
+
+      setSchoolUser(profile);
+
+      const genericUser: User = {
+        id: profile.id,
+        email: profile.email,
+        name: profile.name,
+        role: normalizeSchoolRole(profile.role),
+      };
+      setUser(genericUser);
+      storeUser(genericUser);
+    } catch (err) {
+      // Wipe session on error
+      localStorage.removeItem("token");
+      storeUser(null);
+      setUser(null);
+      setSchoolUser(null);
+      throw err;
+    }
+  };
+
   return (
     <AuthContext.Provider
-      value={{ user, adminUser, isLoading, login, loginAdmin, logout }}
+      value={{
+        user,
+        adminUser,
+        schoolUser,
+        isLoading,
+        login,
+        loginAdmin,
+        logout,
+        checkSession,
+      }}
     >
       {children}
     </AuthContext.Provider>
