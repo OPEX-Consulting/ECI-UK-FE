@@ -79,7 +79,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
             storeUser(null);
             setUser(null);
           }
-        } else if (storedUser && storedUser.role !== "admin") {
+        } else if (storedUser) {
           // ── Restore school user session ────────────────────────────────────
           try {
             const profile = await schoolAuthService.getCurrentSchoolUser();
@@ -129,7 +129,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
   const login = async (
     email: string,
     password: string,
-  ): Promise<{ success: boolean; error?: string }> => {
+  ): Promise<{ success: boolean; error?: string; normalizedRole?: string }> => {
     try {
       const response = await schoolAuthService.login(email, password);
 

@@ -55,22 +55,29 @@ const ReviewIncident = () => {
     infoRequestMessage: '',
   });
 
-  const { data: incident, isLoading } = useQuery({
+  const { data: incident, isLoading } = useQuery<
+    Incident,
+    Error,
+    Incident,
+    [string, string | undefined]
+  >({
     queryKey: ['incident', id],
-    queryFn: () => schoolIncidentService.getIncidentDetail(id!),
+    queryFn: async ({ queryKey }) =>
+      schoolIncidentService.getIncidentDetail(queryKey[1]!),
     enabled: !!id,
-    onSuccess: (found) => {
-      if (found.officerReview) {
-        setReviewData({
-          severity: found.officerReview.severity || '',
-          classification: found.officerReview.classification || '',
-          assessment: found.officerReview.assessment || '',
-          complianceCategory: found.officerReview.complianceCategory || '',
-          infoRequestMessage: '',
-        });
-      }
-    }
   });
+
+  useEffect(() => {
+    if (incident?.officerReview) {
+      setReviewData({
+        severity: incident.officerReview.severity || '',
+        classification: incident.officerReview.classification || '',
+        assessment: incident.officerReview.assessment || '',
+        complianceCategory: incident.officerReview.complianceCategory || '',
+        infoRequestMessage: '',
+      });
+    }
+  }, [incident]);
 
   const startReviewMutation = useMutation({
     mutationFn: async () => {
