@@ -27,12 +27,25 @@ import {
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { schoolIncidentService } from "@/services/school/incidentService";
+
+const safeFormatDate = (dateStr: any, formatStr: string, fallback = "N/A") => {
+  if (!dateStr) return fallback;
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return fallback;
+    return format(d, formatStr);
+  } catch (e) {
+    return fallback;
+  }
+};
+
 const ReviewIncident = () => {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [incident, setIncident] = useState<Incident | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const queryClient = useQueryClient();
 
   const [reviewData, setReviewData] = useState({
     severity: '' as IncidentSeverity | '',
@@ -42,23 +55,82 @@ const ReviewIncident = () => {
     infoRequestMessage: '',
   });
 
+  const { data: incident, isLoading } = useQuery<
+    Incident,
+    Error,
+    Incident,
+    [string, string | undefined]
+  >({
+    queryKey: ['incident', id],
+    queryFn: async ({ queryKey }) =>
+      schoolIncidentService.getIncidentDetail(queryKey[1]!),
+    enabled: !!id,
+  });
+
   useEffect(() => {
-    if (id) {
-      const found = getIncidentById(id);
-      if (found) {
-        setIncident(found);
-        if (found.officerReview) {
-          setReviewData({
-            severity: found.officerReview.severity || '',
-            classification: found.officerReview.classification || '',
-            assessment: found.officerReview.assessment || '',
-            complianceCategory: found.officerReview.complianceCategory || '',
-            infoRequestMessage: '',
-          });
-        }
-      }
+    if (incident?.officerReview) {
+      setReviewData({
+        severity: incident.officerReview.severity || '',
+        classification: incident.officerReview.classification || '',
+        assessment: incident.officerReview.assessment || '',
+        complianceCategory: incident.officerReview.complianceCategory || '',
+        infoRequestMessage: '',
+      });
     }
-  }, [id]);
+  }, [incident]);
+
+  const startReviewMutation = useMutation({
+    mutationFn: async () => {
+      await schoolIncidentService.updateStatus(id!, "under-review");
+      await schoolIncidentService.assignOfficer(id!, user!.id);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['incident', id] });
+      toast.success('Review started');
+    },
+    onError: (err: any) => {
+      toast.error('Failed to start review');
+    }
+  });
+
+  const requestInfoMutation = useMutation({
+    mutationFn: async () => {
+      await schoolIncidentService.addDiscussionMessage(id!, reviewData.infoRequestMessage.trim());
+      await schoolIncidentService.updateStatus(id!, "info-requested");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['incident', id] });
+      setReviewData(prev => ({ ...prev, infoRequestMessage: '' }));
+      toast.success('Information request sent to staff member');
+    },
+    onError: (err: any) => {
+      toast.error('Failed to send information request');
+    }
+  });
+
+  const finalizeMutation = useMutation({
+    mutationFn: async () => {
+      await schoolIncidentService.updateStatus(id!, "finalized");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['incident', id] });
+      toast.success('Incident finalized and submitted to Principal');
+      navigate('/review');
+    },
+    onError: (err: any) => {
+      toast.error('Failed to finalize incident');
+    }
+  });
+
+  if (isLoading) {
+    return (
+      <AppLayout>
+        <div className="flex h-[50vh] items-center justify-center">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      </AppLayout>
+    );
+  }
 
   if (!incident) {
     return (
@@ -75,28 +147,7 @@ const ReviewIncident = () => {
   }
 
   const handleStartReview = () => {
-    if (!user) return;
-
-    const updatedIncident: Incident = {
-      ...incident,
-      status: 'under-review',
-      officerReview: {
-        officerId: user.id,
-        officerName: user.name,
-      },
-      updatedAt: new Date().toISOString(),
-    };
-
-    saveIncident(updatedIncident);
-    addAuditEntry({
-      incidentId: incident.id,
-      action: 'Review started',
-      performedBy: user.id,
-      performedByName: user.name,
-    });
-
-    setIncident(updatedIncident);
-    toast.success('Review started');
+    startReviewMutation.mutate();
   };
 
   const handleRequestInfo = async () => {
@@ -104,38 +155,7 @@ const ReviewIncident = () => {
       toast.error('Please enter a message explaining what information you need');
       return;
     }
-
-    setIsSubmitting(true);
-
-    const updatedIncident: Incident = {
-      ...incident,
-      status: 'info-requested',
-      officerReview: {
-        ...incident.officerReview,
-        officerId: user.id,
-        officerName: user.name,
-        severity: reviewData.severity as IncidentSeverity || undefined,
-        classification: reviewData.classification || undefined,
-        assessment: reviewData.assessment || undefined,
-        complianceCategory: reviewData.complianceCategory || undefined,
-        infoRequestMessage: reviewData.infoRequestMessage.trim(),
-      },
-      updatedAt: new Date().toISOString(),
-    };
-
-    saveIncident(updatedIncident);
-    addAuditEntry({
-      incidentId: incident.id,
-      action: 'Additional information requested',
-      performedBy: user.id,
-      performedByName: user.name,
-      details: reviewData.infoRequestMessage.trim(),
-    });
-
-    setIncident(updatedIncident);
-    setReviewData(prev => ({ ...prev, infoRequestMessage: '' }));
-    toast.success('Information request sent to staff member');
-    setIsSubmitting(false);
+    requestInfoMutation.mutate();
   };
 
   const handleFinalize = async () => {
@@ -145,43 +165,13 @@ const ReviewIncident = () => {
       toast.error('Please provide severity and assessment before finalizing');
       return;
     }
-
-    setIsSubmitting(true);
-
-    const now = new Date().toISOString();
-    const updatedIncident: Incident = {
-      ...incident,
-      status: 'finalized',
-      officerReview: {
-        ...incident.officerReview,
-        officerId: user.id,
-        officerName: user.name,
-        severity: reviewData.severity as IncidentSeverity,
-        classification: reviewData.classification || undefined,
-        assessment: reviewData.assessment.trim(),
-        complianceCategory: reviewData.complianceCategory || undefined,
-        reviewedAt: now,
-      },
-      finalizedAt: now,
-      finalizedBy: user.name,
-      updatedAt: now,
-    };
-
-    saveIncident(updatedIncident);
-    addAuditEntry({
-      incidentId: incident.id,
-      action: 'Incident finalized and submitted to Principal',
-      performedBy: user.id,
-      performedByName: user.name,
-    });
-
-    toast.success('Incident finalized and submitted to Principal');
-    navigate('/review');
-    setIsSubmitting(false);
+    finalizeMutation.mutate();
   };
 
   const canReview = user?.role === 'officer' && 
     (incident.status === 'submitted' || incident.status === 'under-review' || incident.status === 'info-requested');
+
+  const isSubmitting = startReviewMutation.isPending || requestInfoMutation.isPending || finalizeMutation.isPending;
 
   return (
     <AppLayout>
@@ -210,7 +200,7 @@ const ReviewIncident = () => {
                 </div>
               </div>
               <CardDescription>
-                Reported by {incident.reporterName} on {format(new Date(incident.createdAt), 'PPP')}
+                Reported by {incident.reporterName} on {safeFormatDate(incident.createdAt, 'PPP')}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -233,7 +223,7 @@ const ReviewIncident = () => {
                 <div className="flex items-center gap-3">
                   <Clock className="w-4 h-4 text-muted-foreground" />
                   <span className="text-sm">
-                    <strong>Date/Time:</strong> {format(new Date(incident.incidentDate), 'PPP')} at {incident.incidentTime}
+                    <strong>Date/Time:</strong> {safeFormatDate(incident.incidentDate, 'PPP')} at {incident.incidentTime}
                   </span>
                 </div>
               </div>

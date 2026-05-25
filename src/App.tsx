@@ -25,6 +25,7 @@ import EmailVerification from "@/pages/onboarding/EmailVerification";
 import OrganizationSetup from "@/pages/onboarding/OrganizationSetup";
 import ComplianceWizard from "@/pages/onboarding/ComplianceWizard";
 import ReviewActivation from "@/pages/onboarding/ReviewActivation";
+import AcceptInvite from "@/pages/onboarding/AcceptInvite";
 
 import { TaskProvider } from "@/contexts/TaskContext";
 import { FrameworkProvider } from "@/contexts/FrameworkContext";
@@ -37,6 +38,7 @@ import Contact from "./pages/Contact";
 
 // Admin
 import { AdminProtectedRoute } from "@/components/admin/AdminProtectedRoute";
+import { SchoolProtectedRoute } from "@/components/school/SchoolProtectedRoute";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import AdminDashboard from "@/pages/admin/AdminDashboard";
 import AdminFrameworks from "@/pages/admin/AdminFrameworks";
@@ -55,14 +57,14 @@ const queryClient = new QueryClient();
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider defaultTheme="light" storageKey="eci-admin-theme">
-      <TaskProvider>
-        <FrameworkProvider>
-          <OnboardingProvider>
-            <TooltipProvider>
-              <Toaster />
-              <Sonner />
-              <BrowserRouter>
-                <AuthProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <AuthProvider>
+            <TaskProvider>
+              <FrameworkProvider>
+                <OnboardingProvider>
                   <Routes>
                     <Route path="/" element={<Landing />} />
                     <Route path="/about" element={<About />} />
@@ -83,25 +85,26 @@ const App = () => (
                       <Route path="compliance" element={<ComplianceWizard />} />
                       <Route path="review" element={<ReviewActivation />} />
                     </Route>
+                    <Route path="/accept-invite" element={<AcceptInvite />} />
 
-                    <Route path="/dashboard" element={<Dashboard />} />
-                    <Route path="/tasks" element={<TaskManager />} />
-                    <Route path="/frameworks" element={<Frameworks />} />
+                    <Route path="/dashboard" element={<SchoolProtectedRoute><Dashboard /></SchoolProtectedRoute>} />
+                    <Route path="/tasks" element={<SchoolProtectedRoute><TaskManager /></SchoolProtectedRoute>} />
+                    <Route path="/frameworks" element={<SchoolProtectedRoute><Frameworks /></SchoolProtectedRoute>} />
                     <Route
                       path="/frameworks/:frameworkId/tasks"
-                      element={<TaskManager />}
+                      element={<SchoolProtectedRoute><TaskManager /></SchoolProtectedRoute>}
                     />
-                    <Route path="/report" element={<ReportIncident />} />
-                    <Route path="/my-reports" element={<MyReports />} />
-                    <Route path="/incident/:id" element={<IncidentDetail />} />
-                    <Route path="/review" element={<ReviewQueue />} />
-                    <Route path="/review/:id" element={<ReviewIncident />} />
-                    <Route path="/incidents" element={<AllIncidents />} />
+                    <Route path="/report" element={<SchoolProtectedRoute><ReportIncident /></SchoolProtectedRoute>} />
+                    <Route path="/my-reports" element={<SchoolProtectedRoute><MyReports /></SchoolProtectedRoute>} />
+                    <Route path="/incident/:id" element={<SchoolProtectedRoute><IncidentDetail /></SchoolProtectedRoute>} />
+                    <Route path="/review" element={<SchoolProtectedRoute><ReviewQueue /></SchoolProtectedRoute>} />
+                    <Route path="/review/:id" element={<SchoolProtectedRoute><ReviewIncident /></SchoolProtectedRoute>} />
+                    <Route path="/incidents" element={<SchoolProtectedRoute><AllIncidents /></SchoolProtectedRoute>} />
                     <Route
                       path="/compliance"
-                      element={<ComplianceDashboard />}
+                      element={<SchoolProtectedRoute><ComplianceDashboard /></SchoolProtectedRoute>}
                     />
-                    <Route path="/users" element={<UsersPage />} />
+                    <Route path="/users" element={<SchoolProtectedRoute><UsersPage /></SchoolProtectedRoute>} />
 
                     {/* Admin Routes — protected, role=admin only */}
                     <Route
@@ -217,12 +220,12 @@ const App = () => (
 
                     <Route path="*" element={<NotFound />} />
                   </Routes>
-                </AuthProvider>
-              </BrowserRouter>
-            </TooltipProvider>
-          </OnboardingProvider>
-        </FrameworkProvider>
-      </TaskProvider>
+                </OnboardingProvider>
+              </FrameworkProvider>
+            </TaskProvider>
+          </AuthProvider>
+        </BrowserRouter>
+      </TooltipProvider>
     </ThemeProvider>
   </QueryClientProvider>
 );

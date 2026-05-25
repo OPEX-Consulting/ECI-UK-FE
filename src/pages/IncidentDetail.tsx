@@ -25,24 +25,58 @@ import {
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { schoolIncidentService } from "@/services/school/incidentService";
+
+const safeFormatDate = (dateStr: any, formatStr: string, fallback = "N/A") => {
+  if (!dateStr) return fallback;
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return fallback;
+    return format(d, formatStr);
+  } catch (e) {
+    return fallback;
+  }
+};
+
 const IncidentDetail = () => {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [incident, setIncident] = useState<Incident | null>(null);
-  const [auditLog, setAuditLog] = useState<AuditEntry[]>([]);
   const [additionalInfo, setAdditionalInfo] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    if (id) {
-      const found = getIncidentById(id);
-      if (found) {
-        setIncident(found);
-        setAuditLog(getAuditEntriesForIncident(id));
-      }
+  const { data: incident, isLoading } = useQuery({
+    queryKey: ['incident', id],
+    queryFn: () => schoolIncidentService.getIncidentDetail(id!),
+    enabled: !!id,
+  });
+
+  const submitInfoMutation = useMutation({
+    mutationFn: async () => {
+      await schoolIncidentService.addDiscussionMessage(id!, additionalInfo.trim());
+      await schoolIncidentService.updateStatus(id!, "under-review");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['incident', id] });
+      toast.success('Additional information submitted');
+      setAdditionalInfo('');
+    },
+    onError: (err: any) => {
+      toast.error('Failed to submit additional information');
     }
-  }, [id]);
+  });
+
+  if (isLoading) {
+    return (
+      <AppLayout>
+        <div className="flex h-[50vh] items-center justify-center">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      </AppLayout>
+    );
+  }
 
   if (!incident) {
     return (
@@ -58,6 +92,9 @@ const IncidentDetail = () => {
     );
   }
 
+  const localAuditLog = getAuditEntriesForIncident(id || "");
+  const auditLog = (incident as any)?.history || localAuditLog;
+
   const canAddInfo = user?.role === 'staff' && 
     incident.reporterId === user.id && 
     incident.status === 'info-requested';
@@ -67,30 +104,7 @@ const IncidentDetail = () => {
       toast.error('Please provide additional information');
       return;
     }
-
-    setIsSubmitting(true);
-
-    const updatedIncident: Incident = {
-      ...incident,
-      additionalInfo: additionalInfo.trim(),
-      status: 'under-review',
-      updatedAt: new Date().toISOString(),
-    };
-
-    saveIncident(updatedIncident);
-    addAuditEntry({
-      incidentId: incident.id,
-      action: 'Additional information provided',
-      performedBy: user.id,
-      performedByName: user.name,
-      details: additionalInfo.trim(),
-    });
-
-    setIncident(updatedIncident);
-    setAuditLog(getAuditEntriesForIncident(incident.id));
-    setAdditionalInfo('');
-    toast.success('Additional information submitted');
-    setIsSubmitting(false);
+    submitInfoMutation.mutate();
   };
 
   return (
@@ -161,7 +175,7 @@ const IncidentDetail = () => {
                 <div>
                   <p className="text-sm text-muted-foreground">Date & Time</p>
                   <p className="font-medium">
-                    {format(new Date(incident.incidentDate), 'PPP')} at {incident.incidentTime}
+                    {safeFormatDate(incident.incidentDate, 'PPP')} at {incident.incidentTime}
                   </p>
                 </div>
               </div>
@@ -253,9 +267,9 @@ const IncidentDetail = () => {
               </div>
               <Button 
                 onClick={handleSubmitAdditionalInfo}
-                disabled={isSubmitting || !additionalInfo.trim()}
+                disabled={submitInfoMutation.isPending || !additionalInfo.trim()}
               >
-                {isSubmitting ? (
+                {submitInfoMutation.isPending ? (
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                 ) : (
                   <Send className="w-4 h-4 mr-2" />
@@ -287,7 +301,7 @@ const IncidentDetail = () => {
                     <div className="flex-1 pb-4">
                       <p className="font-medium">{entry.action}</p>
                       <p className="text-sm text-muted-foreground">
-                        {entry.performedByName} • {format(new Date(entry.timestamp), 'PPp')}
+                        {entry.performedByName} • {safeFormatDate(entry.timestamp, 'PPp')}
                       </p>
                       {entry.details && (
                         <p className="text-sm mt-1 text-muted-foreground italic">

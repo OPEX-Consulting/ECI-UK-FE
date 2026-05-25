@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
-import { getIncidents } from '@/lib/storage';
 import { Incident, IncidentType, IncidentStatus } from '@/types/incident';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,20 +11,59 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { StatusBadge } from '@/components/incidents/StatusBadge';
 import { IncidentTypeBadge } from '@/components/incidents/IncidentTypeBadge';
 import { SeverityBadge } from '@/components/incidents/SeverityBadge';
-import { FileText, Search, AlertTriangle } from 'lucide-react';
+import { FileText, Search, AlertTriangle, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
+import { schoolIncidentService } from '@/services/school/incidentService';
+
+const safeFormatDate = (dateStr: any, formatStr: string, fallback = "N/A") => {
+  if (!dateStr) return fallback;
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return fallback;
+    return format(d, formatStr);
+  } catch (e) {
+    return fallback;
+  }
+};
 
 const AllIncidents = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [incidents, setIncidents] = useState<Incident[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
 
-  useEffect(() => {
-    setIncidents(getIncidents());
-  }, []);
+  const { data: incidents = [], isLoading, isError } = useQuery({
+    queryKey: ['all-incidents'],
+    queryFn: () => schoolIncidentService.listIncidents(),
+    enabled: !!user,
+  });
+
+  if (isLoading) {
+    return (
+      <AppLayout>
+        <div className="flex h-[50vh] items-center justify-center">
+          <div className="flex flex-col items-center gap-2">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-sm text-muted-foreground">Loading incidents...</p>
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
+
+  if (isError) {
+    return (
+      <AppLayout>
+        <div className="flex h-[50vh] items-center justify-center">
+          <div className="flex flex-col items-center gap-2 text-destructive">
+            <AlertTriangle className="h-8 w-8" />
+            <p className="text-sm">Failed to load incidents.</p>
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
 
   const filteredIncidents = incidents
     .filter(incident => {
@@ -141,7 +180,7 @@ const AllIncidents = () => {
                       </div>
                       <p className="font-medium">{incident.studentName}</p>
                       <p className="text-sm text-muted-foreground">
-                        Reported by {incident.reporterName} • {format(new Date(incident.incidentDate), 'PPP')}
+                        Reported by {incident.reporterName} • {safeFormatDate(incident.incidentDate, 'PPP')}
                       </p>
                       <p className="text-sm text-muted-foreground">
                         {incident.location}

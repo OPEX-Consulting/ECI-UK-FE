@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import { useTheme } from '@/components/theme-provider';
 import edusafeLogo from '@/assets/edusafe-logo.jpg';
+import { normalizeSchoolRole } from '@/lib/utils';
 
 const getNavItems = (role: string) => {
   const staffItems = [
@@ -56,7 +57,8 @@ const getNavItems = (role: string) => {
     { title: 'Users', icon: Users, path: '/users' },
   ];
 
-  switch (role) {
+  const normalized = normalizeSchoolRole(role);
+  switch (normalized) {
     case 'staff':
       return staffItems;
     case 'officer':
@@ -69,7 +71,8 @@ const getNavItems = (role: string) => {
 };
 
 const getRoleLabel = (role: string) => {
-  switch (role) {
+  const normalized = normalizeSchoolRole(role);
+  switch (normalized) {
     case 'staff':
       return 'Staff Member';
     case 'officer':
@@ -168,7 +171,7 @@ export const AppSidebar = () => {
         <div className="flex items-center gap-3">
           <Avatar className="h-9 w-9">
             <AvatarFallback className="bg-sidebar-accent text-sidebar-accent-foreground text-sm">
-              {user.name.split(' ').map(n => n[0]).join('')}
+              {user?.name ? user.name.split(' ').map(n => n[0]).join('') : 'U'}
             </AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">

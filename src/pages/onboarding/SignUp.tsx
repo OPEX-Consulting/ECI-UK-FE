@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useOnboarding } from "@/contexts/OnboardingContext";
+import { schoolAuthService } from "@/services/school/authService";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,9 +13,10 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle, Loader2, ArrowRight, Eye, EyeOff } from "lucide-react";
+import { AlertCircle, ArrowRight, Eye, EyeOff, Loader2 } from "lucide-react";
 
 const SignUp = () => {
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -39,22 +41,36 @@ const SignUp = () => {
       return;
     }
 
+    if (!name.trim()) {
+      setError("Principal's name is required");
+      return;
+    }
+
     setIsLoading(true);
 
-    // Simulate API call
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      await schoolAuthService.signUp({
+        email,
+        password,
+        confirm_password: confirmPassword,
+        name,
+      });
+
       updateEmail(email);
       nextStep();
       navigate("/onboarding/verify");
-    }, 1000);
+    } catch (err: any) {
+      const detail = err.response?.data?.detail;
+      const parsedDetail = Array.isArray(detail) ? detail[0]?.msg : detail;
+      setError(parsedDetail || err.response?.data?.message || err.message || "Failed to create account. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleSSO = (provider: "google" | "microsoft") => {
-    setIsLoading(true);
     // Simulate SSO
     setTimeout(() => {
-      setIsLoading(false);
       updateEmail(`user@${provider}-school.edu`);
       // SSO skips verification
       nextStep(); // Skip verify
@@ -76,10 +92,6 @@ const SignUp = () => {
 
       <Card>
         <CardHeader>
-          <CardTitle>Sign Up</CardTitle>
-          <CardDescription>
-            Choose your preferred method to create an account
-          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-2 gap-4"></div>
@@ -91,13 +103,25 @@ const SignUp = () => {
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
+            <div className="space-y-2">
+              <Label htmlFor="name">Principal's Name</Label>
+              <Input
+                id="name"
+                type="text"
+                placeholder="Enter principal's name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+                disabled={isLoading}
+              />
+            </div>
 
             <div className="space-y-2">
-              <Label htmlFor="email">School Email</Label>
+              <Label htmlFor="email">Principal's Email</Label>
               <Input
                 id="email"
                 type="email"
-                placeholder="admin@school.edu"
+                placeholder="Enter principal's email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -124,6 +148,7 @@ const SignUp = () => {
                   size="icon"
                   className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
                   onClick={() => setShowPassword(!showPassword)}
+                  disabled={isLoading}
                 >
                   {showPassword ? (
                     <EyeOff className="h-4 w-4 text-muted-foreground" />
@@ -156,6 +181,7 @@ const SignUp = () => {
                   size="icon"
                   className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  disabled={isLoading}
                 >
                   {showConfirmPassword ? (
                     <EyeOff className="h-4 w-4 text-muted-foreground" />
@@ -173,7 +199,7 @@ const SignUp = () => {
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Creating account...
+                  Creating Account...
                 </>
               ) : (
                 <>

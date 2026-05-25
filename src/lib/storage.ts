@@ -9,8 +9,13 @@ const STORAGE_KEYS = {
 
 // Incident Storage
 export const getIncidents = (): Incident[] => {
-  const data = localStorage.getItem(STORAGE_KEYS.INCIDENTS);
-  return data ? JSON.parse(data) : [];
+  try {
+    const data = localStorage.getItem(STORAGE_KEYS.INCIDENTS);
+    return data ? JSON.parse(data) : [];
+  } catch (error) {
+    console.error('Failed to parse incidents from localStorage', error);
+    return [];
+  }
 };
 
 export const saveIncident = (incident: Incident): void => {
@@ -47,8 +52,13 @@ export const getFinalizedIncidents = (): Incident[] => {
 
 // Audit Log Storage
 export const getAuditLog = (): AuditEntry[] => {
-  const data = localStorage.getItem(STORAGE_KEYS.AUDIT_LOG);
-  return data ? JSON.parse(data) : [];
+  try {
+    const data = localStorage.getItem(STORAGE_KEYS.AUDIT_LOG);
+    return data ? JSON.parse(data) : [];
+  } catch (error) {
+    console.error('Failed to parse audit log from localStorage', error);
+    return [];
+  }
 };
 
 export const addAuditEntry = (entry: Omit<AuditEntry, 'id' | 'timestamp'>): void => {
@@ -69,8 +79,13 @@ export const getAuditEntriesForIncident = (incidentId: string): AuditEntry[] => 
 
 // User Session Storage
 export const getCurrentUser = (): User | null => {
-  const data = localStorage.getItem(STORAGE_KEYS.CURRENT_USER);
-  return data ? JSON.parse(data) : null;
+  try {
+    const data = localStorage.getItem(STORAGE_KEYS.CURRENT_USER);
+    return data ? JSON.parse(data) : null;
+  } catch (error) {
+    console.error('Failed to parse current user from localStorage', error);
+    return null;
+  }
 };
 
 export const setCurrentUser = (user: User | null): void => {

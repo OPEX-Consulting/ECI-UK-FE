@@ -2,10 +2,10 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { useFrameworks } from '@/contexts/FrameworkContext';
 import FrameworkCard from '@/components/frameworks/FrameworkCard';
 import { Input } from '@/components/ui/input';
-import { Search } from 'lucide-react';
+import { Search, Loader2 } from 'lucide-react';
 
 const Frameworks = () => {
-  const { frameworks } = useFrameworks();
+  const { frameworks, isLoading } = useFrameworks();
 
   return (
     <AppLayout>
@@ -26,11 +26,18 @@ const Frameworks = () => {
             />
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {frameworks.map(fw => (
-                <FrameworkCard key={fw.id} framework={fw} />
-            ))}
-        </div>
+        {isLoading ? (
+          <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+            <Loader2 className="h-8 w-8 animate-spin mb-4 text-primary" />
+            <p>Loading frameworks...</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {frameworks.map(fw => (
+                  <FrameworkCard key={fw.id} framework={fw} />
+              ))}
+          </div>
+        )}
       </div>
     </AppLayout>
   );

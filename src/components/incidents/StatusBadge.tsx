@@ -36,9 +36,9 @@ export const StatusBadge = ({ status, className }: StatusBadgeProps) => {
   return (
     <Badge 
       variant="outline" 
-      className={cn(config.className, className)}
+      className={cn(config?.className, className)}
     >
-      {config.label}
+      {config?.label || status}
     </Badge>
   );
 };

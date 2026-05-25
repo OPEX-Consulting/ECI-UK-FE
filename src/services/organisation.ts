@@ -29,6 +29,15 @@ export const getOrganisationDetail = async (
   return response.data;
 };
 
+export const rerunClassification = async (
+  id: string,
+): Promise<import("@/types/organisation").ApiRerunClassificationResponse> => {
+  const response = await api.post<import("@/types/organisation").ApiRerunClassificationResponse>(
+    `/admin/organisations/${id}/rerun-classification`
+  );
+  return response.data;
+};
+
 // ── School Types ─────────────────────────────────────────────────────────────
 
 export const getSchoolTypes = async (

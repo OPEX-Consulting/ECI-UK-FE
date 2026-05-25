@@ -32,9 +32,9 @@ export const SeverityBadge = ({ severity, className }: SeverityBadgeProps) => {
   return (
     <Badge 
       variant="outline" 
-      className={cn(config.className, className)}
+      className={cn(config?.className, className)}
     >
-      {config.label}
+      {config?.label || severity}
     </Badge>
   );
 };
