@@ -198,134 +198,209 @@ const UsersPage = () => {
               Add User
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[425px] md:max-w-[550px] lg:max-w-[650px] transition-all duration-300">
+          <DialogContent className="sm:max-w-[480px] p-0 gap-0 overflow-hidden rounded-xl">
             {successData ? (
-              <div className="flex flex-col items-center text-center p-4 space-y-6">
-                <div className="h-12 w-12 rounded-full bg-green-100 dark:bg-green-950/30 flex items-center justify-center text-green-600 animate-in zoom-in-50 duration-300">
-                  <Check className="h-6 w-6 stroke-[3]" />
+              /* ── Success Screen ──────────────────────────────────────── */
+              <div className="flex flex-col items-center text-center px-8 pt-8 pb-6 space-y-5">
+                {/* Animated check ring */}
+                <div className="relative">
+                  <div className="h-16 w-16 rounded-full bg-green-50 dark:bg-green-950/30 flex items-center justify-center text-green-600 animate-in zoom-in-50 duration-300 ring-4 ring-green-100 dark:ring-green-900/30">
+                    <Check className="h-7 w-7 stroke-[2.5]" />
+                  </div>
                 </div>
-                
-                <div className="space-y-2">
+
+                <div className="space-y-1.5">
                   <DialogTitle className="text-xl font-bold text-slate-900 dark:text-white">
-                    Invitation Created!
+                    Invitation Sent!
                   </DialogTitle>
-                  <DialogDescription className="text-sm text-muted-foreground max-w-sm mx-auto">
-                    The user has been added to your organisation. Since this is a local environment, you can copy the activation link below to accept the invite.
+                  <DialogDescription className="text-sm text-slate-500 dark:text-slate-400 max-w-[320px] mx-auto leading-relaxed">
+                    The invitation has been created. Copy the activation link below and share it with the new user.
                   </DialogDescription>
                 </div>
 
-                <div className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-4 space-y-3 text-left">
-                  <div className="flex justify-between text-xs font-semibold text-slate-500 border-b pb-2 dark:border-slate-800">
-                    <span>RECIPIENT</span>
-                    <span>ROLE</span>
-                  </div>
-                  <div className="flex justify-between text-sm font-medium text-slate-950 dark:text-slate-50">
-                    <div className="flex flex-col gap-0.5">
-                      <span className="font-semibold">{successData.name || successData.email}</span>
-                      {successData.name && <span className="text-xs text-muted-foreground truncate max-w-[220px]">{successData.email}</span>}
+                {/* Recipient card */}
+                <div className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden text-left">
+                  {/* Avatar + name row */}
+                  <div className="flex items-center gap-3 px-4 py-4 border-b border-slate-200 dark:border-slate-700">
+                    <div className={`h-10 w-10 rounded-full flex items-center justify-center text-sm font-bold text-white flex-shrink-0 ${getRoleConfig(successData.role).color}`}>
+                      {(successData.name || successData.email)
+                        .split(' ')
+                        .slice(0, 2)
+                        .map((n: string) => n[0]?.toUpperCase())
+                        .join('')}
                     </div>
-                    <span className="capitalize">{getRoleConfig(successData.role).label}</span>
-                  </div>
-                </div>
-
-                <div className="w-full space-y-2 text-left">
-                  <Label className="text-xs font-bold text-slate-500">ACTIVATION LINK</Label>
-                  <div className="flex gap-2 items-center">
-                    <Input 
-                      readOnly 
-                      value={successData.inviteLink} 
-                      className="bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 font-mono text-xs select-all text-ellipsis overflow-hidden flex-1"
-                    />
-                    <Button 
-                      onClick={() => handleCopyLink(successData.inviteLink)} 
-                      variant={copied ? "default" : "outline"}
-                      className={`gap-1.5 transition-all min-w-[90px] ${copied ? 'bg-green-600 hover:bg-green-700 text-white' : ''}`}
-                    >
-                      {copied ? (
-                        <>
-                          <Check className="h-4 w-4" />
-                          Copied
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="h-4 w-4" />
-                          Copy
-                        </>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold text-sm text-slate-900 dark:text-white truncate">
+                        {successData.name || successData.email}
+                      </p>
+                      {successData.name && (
+                        <p className="text-xs text-slate-500 truncate">{successData.email}</p>
                       )}
-                    </Button>
+                    </div>
+                    <span className="flex-shrink-0 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300">
+                      {getRoleConfig(successData.role).label}
+                    </span>
+                  </div>
+
+                  {/* Activation link */}
+                  <div className="px-4 py-3 space-y-2">
+                    <p className="text-[10px] font-bold text-slate-400 tracking-widest uppercase">
+                      Activation Link
+                    </p>
+                    <div className="flex gap-2 items-center">
+                      <Input
+                        readOnly
+                        value={successData.inviteLink}
+                        className="bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-700 font-mono text-[11px] select-all flex-1 h-8"
+                      />
+                      <Button
+                        size="sm"
+                        onClick={() => handleCopyLink(successData.inviteLink)}
+                        variant={copied ? "default" : "outline"}
+                        className={`gap-1.5 transition-all h-8 min-w-[80px] ${copied ? 'bg-green-600 hover:bg-green-700 text-white border-green-600' : ''}`}
+                      >
+                        {copied ? (
+                          <><Check className="h-3.5 w-3.5" />Copied</>
+                        ) : (
+                          <><Copy className="h-3.5 w-3.5" />Copy</>
+                        )}
+                      </Button>
+                    </div>
                   </div>
                 </div>
 
-                <DialogFooter className="w-full sm:justify-center">
-                  <Button className="w-full sm:w-[150px]" onClick={() => handleOpenChange(false)}>
-                    Done
-                  </Button>
-                </DialogFooter>
+                <Button
+                  className="w-full h-10 font-semibold"
+                  onClick={() => handleOpenChange(false)}
+                >
+                  Done
+                </Button>
               </div>
             ) : (
+              /* ── Invite Form ─────────────────────────────────────────── */
               <>
-                <DialogHeader>
-                  <DialogTitle>Invite New User</DialogTitle>
-                  <DialogDescription>
+                {/* Header */}
+                <div className="px-6 pt-6 pb-4 border-b border-slate-100 dark:border-slate-800">
+                  <DialogTitle className="text-lg font-bold text-slate-900 dark:text-white">
+                    Invite New User
+                  </DialogTitle>
+                  <DialogDescription className="text-sm text-slate-500 dark:text-slate-400 mt-1">
                     Enter the details of the user you want to invite to the system.
                   </DialogDescription>
-                </DialogHeader>
-                <div className="grid gap-4 py-4">
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="name" className="text-right">
-                      Name
-                    </Label>
-                    <Input
-                      id="name"
-                      value={formData.name}
-                      onChange={(e) => setFormData({...formData, name: e.target.value})}
-                      className="col-span-3"
-                      placeholder="John Doe"
-                    />
+                </div>
+
+                {/* Form body */}
+                <div className="px-6 py-5 space-y-5">
+                  {/* Name + Email side by side */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="name" className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide">
+                        Full Name
+                      </Label>
+                      <Input
+                        id="name"
+                        value={formData.name}
+                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                        placeholder="Jane Doe"
+                        className="h-10"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="email" className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide">
+                        Email Address
+                      </Label>
+                      <Input
+                        id="email"
+                        type="email"
+                        value={formData.email}
+                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                        placeholder="jane@school.org"
+                        className="h-10"
+                      />
+                    </div>
                   </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="email" className="text-right">
-                      Email
-                    </Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      value={formData.email}
-                      onChange={(e) => setFormData({...formData, email: e.target.value})}
-                      className="col-span-3"
-                      placeholder="john@example.com"
-                    />
-                  </div>
-                  <div className="grid grid-cols-4 items-start gap-4">
-                    <Label className="text-right pt-2">
+
+                  {/* Live preview strip */}
+                  {(formData.name || formData.email) && (
+                    <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
+                      <div className="h-8 w-8 rounded-full bg-slate-700 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                        {(formData.name || formData.email)
+                          .split(' ')
+                          .slice(0, 2)
+                          .map((n) => n[0]?.toUpperCase())
+                          .join('') || '?'}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">
+                          {formData.name || '—'}
+                        </p>
+                        <p className="text-xs text-slate-500 truncate">
+                          {formData.email || 'No email yet'}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Role picker */}
+                  <div className="space-y-2">
+                    <Label className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide">
                       Role
                     </Label>
-                    <RadioGroup 
-                      value={formData.role} 
-                      onValueChange={(val) => setFormData({...formData, role: val as UserRole})}
-                      className="col-span-3 flex flex-col gap-3"
+                    <RadioGroup
+                      value={formData.role}
+                      onValueChange={(val) => setFormData({ ...formData, role: val as UserRole })}
+                      className="space-y-2"
                     >
-                      {roleOptions.map((opt) => (
-                        <div key={opt.key} className="flex items-start space-x-3 p-3 border rounded-lg cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors">
-                          <RadioGroupItem value={opt.value} id={opt.key} className="mt-1" />
-                          <div className="flex flex-col">
-                            <Label htmlFor={opt.key} className="cursor-pointer font-semibold text-sm">{opt.label}</Label>
-                            <span className="text-xs text-muted-foreground">{opt.description}</span>
+                      {roleOptions.map((opt) => {
+                        const isSelected = formData.role === opt.value;
+                        return (
+                          <div
+                            key={opt.key}
+                            onClick={() => setFormData({ ...formData, role: opt.value as UserRole })}
+                            className={`flex items-start gap-3 px-4 py-3 rounded-lg border cursor-pointer transition-all ${
+                              isSelected
+                                ? 'border-slate-900 bg-slate-900 dark:border-slate-100 dark:bg-slate-800'
+                                : 'border-slate-200 dark:border-slate-700 hover:border-slate-400 hover:bg-slate-50 dark:hover:bg-slate-900'
+                            }`}
+                          >
+                            <RadioGroupItem
+                              value={opt.value}
+                              id={opt.key}
+                              className={`mt-0.5 flex-shrink-0 ${isSelected ? 'border-white text-white' : ''}`}
+                            />
+                            <div>
+                              <Label
+                                htmlFor={opt.key}
+                                className={`cursor-pointer font-semibold text-sm block ${
+                                  isSelected ? 'text-white' : 'text-slate-800 dark:text-slate-100'
+                                }`}
+                              >
+                                {opt.label}
+                              </Label>
+                              <span className={`text-xs ${isSelected ? 'text-slate-300' : 'text-slate-500'}`}>
+                                {opt.description}
+                              </span>
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </RadioGroup>
                   </div>
                 </div>
-                <DialogFooter>
-                  <Button 
-                    type="submit" 
+
+                {/* Footer */}
+                <div className="px-6 pb-6 pt-2 flex justify-end gap-2">
+                  <Button variant="outline" onClick={() => handleOpenChange(false)}>
+                    Cancel
+                  </Button>
+                  <Button
                     onClick={handleSendInvite}
                     disabled={inviteMutation.isPending}
+                    className="min-w-[130px]"
                   >
-                    {inviteMutation.isPending ? 'Sending...' : 'Send Invitation'}
+                    {inviteMutation.isPending ? 'Sending…' : 'Send Invitation'}
                   </Button>
-                </DialogFooter>
+                </div>
               </>
             )}
           </DialogContent>

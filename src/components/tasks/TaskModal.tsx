@@ -52,7 +52,8 @@ import {
   Lock,
   Info,
   CheckCheck,
-  X,
+  X
+  
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useFrameworks } from "@/contexts/FrameworkContext";
@@ -493,12 +494,12 @@ const TaskModal = ({
               )}
             </div>
           </div>
-          <button
+          {/* <button
             onClick={onClose}
             className="mt-1 text-slate-400 hover:text-slate-700 transition-colors rounded-full p-1 hover:bg-slate-100"
           >
             <X className="w-5 h-5" />
-          </button>
+          </button> */}
         </div>
 
         {/* ── Tabs ──────────────────────────────────────────────────── */}
@@ -543,10 +544,6 @@ const TaskModal = ({
               ))}
             </TabsList>
           </div>
-
-          {/* ╔═══════════════════════════════════╗
-              ║        SUB-TASKS TAB              ║
-              ╚═══════════════════════════════════╝ */}
           <TabsContent
             value="subtasks"
             className="flex-1 min-h-0 overflow-hidden m-0"
