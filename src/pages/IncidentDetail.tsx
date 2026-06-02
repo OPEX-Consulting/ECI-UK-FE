@@ -299,13 +299,13 @@ const IncidentDetail = () => {
                       )}
                     </div>
                     <div className="flex-1 pb-4">
-                      <p className="font-medium">{entry.action}</p>
+                      <p className="font-medium">{typeof entry.action === 'string' ? entry.action : JSON.stringify(entry.action)}</p>
                       <p className="text-sm text-muted-foreground">
                         {entry.performedByName} • {safeFormatDate(entry.timestamp, 'PPp')}
                       </p>
                       {entry.details && (
                         <p className="text-sm mt-1 text-muted-foreground italic">
-                          "{entry.details}"
+                          "{typeof entry.details === 'string' ? entry.details : JSON.stringify(entry.details)}"
                         </p>
                       )}
                     </div>

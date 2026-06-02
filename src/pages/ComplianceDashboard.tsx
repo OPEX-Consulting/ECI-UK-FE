@@ -19,6 +19,10 @@ import {
   FileText,
   ClipboardCheck,
   Activity,
+  Eye,
+  PlayCircle,
+  MessageSquare,
+  CalendarDays,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { schoolDashboardService } from '@/services/school/dashboardService';
@@ -26,9 +30,9 @@ import { schoolIncidentService } from '@/services/school/incidentService';
 import { cn } from '@/lib/utils';
 
 const ComplianceDashboard = () => {
-  const { data: dashboardData, isLoading: dashboardLoading, isError: dashboardError } = useQuery({
-    queryKey: ['principal-dashboard'],
-    queryFn: () => schoolDashboardService.getPrincipalDashboard(),
+  const { data: complianceData, isLoading: complianceLoading, isError: complianceError } = useQuery({
+    queryKey: ['compliance-dashboard'],
+    queryFn: () => schoolIncidentService.getComplianceDashboard(),
   });
 
   const { data: severityData, isLoading: severityLoading, isError: severityError } = useQuery({
@@ -41,8 +45,8 @@ const ComplianceDashboard = () => {
     queryFn: () => schoolIncidentService.listIncidents(),
   });
 
-  const isLoading = dashboardLoading || severityLoading || incidentsLoading;
-  const isError = dashboardError || severityError || incidentsError;
+  const isLoading = complianceLoading || severityLoading || incidentsLoading;
+  const isError = complianceError || severityError || incidentsError;
 
   if (isLoading) {
     return (
@@ -57,7 +61,7 @@ const ComplianceDashboard = () => {
     );
   }
 
-  if (isError || !dashboardData || !severityData) {
+  if (isError || !complianceData || !severityData) {
     return (
       <AppLayout>
         <div className="flex h-[50vh] items-center justify-center">
@@ -70,21 +74,40 @@ const ComplianceDashboard = () => {
     );
   }
 
+  console.log("COMPLIANCE_DASHBOARD_DATA:", complianceData);
+  console.log("COMPLIANCE_STATS:", {
+    total_incidents: complianceData.total_incidents,
+    pending_review: complianceData.pending_review,
+    in_progress: complianceData.in_progress,
+    under_review_info_requested: complianceData.under_review_info_requested,
+    this_month: complianceData.this_month,
+  });
+
   const finalizedIncidents = incidents.filter(i => i.status === 'finalized');
 
+  const finalized =
+    complianceData.total_incidents -
+    complianceData.pending_review -
+    complianceData.in_progress -
+    complianceData.under_review_info_requested;
+
   const stats = {
-    total: dashboardData.total_incidents.total,
-    finalized: dashboardData.total_incidents.finalized,
-    pending: dashboardData.total_incidents.total - dashboardData.total_incidents.finalized,
-    safeguarding: dashboardData.safeguarding.total,
-    behavioral: dashboardData.behavioral.total,
-    healthSafety: dashboardData.health_and_safety.total,
+    total: complianceData.total_incidents,
+    finalized,
+    pending: complianceData.pending_review + complianceData.in_progress + complianceData.under_review_info_requested,
+    pendingReview: complianceData.pending_review,
+    inProgress: complianceData.in_progress,
+    underReviewInfoRequested: complianceData.under_review_info_requested,
+    thisMonth: complianceData.this_month,
+    safeguarding: incidents.filter(i => i.type === 'safeguarding').length,
+    behavioral: incidents.filter(i => i.type === 'behavioral').length,
+    healthSafety: incidents.filter(i => i.type === 'health-safety').length,
     urgent: incidents.filter(i => i.isUrgent && i.status !== 'finalized').length,
     totalDocumented: severityData.total_all_time,
     readyForInspection: severityData.total_documented,
   };
 
-  const complianceScore = dashboardData.incident_readiness.percentage;
+  const complianceScore = stats.total > 0 ? Math.round((stats.finalized / stats.total) * 100) : 0;
 
   const severityCounts = {
     low: severityData.low,
@@ -188,6 +211,132 @@ const ComplianceDashboard = () => {
           </div>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
 
+            {/* Pending Review */}
+            <Card className={cn(
+              'border-orange-200 dark:border-orange-900/40 bg-orange-50/40 dark:bg-orange-950/20',
+              stats.pendingReview > 0 && 'ring-1 ring-orange-300 dark:ring-orange-800'
+            )}>
+              <CardContent className="pt-6">
+                <div className="flex items-start justify-between">
+                  <div className="space-y-1">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Pending Review</p>
+                    <p className="text-4xl font-bold text-orange-600 dark:text-orange-400 tabular-nums">
+                      {stats.pendingReview}
+                    </p>
+                  </div>
+                  <div className="h-10 w-10 rounded-full bg-orange-100 dark:bg-orange-900/40 flex items-center justify-center flex-shrink-0">
+                    <Eye className="h-5 w-5 text-orange-600 dark:text-orange-400" />
+                  </div>
+                </div>
+                <Badge
+                  variant="secondary"
+                  className="mt-3 text-[10px] bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300 border-0"
+                >
+                  Awaiting initial review
+                </Badge>
+              </CardContent>
+            </Card>
+
+            {/* In Progress */}
+            <Card className="border-blue-200 dark:border-blue-900/40 bg-blue-50/40 dark:bg-blue-950/20">
+              <CardContent className="pt-6">
+                <div className="flex items-start justify-between">
+                  <div className="space-y-1">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">In Progress</p>
+                    <p className="text-4xl font-bold text-blue-600 dark:text-blue-400 tabular-nums">
+                      {stats.inProgress}
+                    </p>
+                  </div>
+                  <div className="h-10 w-10 rounded-full bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center flex-shrink-0">
+                    <PlayCircle className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                  </div>
+                </div>
+                <Badge
+                  variant="secondary"
+                  className="mt-3 text-[10px] bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 border-0"
+                >
+                  Action in progress
+                </Badge>
+              </CardContent>
+            </Card>
+
+            {/* Under Review / Info Requested */}
+            <Card className={cn(
+              'border-purple-200 dark:border-purple-900/40 bg-purple-50/40 dark:bg-purple-950/20',
+              stats.underReviewInfoRequested > 0 && 'ring-1 ring-purple-300 dark:ring-purple-800'
+            )}>
+              <CardContent className="pt-6">
+                <div className="flex items-start justify-between">
+                  <div className="space-y-1">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Info Requested</p>
+                    <p className="text-4xl font-bold text-purple-600 dark:text-purple-400 tabular-nums">
+                      {stats.underReviewInfoRequested}
+                    </p>
+                  </div>
+                  <div className="h-10 w-10 rounded-full bg-purple-100 dark:bg-purple-900/40 flex items-center justify-center flex-shrink-0">
+                    <MessageSquare className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                  </div>
+                </div>
+                <Badge
+                  variant="secondary"
+                  className="mt-3 text-[10px] bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300 border-0"
+                >
+                  Awaiting additional info
+                </Badge>
+              </CardContent>
+            </Card>
+
+            {/* This Month */}
+            <Card className="border-emerald-200 dark:border-emerald-900/40 bg-emerald-50/40 dark:bg-emerald-950/20">
+              <CardContent className="pt-6">
+                <div className="flex items-start justify-between">
+                  <div className="space-y-1">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">This Month</p>
+                    <p className="text-4xl font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
+                      {stats.thisMonth}
+                    </p>
+                  </div>
+                  <div className="h-10 w-10 rounded-full bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center flex-shrink-0">
+                    <CalendarDays className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                  </div>
+                </div>
+                <Badge
+                  variant="secondary"
+                  className="mt-3 text-[10px] bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 border-0"
+                >
+                  Incidents this month
+                </Badge>
+              </CardContent>
+            </Card>
+
+          </div>
+
+          {/* Summary Row */}
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+
+            {/* Total Incidents */}
+            <Card className="border-slate-200 dark:border-slate-900/40 bg-slate-50/40 dark:bg-slate-950/20">
+              <CardContent className="pt-6">
+                <div className="flex items-start justify-between">
+                  <div className="space-y-1">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Total Incidents</p>
+                    <p className="text-4xl font-bold text-slate-600 dark:text-slate-400 tabular-nums">
+                      {stats.total}
+                    </p>
+                  </div>
+                  <div className="h-10 w-10 rounded-full bg-slate-100 dark:bg-slate-900/40 flex items-center justify-center flex-shrink-0">
+                    <FileText className="h-5 w-5 text-slate-600 dark:text-slate-400" />
+                  </div>
+                </div>
+                <Badge
+                  variant="secondary"
+                  className="mt-3 text-[10px] bg-slate-100 text-slate-700 dark:bg-slate-900/40 dark:text-slate-300 border-0"
+                >
+                  All time
+                </Badge>
+              </CardContent>
+            </Card>
+
             {/* Finalized */}
             <Card className="border-green-200 dark:border-green-900/40 bg-green-50/40 dark:bg-green-950/20">
               <CardContent className="pt-6">
@@ -211,49 +360,23 @@ const ComplianceDashboard = () => {
               </CardContent>
             </Card>
 
-            {/* Pending */}
-            <Card className={cn(
-              'border-amber-200 dark:border-amber-900/40 bg-amber-50/40 dark:bg-amber-950/20',
-              stats.pending > 0 && 'ring-1 ring-amber-300 dark:ring-amber-800'
-            )}>
-              <CardContent className="pt-6">
-                <div className="flex items-start justify-between">
-                  <div className="space-y-1">
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Pending</p>
-                    <p className="text-4xl font-bold text-amber-600 dark:text-amber-400 tabular-nums">
-                      {stats.pending}
-                    </p>
-                  </div>
-                  <div className="h-10 w-10 rounded-full bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center flex-shrink-0">
-                    <Clock className="h-5 w-5 text-amber-600 dark:text-amber-400" />
-                  </div>
-                </div>
-                <Badge
-                  variant="secondary"
-                  className="mt-3 text-[10px] bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 border-0"
-                >
-                  Awaiting review
-                </Badge>
-              </CardContent>
-            </Card>
-
             {/* Total Documented */}
-            <Card className="border-blue-200 dark:border-blue-900/40 bg-blue-50/40 dark:bg-blue-950/20">
+            <Card className="border-cyan-200 dark:border-cyan-900/40 bg-cyan-50/40 dark:bg-cyan-950/20">
               <CardContent className="pt-6">
                 <div className="flex items-start justify-between">
                   <div className="space-y-1">
                     <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Total Documented</p>
-                    <p className="text-4xl font-bold text-blue-600 dark:text-blue-400 tabular-nums">
+                    <p className="text-4xl font-bold text-cyan-600 dark:text-cyan-400 tabular-nums">
                       {stats.totalDocumented}
                     </p>
                   </div>
-                  <div className="h-10 w-10 rounded-full bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center flex-shrink-0">
-                    <FileText className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                  <div className="h-10 w-10 rounded-full bg-cyan-100 dark:bg-cyan-900/40 flex items-center justify-center flex-shrink-0">
+                    <FileText className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
                   </div>
                 </div>
                 <Badge
                   variant="secondary"
-                  className="mt-3 text-[10px] bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 border-0"
+                  className="mt-3 text-[10px] bg-cyan-100 text-cyan-700 dark:bg-cyan-900/40 dark:text-cyan-300 border-0"
                 >
                   All time incidents
                 </Badge>
@@ -261,22 +384,22 @@ const ComplianceDashboard = () => {
             </Card>
 
             {/* Ready for Inspection */}
-            <Card className="border-purple-200 dark:border-purple-900/40 bg-purple-50/40 dark:bg-purple-950/20">
+            <Card className="border-amber-200 dark:border-amber-900/40 bg-amber-50/40 dark:bg-amber-950/20">
               <CardContent className="pt-6">
                 <div className="flex items-start justify-between">
                   <div className="space-y-1">
                     <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Ready for Inspection</p>
-                    <p className="text-4xl font-bold text-purple-600 dark:text-purple-400 tabular-nums">
+                    <p className="text-4xl font-bold text-amber-600 dark:text-amber-400 tabular-nums">
                       {stats.readyForInspection}
                     </p>
                   </div>
-                  <div className="h-10 w-10 rounded-full bg-purple-100 dark:bg-purple-900/40 flex items-center justify-center flex-shrink-0">
-                    <ClipboardCheck className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                  <div className="h-10 w-10 rounded-full bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center flex-shrink-0">
+                    <ClipboardCheck className="h-5 w-5 text-amber-600 dark:text-amber-400" />
                   </div>
                 </div>
                 <Badge
                   variant="secondary"
-                  className="mt-3 text-[10px] bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300 border-0"
+                  className="mt-3 text-[10px] bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 border-0"
                 >
                   Fully documented &amp; reviewed
                 </Badge>
@@ -331,7 +454,7 @@ const ComplianceDashboard = () => {
             </div>
 
             {/* Alerts */}
-            {(stats.pending > 0 || stats.urgent > 0) && (
+            {(stats.pendingReview > 0 || stats.underReviewInfoRequested > 0 || stats.urgent > 0) && (
               <Card className="border-status-under-review">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-status-under-review">
@@ -341,10 +464,16 @@ const ComplianceDashboard = () => {
                 </CardHeader>
                 <CardContent>
                   <ul className="space-y-2 text-sm">
-                    {stats.pending > 0 && (
+                    {stats.pendingReview > 0 && (
                       <li className="flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-status-under-review" />
-                        {stats.pending} incident(s) awaiting review or finalization
+                        <span className="w-2 h-2 rounded-full bg-orange-500" />
+                        {stats.pendingReview} incident(s) pending initial review
+                      </li>
+                    )}
+                    {stats.underReviewInfoRequested > 0 && (
+                      <li className="flex items-center gap-2 text-status-info-requested">
+                        <span className="w-2 h-2 rounded-full bg-status-info-requested" />
+                        {stats.underReviewInfoRequested} incident(s) awaiting additional information
                       </li>
                     )}
                     {stats.urgent > 0 && (

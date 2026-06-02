@@ -38,6 +38,22 @@ export const schoolOrganisationService = {
   },
 
   /**
+   * Get a single assigned framework with full detail.
+   */
+  getFrameworkDetail: async (frameworkId: string): Promise<any> => {
+    const response = await api.get<any>(`/school/organisation/frameworks/${frameworkId}`);
+    return response.data;
+  },
+
+  /**
+   * Get all assigned frameworks with their tasks pre-loaded.
+   */
+  getAssignedFrameworksWithTasks: async (): Promise<any[]> => {
+    const response = await api.get<any[]>("/school/organisation/frameworks/tasks");
+    return response.data;
+  },
+
+  /**
    * Get all users in the school's organisation.
    */
   getUsers: async (): Promise<any[]> => {

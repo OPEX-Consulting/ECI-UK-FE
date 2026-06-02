@@ -174,6 +174,11 @@ const TaskList = ({ onEditTask, tasks: propTasks }: TaskListProps) => {
                         {getFramework(task.frameworkId)?.name}
                       </span>
                     )}
+                    {task.subTasks && task.subTasks.length > 0 && (
+                      <span className="text-[11px] text-slate-500 mt-1">
+                        {task.subTasks.filter((st) => st.status === "completed" || st.status === "complete").length}/{task.subTasks.length} subtasks
+                      </span>
+                    )}
                   </div>
                 </TableCell>
                 <TableCell>

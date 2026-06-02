@@ -1,14 +1,15 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getIncidentsByStatus } from '@/lib/storage';
+import { useQuery } from '@tanstack/react-query';
 import { Incident } from '@/types/incident';
+import { schoolIncidentService } from '@/services/school/incidentService';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { StatusBadge } from '@/components/incidents/StatusBadge';
 import { IncidentTypeBadge } from '@/components/incidents/IncidentTypeBadge';
-import { ClipboardCheck, Clock, AlertTriangle, MessageSquare } from 'lucide-react';
+import { ClipboardCheck, Clock, AlertTriangle, MessageSquare, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 
 const safeFormatDate = (dateStr: any, formatStr: string, fallback = "N/A") => {
@@ -24,15 +25,36 @@ const safeFormatDate = (dateStr: any, formatStr: string, fallback = "N/A") => {
 
 const ReviewQueue = () => {
   const navigate = useNavigate();
-  const [pending, setPending] = useState<Incident[]>([]);
-  const [underReview, setUnderReview] = useState<Incident[]>([]);
-  const [infoRequested, setInfoRequested] = useState<Incident[]>([]);
+
+  const { data: allIncidents = [], isLoading: loadingIncidents, error: incidentsError } = useQuery({
+    queryKey: ["incidents"],
+    queryFn: schoolIncidentService.listIncidents,
+  });
+
+  const { data: discussionQueue = [], isLoading: loadingDiscussion, error: discussionError } = useQuery({
+    queryKey: ["incidents-discussion-queue"],
+    queryFn: schoolIncidentService.listDiscussionQueue,
+  });
 
   useEffect(() => {
-    setPending(getIncidentsByStatus(['submitted']));
-    setUnderReview(getIncidentsByStatus(['under-review']));
-    setInfoRequested(getIncidentsByStatus(['info-requested']));
-  }, []);
+    if (incidentsError) console.error("REVIEW_QUEUE_INCIDENTS_ERROR:", incidentsError);
+  }, [incidentsError]);
+
+  useEffect(() => {
+    if (discussionError) console.error("REVIEW_QUEUE_DISCUSSION_ERROR:", discussionError);
+  }, [discussionError]);
+
+  const pending = allIncidents.filter((i) => i.status === "submitted");
+  const underReview = allIncidents.filter((i) => i.status === "under-review");
+
+  useEffect(() => {
+    console.log("REVIEW_QUEUE_DATA:", {
+      allIncidents,
+      pending: { count: pending.length, items: pending },
+      underReview: { count: underReview.length, items: underReview },
+      discussionQueue: { count: discussionQueue.length, items: discussionQueue },
+    });
+  }, [allIncidents, discussionQueue]);
 
   const sortByUrgency = (incidents: Incident[]) => {
     return [...incidents].sort((a, b) => {
@@ -42,8 +64,15 @@ const ReviewQueue = () => {
     });
   };
 
-  const IncidentList = ({ incidents, emptyMessage }: { incidents: Incident[]; emptyMessage: string }) => (
-    incidents.length === 0 ? (
+  const IncidentList = ({ incidents, emptyMessage, loading }: { incidents: Incident[]; emptyMessage: string; loading?: boolean }) => {
+    if (loading) {
+      return (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+        </div>
+      );
+    }
+    return incidents.length === 0 ? (
       <div className="text-center py-12 text-muted-foreground">
         <ClipboardCheck className="w-12 h-12 mx-auto mb-3 opacity-50" />
         <p>{emptyMessage}</p>
@@ -82,8 +111,8 @@ const ReviewQueue = () => {
           </div>
         ))}
       </div>
-    )
-  );
+    );
+  };
 
   return (
     <AppLayout>
@@ -107,7 +136,7 @@ const ReviewQueue = () => {
             </TabsTrigger>
             <TabsTrigger value="info" className="gap-2">
               <MessageSquare className="w-4 h-4" />
-              Info Requested ({infoRequested.length})
+              Info Requested ({discussionQueue.length})
             </TabsTrigger>
           </TabsList>
 
@@ -120,9 +149,10 @@ const ReviewQueue = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <IncidentList 
-                  incidents={pending} 
-                  emptyMessage="No incidents pending review" 
+                <IncidentList
+                  incidents={pending}
+                  emptyMessage="No incidents pending review"
+                  loading={loadingIncidents}
                 />
               </CardContent>
             </Card>
@@ -137,9 +167,10 @@ const ReviewQueue = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <IncidentList 
-                  incidents={underReview} 
-                  emptyMessage="No incidents under review" 
+                <IncidentList
+                  incidents={underReview}
+                  emptyMessage="No incidents under review"
+                  loading={loadingIncidents}
                 />
               </CardContent>
             </Card>
@@ -154,9 +185,10 @@ const ReviewQueue = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <IncidentList 
-                  incidents={infoRequested} 
-                  emptyMessage="No incidents awaiting information" 
+                <IncidentList
+                  incidents={discussionQueue}
+                  emptyMessage="No incidents awaiting information"
+                  loading={loadingDiscussion}
                 />
               </CardContent>
             </Card>

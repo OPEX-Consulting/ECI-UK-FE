@@ -110,6 +110,12 @@ const ReviewIncident = () => {
 
   const finalizeMutation = useMutation({
     mutationFn: async () => {
+      await schoolIncidentService.createOfficerAssessment(id!, {
+        severity: reviewData.severity,
+        classification: reviewData.classification.toLowerCase(),
+        compliance_category: reviewData.complianceCategory,
+        professional_assessment: reviewData.assessment,
+      });
       await schoolIncidentService.updateStatus(id!, "finalized");
     },
     onSuccess: () => {
