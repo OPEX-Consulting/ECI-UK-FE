@@ -44,7 +44,7 @@ export const getSchoolTypes = async (
   skip = 0,
   limit = 100,
 ): Promise<ApiSchoolType[]> => {
-  const response = await api.get<ApiSchoolType[]>("/admin/school-types", {
+  const response = await api.get<ApiSchoolType[]>("/school-types", {
     params: { skip, limit },
   });
   return response.data;

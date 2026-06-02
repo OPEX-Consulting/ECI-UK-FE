@@ -7,6 +7,8 @@ import {
   getAuditLogs,
   rerunClassification,
 } from "@/services/organisation";
+import type { FrameworkCompliance } from "@/types/organisation";
+import { formatClassification, formatClassificationList } from "@/lib/classificationLabels";
 import { useToast } from "@/components/ui/use-toast";
 
 type Tab = "profile" | "compliance" | "users" | "audit";
@@ -92,30 +94,7 @@ const getTabClass = (active: boolean) => {
   }`;
 };
 
-// ── Placeholder compliance data (API not yet available) ─────────────────────
-const complianceFrameworks = [
-  {
-    name: "KCSIE 2024.1",
-    completion: 87,
-    overdue: 2,
-    evidenceGaps: 1,
-    lastActivity: "2025-04-07",
-  },
-  {
-    name: "Ofsted EIF v2.1",
-    completion: 74,
-    overdue: 0,
-    evidenceGaps: 3,
-    lastActivity: "2025-04-05",
-  },
-  {
-    name: "Health & Safety v1.2",
-    completion: 61,
-    overdue: 1,
-    evidenceGaps: 2,
-    lastActivity: "2025-03-20",
-  },
-];
+
 
 // ── Component ────────────────────────────────────────────────────────────────
 
@@ -137,6 +116,14 @@ const AdminOrgDetail = () => {
     queryFn: () => getOrganisationDetail(id!),
     enabled: !!id,
   });
+
+  console.log("Org detail response:", org);
+  console.log("Org detail error:", error);
+  if (error?.response) {
+    console.log("Org detail error response:", error.response);
+    console.log("Org detail error response status:", error.response.status);
+    console.log("Org detail error response data:", error.response.data);
+  }
 
   // Fetch audit logs for this organisation
   const { data: auditLogs } = useQuery({
@@ -170,6 +157,17 @@ const AdminOrgDetail = () => {
     if (!auditLogs || !id) return [];
     return auditLogs.filter((log) => log.organisation_id === id);
   }, [auditLogs, id]);
+
+  const complianceFrameworks: FrameworkCompliance[] = useMemo(() => {
+    if (!org?.frameworks?.length) return [];
+    return org.frameworks.map((fw: any) => ({
+      name: fw.title ?? fw.name ?? fw.framework_name ?? "Unknown",
+      completion: fw.completion ?? fw.completion_percentage ?? fw.progress ?? 0,
+      overdue: fw.overdue ?? fw.overdue_tasks ?? 0,
+      evidenceGaps: fw.evidence_gaps ?? fw.missing_evidence ?? fw.gaps ?? 0,
+      lastActivity: fw.last_activity ?? fw.updated_at ?? "",
+    }));
+  }, [org]);
 
   const card = (value: string, label: string) => (
     <div className="flex-1 bg-card border border-border rounded-lg p-5 text-center transition-colors duration-300">
@@ -214,12 +212,7 @@ const AdminOrgDetail = () => {
 
   // ── Derived data ─────────────────────────────────────────────────────────
   const displayStatus = formatStatus(org.status);
-  const schoolType = org.type
-    ? org.type
-        .split("_")
-        .map(capitalize)
-        .join(" ")
-    : "N/A";
+  const schoolType = org.type ? formatClassification(org.type) : "N/A";
   const region = org.school?.region_or_local_authority || "N/A";
 
   return (
@@ -304,22 +297,25 @@ const AdminOrgDetail = () => {
                 },
                 {
                   label: "Funding / Governance",
-                  value: org.school?.funding_governance || "N/A",
+                  value: org.school?.funding_governance
+                    ? formatClassification(org.school.funding_governance)
+                    : "N/A",
                 },
                 {
                   label: "Age Ranges",
-                  value:
-                    org.school?.age_ranges?.join(", ") || "N/A",
+                  value: formatClassificationList(org.school?.age_ranges),
                 },
                 {
                   label: "Special Provisions",
-                  value:
-                    org.school?.special_provisions?.join(", ") || "None",
+                  value: !org.school?.special_provisions?.length
+                    ? "None"
+                    : formatClassificationList(org.school?.special_provisions),
                 },
                 {
                   label: "Operational Activities",
-                  value:
-                    org.school?.operational_activities?.join(", ") || "None",
+                  value: !org.school?.operational_activities?.length
+                    ? "None"
+                    : formatClassificationList(org.school?.operational_activities),
                 },
               ].map((field) => (
                 <div
@@ -335,71 +331,76 @@ const AdminOrgDetail = () => {
             </div>
           )}
 
-          {/* ── Compliance Tab (placeholder — API not available yet) ── */}
+          {/* ── Compliance Tab ── */}
           {tab === "compliance" && (
-            <div>
-              <p className="text-xs text-muted-foreground mb-4 italic">
-                Compliance data will be updated when the API becomes available.
-              </p>
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border">
-                    {[
-                      "Framework",
-                      "Completion",
-                      "Overdue Tasks",
-                      "Evidence Gaps",
-                      "Last Activity",
-                    ].map((h) => (
-                      <th
-                        key={h}
-                        className="pb-3 text-left text-xs font-semibold text-muted-foreground"
-                      >
-                        {h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {complianceFrameworks.map((fw) => (
-                    <tr
-                      key={fw.name}
-                      className="border-b border-border/50 transition-colors hover:bg-muted/10"
-                    >
-                      <td className="py-3 pr-4 text-foreground font-medium">
-                        {fw.name}
-                      </td>
-                      <td className="py-3 pr-4">
-                        <div className="flex items-center gap-2">
-                          <div className="w-16 h-1.5 rounded-full bg-muted">
-                            <div
-                              className="h-full rounded-full bg-primary"
-                              style={{ width: `${fw.completion}%` }}
-                            />
-                          </div>
-                          <span className="text-muted-foreground">
-                            {fw.completion}%
-                          </span>
-                        </div>
-                      </td>
-                      <td
-                        className={`py-3 pr-4 ${fw.overdue > 0 ? "text-red-500" : "text-muted-foreground"}`}
-                      >
-                        {fw.overdue}
-                      </td>
-                      <td
-                        className={`py-3 pr-4 ${fw.evidenceGaps > 0 ? "text-amber-500" : "text-muted-foreground"}`}
-                      >
-                        {fw.evidenceGaps}
-                      </td>
-                      <td className="py-3 text-muted-foreground">
-                        {fw.lastActivity}
-                      </td>
+            <>
+              {complianceFrameworks.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12">
+                  <p className="text-sm text-muted-foreground">
+                    No compliance data available for this organisation
+                  </p>
+                </div>
+              ) : (
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border">
+                      {[
+                        "Framework",
+                        "Completion",
+                        "Overdue Tasks",
+                        "Evidence Gaps",
+                        "Last Activity",
+                      ].map((h) => (
+                        <th
+                          key={h}
+                          className="pb-3 text-left text-xs font-semibold text-muted-foreground"
+                        >
+                          {h}
+                        </th>
+                      ))}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {complianceFrameworks.map((fw, i) => (
+                      <tr
+                        key={`${fw.name}-${i}`}
+                        className="border-b border-border/50 transition-colors hover:bg-muted/10"
+                      >
+                        <td className="py-3 pr-4 text-foreground font-medium">
+                          {fw.name}
+                        </td>
+                        <td className="py-3 pr-4">
+                          <div className="flex items-center gap-2">
+                            <div className="w-16 h-1.5 rounded-full bg-muted">
+                              <div
+                                className="h-full rounded-full bg-primary"
+                                style={{ width: `${fw.completion}%` }}
+                              />
+                            </div>
+                            <span className="text-muted-foreground">
+                              {fw.completion}%
+                            </span>
+                          </div>
+                        </td>
+                        <td
+                          className={`py-3 pr-4 ${fw.overdue > 0 ? "text-red-500" : "text-muted-foreground"}`}
+                        >
+                          {fw.overdue}
+                        </td>
+                        <td
+                          className={`py-3 pr-4 ${fw.evidenceGaps > 0 ? "text-amber-500" : "text-muted-foreground"}`}
+                        >
+                          {fw.evidenceGaps}
+                        </td>
+                        <td className="py-3 text-muted-foreground">
+                          {fw.lastActivity || "N/A"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </>
           )}
 
           {/* ── Users Tab ── */}
@@ -440,12 +441,7 @@ const AdminOrgDetail = () => {
                           {u.email || "N/A"}
                         </td>
                         <td className="py-3 pr-4 text-muted-foreground">
-                          {u.role
-                            ? u.role
-                                .split("_")
-                                .map(capitalize)
-                                .join(" ")
-                            : "N/A"}
+                          {u.role ? formatClassification(u.role) : "N/A"}
                         </td>
                         <td className="py-3 pr-4">
                           <span
