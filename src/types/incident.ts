@@ -89,6 +89,14 @@ export interface Message {
   isSystem?: boolean;
 }
 
+export interface ComplianceDashboardResponse {
+  pending_review: number;
+  in_progress: number;
+  under_review_info_requested: number;
+  this_month: number;
+  total_incidents: number;
+}
+
 export const HARDCODED_USERS: User[] = [
   {
     id: 'user-admin',

@@ -1,5 +1,5 @@
 import api from "@/lib/api";
-import { Incident, IncidentType, IncidentStatus, IncidentSeverity } from "@/types/incident";
+import { Incident, IncidentType, IncidentStatus, IncidentSeverity, ComplianceDashboardResponse } from "@/types/incident";
 
 export interface BackendIncident {
   id: string;
@@ -92,8 +92,38 @@ const toBackendStatus = (status: string): string => {
 
 export const schoolIncidentService = {
   listIncidents: async (): Promise<Incident[]> => {
-    const response = await api.get<BackendIncident[]>("/school/incidents");
-    const backendData = response.data || [];
+    const response = await api.get("/school/incidents");
+    console.log("LIST_INCIDENTS_RAW_RESPONSE:", { status: response.status, data: response.data, keys: Object.keys(response.data || {}), isArray: Array.isArray(response.data) });
+    let backendData: BackendIncident[] = [];
+    if (Array.isArray(response.data)) {
+      backendData = response.data;
+    } else if (response.data?.items && Array.isArray(response.data.items)) {
+      backendData = response.data.items;
+    } else if (response.data?.data && Array.isArray(response.data.data)) {
+      backendData = response.data.data;
+    } else if (response.data?.incidents && Array.isArray(response.data.incidents)) {
+      backendData = response.data.incidents;
+    } else if (response.data?.results && Array.isArray(response.data.results)) {
+      backendData = response.data.results;
+    }
+    return backendData.map(mapBackendIncidentToFrontend);
+  },
+
+  listDiscussionQueue: async (): Promise<Incident[]> => {
+    const response = await api.get("/school/incidents/discussion-queue");
+    console.log("LIST_DISCUSSION_QUEUE_RAW_RESPONSE:", { status: response.status, data: response.data, keys: Object.keys(response.data || {}), isArray: Array.isArray(response.data) });
+    let backendData: BackendIncident[] = [];
+    if (Array.isArray(response.data)) {
+      backendData = response.data;
+    } else if (response.data?.items && Array.isArray(response.data.items)) {
+      backendData = response.data.items;
+    } else if (response.data?.data && Array.isArray(response.data.data)) {
+      backendData = response.data.data;
+    } else if (response.data?.incidents && Array.isArray(response.data.incidents)) {
+      backendData = response.data.incidents;
+    } else if (response.data?.results && Array.isArray(response.data.results)) {
+      backendData = response.data.results;
+    }
     return backendData.map(mapBackendIncidentToFrontend);
   },
 
@@ -145,6 +175,26 @@ export const schoolIncidentService = {
     return mapBackendIncidentToFrontend(response.data);
   },
 
+  createOfficerAssessment: async (
+    incidentId: string,
+    data: {
+      severity: string;
+      classification: string;
+      compliance_category: string;
+      professional_assessment: string;
+    }
+  ): Promise<any> => {
+    console.log("CREATE_OFFICER_ASSESSMENT_PAYLOAD:", { incidentId, data });
+    try {
+      const response = await api.post(`/school/incidents/${incidentId}/officer-assessment`, data);
+      return response.data;
+    } catch (error: any) {
+      console.error("CREATE_OFFICER_ASSESSMENT_ERROR_DETAIL:", error.response?.data?.detail);
+      console.error("CREATE_OFFICER_ASSESSMENT_FULL_ERROR:", error.response?.data);
+      throw error;
+    }
+  },
+
   uploadDocument: async (incidentId: string, file: File): Promise<any> => {
     const formData = new FormData();
     formData.append("file", file);
@@ -158,6 +208,11 @@ export const schoolIncidentService = {
 
   addDiscussionMessage: async (incidentId: string, message: string): Promise<any> => {
     const response = await api.post(`/school/incidents/${incidentId}/discussion`, { message });
+    return response.data;
+  },
+
+  getComplianceDashboard: async (): Promise<ComplianceDashboardResponse> => {
+    const response = await api.get<ComplianceDashboardResponse>("/school/incidents/compliance-dashboard");
     return response.data;
   }
 };
