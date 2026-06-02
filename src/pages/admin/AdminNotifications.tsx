@@ -143,7 +143,7 @@ const DEFAULT_MOCK_NOTIFICATIONS: ApiNotification[] = [
 
 const AdminNotifications = () => {
   const queryClient = useQueryClient();
-  
+
   // Local state for toggling mock mode vs live API
   const [mockMode, setMockMode] = useState<boolean>(() => {
     return localStorage.getItem("eci-admin-mock-mode") === "true";
@@ -206,13 +206,13 @@ const AdminNotifications = () => {
       const matchesSearch =
         n.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         n.message.toLowerCase().includes(searchTerm.toLowerCase());
-      
+
       // Status match
       const matchesStatus =
         statusFilter === "all" ||
         (statusFilter === "unread" && !n.read) ||
         (statusFilter === "read" && n.read);
-      
+
       // Type/Severity match
       const matchesType = typeFilter === "all" || n.type === typeFilter;
 
@@ -276,7 +276,7 @@ const AdminNotifications = () => {
     if (mockMode) {
       const found = localNotifications.find((n) => n.id === id);
       if (found) {
-        // Mark read locally
+        // Mark read locally — immediately updates the card UI + totalUnread count
         setLocalNotifications((prev) =>
           prev.map((n) => (n.id === id ? { ...n, read: true } : n))
         );
@@ -286,14 +286,34 @@ const AdminNotifications = () => {
       return;
     }
 
+    // Live mode — optimistically mark as read in the cache RIGHT NOW so the
+    // unread dot, left-border accent, and totalUnread counter all update
+    // the moment the drawer opens, without waiting for the refetch.
+    queryClient.setQueryData<ApiNotification[]>(
+      ["adminNotifications"],
+      (prev) =>
+        prev
+          ? prev.map((n) => (n.id === id ? { ...n, read: true } : n))
+          : prev
+    );
+
     try {
       const data = await getNotificationDetail(id);
-      setDetailData(data);
-      // Invalidate queries so counts are immediately updated
+      // Use server response (which should already have read: true) as drawer content
+      setDetailData({ ...data, read: true });
+      // Background sync to reconcile any other server-side state changes
       queryClient.invalidateQueries({ queryKey: ["adminNotifications"] });
     } catch (err) {
       console.error(err);
       toast.error("Failed to fetch notification details.");
+      // Roll back the optimistic update on failure
+      queryClient.setQueryData<ApiNotification[]>(
+        ["adminNotifications"],
+        (prev) =>
+          prev
+            ? prev.map((n) => (n.id === id ? { ...n, read: false } : n))
+            : prev
+      );
       setSelectedNotifId(null);
     } finally {
       setDetailLoading(false);
@@ -371,32 +391,6 @@ const AdminNotifications = () => {
           <p className="mt-0.5 text-muted-foreground text-sm">
             Manage system-wide alerts, framework updates, and audit details
           </p>
-        </div>
-
-        {/* Demo Mode Toggle Controller */}
-        <div className="flex items-center gap-2 bg-secondary/30 p-1.5 rounded-lg border border-border/80 self-start sm:self-auto">
-          <span className="text-xs font-semibold px-2 text-muted-foreground uppercase tracking-wider">Mode:</span>
-          <button
-            onClick={() => setMockMode(false)}
-            className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${
-              !mockMode
-                ? "bg-card text-foreground shadow-sm border border-border"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            Live Server
-          </button>
-          <button
-            onClick={() => setMockMode(true)}
-            className={`px-3 py-1 rounded-md text-xs font-medium transition-all flex items-center gap-1.5 ${
-              mockMode
-                ? "bg-primary text-primary-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <Sparkles className="w-3 h-3" />
-            Interactive Demo
-          </button>
         </div>
       </div>
 
@@ -488,21 +482,19 @@ const AdminNotifications = () => {
           <div className="flex flex-wrap items-center gap-1.5 bg-secondary/20 p-1 rounded-lg border border-border/50">
             <button
               onClick={() => setStatusFilter("all")}
-              className={`px-3 py-1 text-xs font-semibold rounded-md transition-all ${
-                statusFilter === "all"
+              className={`px-3 py-1 text-xs font-semibold rounded-md transition-all ${statusFilter === "all"
                   ? "bg-card text-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
-              }`}
+                }`}
             >
               All
             </button>
             <button
               onClick={() => setStatusFilter("unread")}
-              className={`px-3 py-1 text-xs font-semibold rounded-md transition-all flex items-center gap-1 ${
-                statusFilter === "unread"
+              className={`px-3 py-1 text-xs font-semibold rounded-md transition-all flex items-center gap-1 ${statusFilter === "unread"
                   ? "bg-card text-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
-              }`}
+                }`}
             >
               Unread
               {totalUnread > 0 && (
@@ -511,55 +503,18 @@ const AdminNotifications = () => {
             </button>
             <button
               onClick={() => setStatusFilter("read")}
-              className={`px-3 py-1 text-xs font-semibold rounded-md transition-all ${
-                statusFilter === "read"
+              className={`px-3 py-1 text-xs font-semibold rounded-md transition-all ${statusFilter === "read"
                   ? "bg-card text-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
-              }`}
+                }`}
             >
               Read
             </button>
           </div>
 
-          {/* Type Severity Filter */}
-          <div className="flex flex-wrap items-center gap-1.5 bg-secondary/20 p-1 rounded-lg border border-border/50">
-            <button
-              onClick={() => setTypeFilter("all")}
-              className={`px-3 py-1 text-xs font-semibold rounded-md transition-all ${
-                typeFilter === "all"
-                  ? "bg-card text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              All Types
-            </button>
-            {(["info", "success", "warning", "error", "system"] as NotificationType[]).map((t) => (
-              <button
-                key={t}
-                onClick={() => setTypeFilter(t)}
-                className={`px-3 py-1 text-xs font-semibold rounded-md transition-all uppercase tracking-wider ${
-                  typeFilter === t
-                    ? "bg-card text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {t}
-              </button>
-            ))}
-          </div>
 
-          {/* Force reload if Server Mode */}
-          {!mockMode && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => refetch()}
-              className="self-end md:self-auto border border-border/60 hover:bg-secondary/40"
-              title="Refresh Live Data"
-            >
-              <RefreshCw className="w-4 h-4" />
-            </Button>
-          )}
+
+
         </div>
       </Card>
 
@@ -636,9 +591,8 @@ const AdminNotifications = () => {
               <div
                 key={n.id}
                 onClick={() => handleOpenDetails(n.id)}
-                className={`group relative p-4 bg-card hover:bg-sidebar-accent/30 border border-border hover:border-primary/30 rounded-xl cursor-pointer transition-all duration-300 shadow-sm hover:shadow flex gap-4 items-start ${
-                  !n.read ? "border-l-4 border-l-primary" : ""
-                }`}
+                className={`group relative p-4 bg-card hover:bg-sidebar-accent/30 border border-border hover:border-primary/30 rounded-xl cursor-pointer transition-all duration-300 shadow-sm hover:shadow flex gap-4 items-start ${!n.read ? "border-l-4 border-l-primary" : ""
+                  }`}
               >
                 {/* Visual Icon Badge */}
                 <div className={`p-2.5 rounded-lg shrink-0 ${visual.bg} ${visual.color} border ${visual.border}`}>
@@ -649,9 +603,8 @@ const AdminNotifications = () => {
                 <div className="flex-1 min-w-0 space-y-1">
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
-                      <h4 className={`text-sm truncate font-semibold text-foreground ${
-                        !n.read ? "font-bold text-foreground" : "text-foreground/80"
-                      }`}>
+                      <h4 className={`text-sm truncate font-semibold text-foreground ${!n.read ? "font-bold text-foreground" : "text-foreground/80"
+                        }`}>
                         {n.title}
                       </h4>
                       {!n.read && (
@@ -700,17 +653,16 @@ const AdminNotifications = () => {
                   <div className="flex items-center justify-between gap-3">
                     {/* Severity Badge */}
                     <Badge
-                      className={`uppercase tracking-wider text-[10px] font-bold ${
-                        detailData.type === "success"
+                      className={`uppercase tracking-wider text-[10px] font-bold ${detailData.type === "success"
                           ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
                           : detailData.type === "warning"
-                          ? "bg-amber-500/10 text-amber-500 border border-amber-500/20"
-                          : detailData.type === "error"
-                          ? "bg-red-500/10 text-red-500 border border-red-500/20"
-                          : detailData.type === "system"
-                          ? "bg-purple-500/10 text-purple-500 border border-purple-500/20"
-                          : "bg-blue-500/10 text-blue-500 border border-blue-500/20"
-                      }`}
+                            ? "bg-amber-500/10 text-amber-500 border border-amber-500/20"
+                            : detailData.type === "error"
+                              ? "bg-red-500/10 text-red-500 border border-red-500/20"
+                              : detailData.type === "system"
+                                ? "bg-purple-500/10 text-purple-500 border border-purple-500/20"
+                                : "bg-blue-500/10 text-blue-500 border border-blue-500/20"
+                        }`}
                     >
                       {detailData.type}
                     </Badge>

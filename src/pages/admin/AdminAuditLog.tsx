@@ -104,22 +104,82 @@ const formatDetails = (
 
   // Build a readable detail string from the details object
   const parts: string[] = [];
+
+  // Invited users (array of emails)
   if (details.emails && Array.isArray(details.emails)) {
     parts.push(`Emails: ${details.emails.join(", ")}`);
   }
-  if (details.role) {
-    parts.push(
-      `Role: ${details.role
-        .split("_")
-        .map((w: string) => w.charAt(0).toUpperCase() + w.slice(1))
-        .join(" ")}`,
-    );
+  // Single email
+  if (details.email && typeof details.email === "string") {
+    parts.push(details.email);
   }
-  if (details.name) {
+  // Name field
+  if (details.name && typeof details.name === "string") {
     parts.push(details.name);
   }
+  // Title / label
+  if (details.title && typeof details.title === "string") {
+    parts.push(details.title);
+  }
+  // Role (e.g. "role_compliance_officer" → "Role: Compliance Officer")
+  if (details.role && typeof details.role === "string") {
+    const roleLabel = details.role
+      .replace(/^role_/, "")
+      .split("_")
+      .map((w: string) => w.charAt(0).toUpperCase() + w.slice(1))
+      .join(" ");
+    parts.push(`Role: ${roleLabel}`);
+  }
+  // Status transition (e.g. {"old_status":"open","new_status":"under-review"})
+  if (details.old_status != null && details.new_status != null) {
+    const fmt = (s: string) =>
+      String(s)
+        .split(/[-_]/)
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(" ");
+    parts.push(`${fmt(details.old_status)} → ${fmt(details.new_status)}`);
+  } else if (details.status && typeof details.status === "string") {
+    const fmt = (s: string) =>
+      s.split(/[-_]/).map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+    parts.push(`Status: ${fmt(details.status)}`);
+  }
+  // Message preview (e.g. {"message_preview":"Hello"})
+  if (details.message_preview && typeof details.message_preview === "string") {
+    parts.push(`"${details.message_preview}"`);
+  }
+  // File uploads (e.g. {"file_name":"report.pdf"})
+  if (details.file_name && typeof details.file_name === "string") {
+    parts.push(details.file_name);
+  }
+  if (details.filename && typeof details.filename === "string") {
+    parts.push(details.filename);
+  }
+  // Description / notes
+  if (details.description && typeof details.description === "string") {
+    parts.push(details.description);
+  }
+  if (details.notes && typeof details.notes === "string") {
+    parts.push(details.notes);
+  }
+  // Count-based summaries
+  if (details.count != null && parts.length === 0) {
+    parts.push(`Count: ${details.count}`);
+  }
 
-  return parts.join(" • ") || JSON.stringify(details);
+  // Last resort: build a minimal human-readable summary from any remaining
+  // primitive values — but never emit raw JSON brackets
+  if (parts.length === 0) {
+    const readable = Object.entries(details)
+      .filter(([, v]) => v != null && typeof v !== "object")
+      .map(([k, v]) => {
+        const key = k.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+        return `${key}: ${v}`;
+      });
+    parts.push(...readable);
+  }
+
+  // Return empty string for truly empty / meaningless objects (e.g. login {})
+  return parts.join(" • ");
 };
 
 const AdminAuditLog = () => {
