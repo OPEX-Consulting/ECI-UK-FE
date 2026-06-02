@@ -23,8 +23,10 @@ import {
 } from "@/contexts/TaskContext";
 import { schoolOrganisationService } from "@/services/school/organisationService";
 import { schoolTaskService } from "@/services/school/taskService";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import type { ApiEvidenceSpec, ApiFrameworkSubTask } from "@/types/framework";
 import { useAuth } from "@/contexts/AuthContext";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -58,6 +60,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useFrameworks } from "@/contexts/FrameworkContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { toast } from "sonner";
 
 interface TaskModalProps {
   isOpen: boolean;
@@ -84,6 +87,8 @@ interface EvidenceVersion {
   uploadedBy: string;
   expiry?: string;
   comments?: string;
+  url?: string;
+  _id?: string;
 }
 
 interface EvidenceItem {
@@ -107,99 +112,6 @@ interface Cycle {
   confirmedBy?: { initials: string; name: string };
   daysLate?: number;
 }
-
-// ─── Mock data helpers ────────────────────────────────────────────────────────
-const buildMockSubTasks = (): SubTask[] => [
-  {
-    id: "st-1",
-    title: "Define scope and objectives of the access control policy",
-    completed: true,
-    evidenceTag: "No evidence required",
-    requiresEvidence: false,
-  },
-  {
-    id: "st-2",
-    title: "Map access roles to business functions and data classification levels",
-    completed: true,
-    evidenceTag: "No evidence required",
-    requiresEvidence: false,
-  },
-  {
-    id: "st-3",
-    title: "Submit policy draft to information security function for approval",
-    completed: true,
-    evidenceTag: "Evidence under review",
-    requiresEvidence: true,
-  },
-  {
-    id: "st-4",
-    title: "Legal Counsel Review",
-    completed: false,
-    evidenceTag: "Requires external certification upload",
-    requiresEvidence: true,
-  },
-];
-
-const buildMockEvidence = (): EvidenceItem[] => [
-  {
-    id: "ev-1",
-    title: "Signed Safeguarding Policy",
-    status: "approved",
-    archivedVersions: 2,
-    versions: [
-      {
-        version: 3,
-        filename: "Safeguarding_Policy_Final_2024.pdf",
-        uploadedBy: "Jane Cooper",
-        expiry: "ACAD.START",
-      },
-    ],
-  },
-  {
-    id: "ev-2",
-    title: "Governor Meeting Minutes",
-    status: "revision_required",
-    versions: [
-      {
-        version: 1,
-        filename: "Minutes_Nov_2023_Safeguarding_Review.docx",
-        uploadedBy: "Robert Fox",
-        comments: "Missing Signatures",
-      },
-    ],
-  },
-  {
-    id: "ev-3",
-    title: "Staff Training Logs",
-    status: "missing",
-    versions: [],
-  },
-];
-
-const buildMockCycles = (): Cycle[] => [
-  {
-    id: "cy-3",
-    name: "Cycle 3: 2024 Annual Review",
-    status: "in-progress",
-    targetDate: "Oct 12, 2024",
-    assignedTo: "Sarah Jenkins",
-  },
-  {
-    id: "cy-2",
-    name: "Cycle 2: Re-attestation",
-    status: "late",
-    completedDate: "Nov 24, 2023",
-    confirmedBy: { initials: "MC", name: "Marcus Chen" },
-    daysLate: 12,
-  },
-  {
-    id: "cy-1",
-    name: "Cycle 1: Implementation",
-    status: "complete",
-    completedDate: "Oct 10, 2022",
-    confirmedBy: { initials: "JD", name: "Jane Doe" },
-  },
-];
 
 // ─── Small helper components ──────────────────────────────────────────────────
 const EvidenceStatusBadge = ({ status }: { status: EvidenceStatus }) => {
@@ -276,6 +188,73 @@ const TaskModal = ({
     enabled: isOpen && !!user && user.role !== "admin",
   });
 
+  // Fetch task detail (includes subtasks, action items)
+  const { data: taskDetail } = useQuery({
+    queryKey: ["task-detail", task?.id],
+    queryFn: async () => {
+      const detail = await schoolTaskService.getTaskDetails(task!.id);
+      console.log("TASK_DETAIL_RAW:", detail);
+      console.log("TASK_DETAIL_ACTION_ITEMS:", detail.actionItems?.length, detail.actionItems);
+      console.log("TASK_DETAIL_SUBTASKS:", detail.subTasks?.length, detail.subTasks);
+      return detail;
+    },
+    enabled: isOpen && !!task,
+  });
+
+  // ── Subtask mutations ───────────────────────────────────────────────────────
+  const addSubtaskMutation = useMutation({
+    mutationFn: ({ title }: { title: string }) =>
+      schoolTaskService.addSubtask(task!.id, { title }),
+    onSuccess: (data) => {
+      const newSub: SubTask = {
+        id: data.id,
+        title: data.title,
+        completed: false,
+        requiresEvidence: data.evidence_required,
+        evidenceTag: data.evidence_required ? "Requires evidence" : "No evidence required",
+      };
+      setSubTasks((prev) => [...prev, newSub]);
+      setNewSubTaskTitle("");
+      queryClient.invalidateQueries({ queryKey: ["task-detail", task?.id] });
+    },
+  });
+
+  const completeSubtaskMutation = useMutation({
+    mutationFn: (subtaskId: string) => {
+      console.log("MARK_SUBTASK_COMPLETE:", { taskId: task?.id, subtaskId });
+      return schoolTaskService.completeSubtask(task!.id, subtaskId);
+    },
+    onSuccess: (data) => {
+      console.log("MARK_SUBTASK_COMPLETE_RESPONSE:", data);
+      queryClient.invalidateQueries({ queryKey: ["task-detail", task?.id] });
+    },
+  });
+
+  const deleteSubtaskMutation = useMutation({
+    mutationFn: (subtaskId: string) =>
+      schoolTaskService.deleteSubtask(task!.id, subtaskId),
+    onSuccess: (_data, subtaskId) => {
+      setSubTasks((prev) => prev.filter((st) => st.id !== subtaskId));
+      queryClient.invalidateQueries({ queryKey: ["task-detail", task?.id] });
+    },
+  });
+
+  const toggleLegalCounselReviewMutation = useMutation({
+    mutationFn: () => schoolTaskService.toggleLegalCounselReview(task!.id),
+    onSuccess: (data) => {
+      setLegalCounselReview(data.legal_counsel_review);
+      queryClient.invalidateQueries({ queryKey: ["task-detail", task?.id] });
+      toast.success(
+        data.legal_counsel_review
+          ? "Legal counsel review marked as complete"
+          : "Legal counsel review re-opened"
+      );
+    },
+    onError: () => {
+      toast.error("Failed to toggle legal counsel review");
+    },
+  });
+
   // ── Core task form state ──────────────────────────────────────────────────
   const [frameworkId, setFrameworkId] = useState<string>("");
   const [status, setStatus] = useState<TaskStatus>("todo");
@@ -289,21 +268,107 @@ const TaskModal = ({
   const [activeTab, setActiveTab] = useState<"subtasks" | "evidence" | "cycle-history">("subtasks");
 
   // ── Sub-tasks state ───────────────────────────────────────────────────────
-  const [subTasks, setSubTasks] = useState<SubTask[]>(buildMockSubTasks());
+  const [subTasks, setSubTasks] = useState<SubTask[]>([]);
   const [newSubTaskTitle, setNewSubTaskTitle] = useState("");
   const [reviewFrequency, setReviewFrequency] = useState("Biannual Quality Check");
   const [internalDueDate, setInternalDueDate] = useState<Date | undefined>(new Date("2024-10-24"));
 
   // ── Evidence state ────────────────────────────────────────────────────────
-  const [evidenceItems, setEvidenceItems] = useState<EvidenceItem[]>(buildMockEvidence());
+  const [evidenceItems, setEvidenceItems] = useState<EvidenceItem[]>([]);
 
   // ── Cycle history state ───────────────────────────────────────────────────
-  const [cycles] = useState<Cycle[]>(buildMockCycles());
+  const [cycles, setCycles] = useState<Cycle[]>([]);
+
+  // ── Legal Counsel Review state ──────────────────────────────────────────────
+  const [legalCounselReview, setLegalCounselReview] = useState(false);
+  const isPrincipal = user?.role === "principal";
+
+  // Fetch cycle history / analytics when the tab is active
+  useEffect(() => {
+    if (activeTab !== "cycle-history" || !task) return;
+
+    schoolTaskService.getTaskAnalytics(task.id)
+      .then((data) => {
+        console.log("CYCLE_HISTORY_DATA:", data);
+        if (data?.cycles) {
+          setCycles(data.cycles);
+        } else if (data?.history) {
+          setCycles(data.history.map((h: any, i: number) => ({
+            id: `cycle-${i}`,
+            name: h.action || h.event || `Event ${i + 1}`,
+            status: (h.status === "complete" || h.status === "completed") ? "complete" : "in-progress",
+            targetDate: h.date || h.timestamp,
+            completedDate: h.completed_date || h.completedDate,
+            assignedTo: h.user || h.assigned_to,
+          })));
+        } else {
+          buildFallbackTimeline();
+        }
+      })
+      .catch(() => buildFallbackTimeline());
+  }, [activeTab, task?.id]);
+
+  const buildFallbackTimeline = () => {
+    if (!task) return;
+    const timeline: Cycle[] = [
+      {
+        id: "task-created",
+        name: "Task Created",
+        status: "complete",
+        targetDate: task.createdAt || new Date().toISOString().split('T')[0],
+        completedDate: task.createdAt || new Date().toISOString().split('T')[0],
+      },
+      ...subTasks.map((st) => ({
+        id: `subtask-${st.id}`,
+        name: st.completed ? `Sub-task completed: ${st.title}` : `Sub-task: ${st.title}`,
+        status: (st.completed ? "complete" : "in-progress") as CycleStatus,
+        targetDate: task.dueDate || undefined,
+        completedDate: st.completed ? new Date().toISOString().split('T')[0] : undefined,
+        assignedTo: assigneeName,
+      })),
+    ];
+    setCycles(timeline);
+  };
+
+  // Rebuild timeline when subtasks change (but only if on cycle-history tab)
+  useEffect(() => {
+    if (activeTab === "cycle-history" && task) {
+      buildFallbackTimeline();
+    }
+  }, [subTasks, activeTab]);
 
   const isReadOnly = false;
   const isStaff = user?.role === "staff";
 
-  // ── Initialize ────────────────────────────────────────────────────────────
+  // ── Derived display values ────────────────────────────────────────────────
+  const currentAssignee = orgUsers.find((u) => u.id === assigneeId);
+  const assigneeInitials = currentAssignee?.name
+    ? currentAssignee.name
+        .split(" ")
+        .map((n) => n[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2)
+    : assigneeId
+    ? "??"
+    : "NA";
+  const assigneeName = currentAssignee?.name || "Unassigned";
+  const assigneeRole = currentAssignee?.role || "";
+  const displayDueDate = internalDueDate || dueDate;
+  const today = new Date();
+  const isOverdue = displayDueDate && displayDueDate < today;
+  const overdueDays = isOverdue
+    ? Math.floor(
+        (today.getTime() - displayDueDate!.getTime()) / (1000 * 60 * 60 * 24)
+      )
+    : 0;
+  const completedSubtaskCount = subTasks.filter((st) => st.completed).length;
+  const successRate =
+    subTasks.length > 0
+      ? Math.round((completedSubtaskCount / subTasks.length) * 100)
+      : 0;
+
+  // ── Initialize task detail from API when modal opens ──────────────────────
   useEffect(() => {
     if (isOpen) {
       if (task) {
@@ -314,6 +379,7 @@ const TaskModal = ({
         setDueDate(task.dueDate ? new Date(task.dueDate) : undefined);
         setAttachments(task.attachments || []);
         setFrameworkId(task.frameworkId || "");
+        setLegalCounselReview((task as any)?.legal_counsel_review ?? false);
       } else {
         setStatus("todo");
         setPriority("medium");
@@ -322,12 +388,103 @@ const TaskModal = ({
         setDueDate(undefined);
         setAttachments([]);
         setFrameworkId(defaultFrameworkId || "");
+        setLegalCounselReview(false);
       }
       setActiveTab("subtasks");
-      setSubTasks(buildMockSubTasks());
-      setEvidenceItems(buildMockEvidence());
     }
   }, [isOpen, task, defaultFrameworkId]);
+
+  // Initialize subtasks from API task detail
+  useEffect(() => {
+    if (taskDetail?.subTasks && taskDetail.subTasks.length > 0) {
+      setSubTasks(
+        taskDetail.subTasks.map((st: any) => ({
+          id: st.id,
+          title: st.title,
+          completed: st.status === "completed" || st.status === "complete",
+          requiresEvidence: st.evidence_required,
+          evidenceTag: st.evidence_required ? "Requires evidence" : "No evidence required",
+        }))
+      );
+    } else if (isOpen && !task) {
+      setSubTasks([]);
+    }
+  }, [taskDetail, isOpen, task]);
+
+  // Initialize legal counsel review from API task detail
+  useEffect(() => {
+    if (taskDetail) {
+      const value = (taskDetail as any)?.legal_counsel_review;
+      if (typeof value === "boolean") {
+        setLegalCounselReview(value);
+      }
+    }
+  }, [taskDetail]);
+
+  // ── Derive evidence items from task detail ──────────────────────────────
+  useEffect(() => {
+    if (taskDetail) {
+      // Collect evidence from action items' evidence_list
+      const items: EvidenceItem[] = [];
+      for (const ai of taskDetail.actionItems ?? []) {
+        for (const ev of ai.evidence_list ?? []) {
+            const version: EvidenceVersion = {
+            version: ev.version || 1,
+            filename: ev.file_name || ev.filename || "uploaded-file",
+            uploadedBy: ev.uploaded_by || ev.uploadedBy || "Unknown",
+            expiry: ev.expiry || ev.expiry_date || undefined,
+            comments: ev.comments || undefined,
+            url: ev.file_url || undefined,
+            _id: ev.id || `${Date.now()}-${Math.random()}`,
+          };
+          const title = ev.title || ev.file_name || "Evidence";
+          const existing = items.find((i) => i.title === title);
+          if (existing) {
+            existing.versions.push(version);
+            existing.status = "pending" as EvidenceStatus;
+          } else {
+            items.push({
+              id: ev.id || `ev-${items.length}`,
+              title,
+              status: "pending" as EvidenceStatus,
+              versions: [version],
+            });
+          }
+        }
+      }
+      // Also add evidence from subtasks' evidence_list (in case action items don't have it)
+      if (items.length === 0) {
+        for (const st of taskDetail.subTasks ?? []) {
+          for (const ev of st.evidence_list ?? []) {
+            const version: EvidenceVersion = {
+              version: ev.version || 1,
+              filename: ev.file_name || ev.filename || "uploaded-file",
+              uploadedBy: ev.uploaded_by || ev.uploadedBy || "Unknown",
+              expiry: ev.expiry || ev.expiry_date || undefined,
+              comments: ev.comments || undefined,
+              url: ev.file_url || undefined,
+              _id: ev.id || `${Date.now()}-${Math.random()}`,
+            };
+            const title = ev.title || ev.file_name || "Evidence";
+            const existing = items.find((i) => i.title === title);
+            if (existing) {
+              existing.versions.push(version);
+            } else {
+              items.push({
+                id: ev.id || `ev-${items.length}`,
+                title,
+                status: "pending" as EvidenceStatus,
+                versions: [version],
+              });
+            }
+          }
+        }
+      }
+      setEvidenceItems(items);
+    } else if (isOpen && !task) {
+      setEvidenceItems([]);
+    }
+  }, [taskDetail, isOpen, task]);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
   const handleSave = async () => {
@@ -362,18 +519,54 @@ const TaskModal = ({
     onClose();
   };
 
+  const handleComplete = async () => {
+    if (!task) return;
+    console.log("COMPLETE_TASK:", { taskId: task.id, status: "done", legalCounselReview, subtaskCount: subTasks.length, completedSubtasks: completedCount, evidenceCount: evidenceItems.length });
+    setStatus("done");
+    try {
+      await schoolTaskService.updateTaskStatus(task.id, "done");
+      queryClient.invalidateQueries({ queryKey: ["school-tasks"] });
+      toast.success("Task marked as complete");
+      onClose();
+    } catch (err) {
+      console.error("Failed to complete task", err);
+      toast.error("Failed to complete task");
+    }
+  };
+
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
+    console.log("UPLOAD_EVIDENCE:", {
+      taskId: task?.id,
+      actionItemId: taskDetail?.actionItems?.[0]?.id,
+      fileCount: files?.length,
+      fileNames: files ? Array.from(files).map(f => f.name) : [],
+    });
     if (files && files.length > 0) {
-      const newAttachments: TaskAttachment[] = Array.from(files).map((file) => ({
-        id: `att-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        name: file.name,
-        size: file.size,
-        type: file.type,
-        uploadedAt: new Date().toISOString(),
-        uploadedBy: user?.name || "Unknown",
-      }));
-      setAttachments((prev) => [...prev, ...newAttachments]);
+      Array.from(files).forEach(async (file) => {
+        // Upload evidence via API if task has action items
+        if (task && taskDetail?.actionItems && taskDetail.actionItems.length > 0) {
+          try {
+            const result = await schoolTaskService.addEvidence(task.id, taskDetail.actionItems[0].id, file);
+            console.log("UPLOAD_EVIDENCE_RESPONSE:", result);
+            queryClient.invalidateQueries({ queryKey: ["task-detail", task.id] });
+          } catch (err) {
+            console.error("UPLOAD_EVIDENCE_ERROR:", err);
+          }
+        } else {
+          console.log("UPLOAD_EVIDENCE_SKIP: no action items found");
+        }
+        // Also keep local attachment tracking
+        const newAttachment: TaskAttachment = {
+          id: `att-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          name: file.name,
+          size: file.size,
+          type: file.type,
+          uploadedAt: new Date().toISOString(),
+          uploadedBy: user?.name || "Unknown",
+        };
+        setAttachments((prev) => [...prev, newAttachment]);
+      });
     }
   };
 
@@ -382,6 +575,12 @@ const TaskModal = ({
   };
 
   const toggleSubTask = (id: string) => {
+    const st = subTasks.find((s) => s.id === id);
+    if (!st) return;
+    console.log("TOGGLE_SUBTASK:", { taskId: task?.id, subtaskId: id, currentStatus: st.completed ? "completed" : "pending", newStatus: st.completed ? "pending" : "completed" });
+    if (task) {
+      completeSubtaskMutation.mutate(id);
+    }
     setSubTasks((prev) =>
       prev.map((st) => (st.id === id ? { ...st, completed: !st.completed } : st))
     );
@@ -389,56 +588,75 @@ const TaskModal = ({
 
   const addSubTask = () => {
     if (!newSubTaskTitle.trim()) return;
-    setSubTasks((prev) => [
-      ...prev,
-      {
-        id: `st-${Date.now()}`,
-        title: newSubTaskTitle.trim(),
-        completed: false,
-        requiresEvidence: false,
-      },
-    ]);
-    setNewSubTaskTitle("");
+    if (task) {
+      addSubtaskMutation.mutate({ title: newSubTaskTitle.trim() });
+    } else {
+      setSubTasks((prev) => [
+        ...prev,
+        {
+          id: `st-${Date.now()}`,
+          title: newSubTaskTitle.trim(),
+          completed: false,
+          requiresEvidence: false,
+        },
+      ]);
+      setNewSubTaskTitle("");
+    }
   };
 
   const removeSubTask = (id: string) => {
-    setSubTasks((prev) => prev.filter((st) => st.id !== id));
+    if (task) {
+      deleteSubtaskMutation.mutate(id);
+    } else {
+      setSubTasks((prev) => prev.filter((st) => st.id !== id));
+    }
   };
 
   const completedCount = subTasks.filter((st) => st.completed).length;
+  console.log("COMPLETION_PROGRESS:", {
+    taskId: task?.id,
+    taskTitle: task?.title,
+    totalSubtasks: subTasks.length,
+    completedSubtasks: completedCount,
+    percentComplete: subTasks.length > 0 ? Math.round((completedCount / subTasks.length) * 100) : 0,
+    subtaskDetails: subTasks.map(st => ({ id: st.id, title: st.title, completed: st.completed })),
+  });
 
   // ── Computed completion gate ───────────────────────────────────────────────
+  const hasEvidence = evidenceItems.length > 0;
+
   const completionGate = [
     {
       id: "cg-1",
       label: "All sub-tasks completed",
       color: completedCount === subTasks.length ? "bg-emerald-500" : "bg-amber-500",
-      value: completedCount === subTasks.length ? undefined : undefined,
       rightLabel:
         completedCount === subTasks.length
           ? `${completedCount} / ${subTasks.length} done`
           : `${completedCount} / ${subTasks.length} done`,
       rightColor: completedCount === subTasks.length ? "text-emerald-600" : "text-amber-600",
+      met: completedCount === subTasks.length,
     },
     {
       id: "cg-2",
       label: "Access control policy document",
-      color: "bg-amber-500",
-      rightLabel: "Under review",
-      rightColor: "text-amber-600",
+      color: legalCounselReview ? "bg-emerald-500" : "bg-amber-500",
+      rightLabel: legalCounselReview ? "Review" : "Under review",
+      rightColor: legalCounselReview ? "text-emerald-600" : "text-amber-600",
+      met: legalCounselReview,
     },
     {
       id: "cg-3",
       label: "Management approval sign-off",
-      color: "bg-red-500",
-      rightLabel: "Not uploaded",
-      rightColor: "text-red-500",
+      color: hasEvidence ? "bg-emerald-500" : "bg-red-500",
+      rightLabel: hasEvidence ? "Uploaded" : "Not uploaded",
+      rightColor: hasEvidence ? "text-emerald-600" : "text-red-500",
+      met: hasEvidence,
     },
   ];
 
-  const blockingCount = completionGate.filter(
-    (g) => g.rightLabel !== `${subTasks.length} / ${subTasks.length} done`
-  ).length;
+  const blockingCount = completionGate.filter((g) => !g.met).length;
+  const allConditionsMet = blockingCount === 0;
 
   // ── Cycle timeline icon ───────────────────────────────────────────────────
   const cycleIcon = (status: CycleStatus) => {
@@ -675,13 +893,45 @@ const TaskModal = ({
 
                   <button
                     type="button"
-                    disabled
-                    className="mt-4 w-full py-2.5 rounded-lg border border-slate-200 text-sm text-slate-400 bg-slate-50 flex items-center justify-center gap-1.5 cursor-not-allowed"
+                    disabled={!allConditionsMet}
+                    onClick={handleComplete}
+                    className={cn(
+                      "mt-4 w-full py-2.5 rounded-lg border text-sm flex items-center justify-center gap-1.5",
+                      allConditionsMet
+                        ? "bg-slate-900 text-white border-slate-900 hover:bg-slate-700 cursor-pointer"
+                        : "border-slate-200 text-slate-400 bg-slate-50 cursor-not-allowed"
+                    )}
                   >
-                    Mark complete — {blockingCount} condition{blockingCount !== 1 ? "s" : ""} blocking
+                    {allConditionsMet
+                      ? "Mark complete"
+                      : `Mark complete — ${blockingCount} condition${blockingCount !== 1 ? "s" : ""} blocking`
+                    }
                     <ChevronRight className="w-4 h-4" />
                   </button>
                 </div>
+
+                {/* Legal Counsel Review */}
+                {isPrincipal && task && (
+                  <div className="mt-6 pt-4 border-t border-slate-100">
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        id="legal-counsel-review"
+                        checked={legalCounselReview}
+                        onCheckedChange={() => {
+                          if (task) {
+                            toggleLegalCounselReviewMutation.mutate();
+                          }
+                        }}
+                      />
+                      <label
+                        htmlFor="legal-counsel-review"
+                        className="text-sm font-medium text-slate-700 cursor-pointer"
+                      >
+                        Legal Counsel Review
+                      </label>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Right panel */}
@@ -790,13 +1040,45 @@ const TaskModal = ({
 
             {/* Footer */}
             <div className="border-t border-slate-100 px-6 py-3 flex items-center justify-between bg-white flex-shrink-0">
-              <button
-                type="button"
-                className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800 transition-colors"
-              >
-                <History className="w-4 h-4" />
-                View Full History
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    console.log("VIEW_FULL_HISTORY:", { taskId: task?.id, taskTitle: task?.title });
+                    if (task) {
+                      try {
+                        const analytics = await schoolTaskService.getTaskAnalytics(task.id);
+                        console.log("VIEW_FULL_HISTORY_DATA:", analytics);
+                        toast.info("History loaded — check console");
+                      } catch {
+                        console.log("VIEW_FULL_HISTORY_ERROR: endpoint not available");
+                        toast.error("Failed to load history");
+                      }
+                    }
+                  }}
+                  className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800 transition-colors"
+                >
+                  <History className="w-4 h-4" />
+                  View Full History
+                </button>
+                {task && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        const analytics = await schoolTaskService.getTaskAnalytics(task.id);
+                        toast.success(`Analytics: ${JSON.stringify(analytics)}`);
+                      } catch {
+                        toast.error("Failed to load analytics");
+                      }
+                    }}
+                    className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800 transition-colors"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                    Analytics
+                  </button>
+                )}
+              </div>
               <div className="flex gap-2">
                 <Button
                   type="button"
@@ -817,8 +1099,14 @@ const TaskModal = ({
                 )}
                 <Button
                   type="button"
-                  disabled
-                  className="h-9 bg-slate-200 text-slate-400 cursor-not-allowed"
+                  disabled={!allConditionsMet}
+                  onClick={handleComplete}
+                  className={cn(
+                    "h-9",
+                    allConditionsMet
+                      ? "bg-slate-900 hover:bg-slate-700"
+                      : "bg-slate-200 text-slate-400 cursor-not-allowed"
+                  )}
                 >
                   Complete Task
                 </Button>
@@ -920,7 +1208,7 @@ const TaskModal = ({
                           {/* File rows */}
                           {item.versions.map((ver) => (
                             <div
-                              key={ver.version}
+                              key={ver._id || `${item.id}-${ver.version}`}
                               className={cn(
                                 "mx-3 mb-3 rounded-md flex items-center gap-3 px-3 py-2.5",
                                 item.status === "approved"
@@ -937,7 +1225,13 @@ const TaskModal = ({
                                     V{ver.version}
                                   </span>
                                   <span className="text-xs font-semibold text-slate-700 truncate">
-                                    {ver.filename}
+                                    {ver.url ? (
+                                      <a href={ver.url} target="_blank" rel="noopener noreferrer" className="hover:underline text-blue-600">
+                                        {ver.filename}
+                                      </a>
+                                    ) : (
+                                      ver.filename
+                                    )}
                                   </span>
                                 </div>
                                 <div className="flex items-center gap-3 mt-0.5">
@@ -1093,15 +1387,17 @@ const TaskModal = ({
                       </p>
                       <div className="flex items-center gap-2">
                         <div className="w-7 h-7 rounded-full bg-slate-700 flex items-center justify-center text-white text-[11px] font-bold flex-shrink-0">
-                          JC
+                          {assigneeInitials}
                         </div>
                         <div>
                           <p className="text-sm font-semibold text-slate-800">
-                            Jane Cooper
+                            {assigneeName}
                           </p>
-                          <p className="text-[11px] text-slate-400">
-                            Compliance Lead
-                          </p>
+                          {assigneeRole && (
+                            <p className="text-[11px] text-slate-400">
+                              {assigneeRole}
+                            </p>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -1110,14 +1406,28 @@ const TaskModal = ({
                         Internal Due Date
                       </p>
                       <div className="flex items-center gap-1.5">
-                        <CalendarIcon className="w-3.5 h-3.5 text-red-500" />
-                        <span className="text-sm font-bold text-red-500">
-                          Feb 28, 2024
+                        <CalendarIcon
+                          className={cn(
+                            "w-3.5 h-3.5",
+                            isOverdue ? "text-red-500" : "text-slate-400"
+                          )}
+                        />
+                        <span
+                          className={cn(
+                            "text-sm font-bold",
+                            isOverdue ? "text-red-500" : "text-slate-800"
+                          )}
+                        >
+                          {displayDueDate
+                            ? format(displayDueDate, "MMM d, yyyy")
+                            : "Not set"}
                         </span>
                       </div>
-                      <p className="text-[11px] text-red-400 mt-0.5">
-                        Overdue by 3 days
-                      </p>
+                      {isOverdue && (
+                        <p className="text-[11px] text-red-400 mt-0.5">
+                          Overdue by {overdueDays} day{overdueDays !== 1 ? "s" : ""}
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1144,13 +1454,13 @@ const TaskModal = ({
               ╚═══════════════════════════════════╝ */}
           <TabsContent
             value="cycle-history"
-            className="flex-1 min-h-0 overflow-hidden m-0"
+            className="flex-1 min-h-0 overflow-y-auto m-0"
           >
-            <div className="flex h-full overflow-hidden">
-              {/* Left stats panel */}
-              <div className="w-56 border-r border-slate-100 overflow-y-auto px-5 py-5 space-y-4 bg-slate-50/50 flex-shrink-0">
+            <div className="flex flex-col gap-6 px-6 py-5">
+              {/* Stats row */}
+              <div className="flex items-stretch gap-4 flex-shrink-0">
                 {/* Compliance streak */}
-                <div className="rounded-xl border border-slate-200 bg-white px-4 py-4">
+                <div className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-4">
                   <div className="flex items-center justify-between mb-3">
                     <p className="text-[10px] font-bold text-slate-400 tracking-widest uppercase">
                       Compliance Streak
@@ -1158,35 +1468,41 @@ const TaskModal = ({
                     <CheckCircle2 className="w-4 h-4 text-emerald-500" />
                   </div>
                   <div className="flex items-baseline gap-2">
-                    <span className="text-4xl font-black text-slate-900">1</span>
+                    <span className="text-4xl font-black text-slate-900">
+                      {completedSubtaskCount}
+                    </span>
                     <span className="text-sm font-medium text-slate-600">
-                      Cycle On-Time
+                      Sub-tasks Complete
                     </span>
                   </div>
                   <p className="text-xs text-slate-400 mt-2">
-                    Next re-attestation window opens in 244 days.
+                    {subTasks.length > 0
+                      ? `${completedSubtaskCount} of ${subTasks.length} sub-tasks completed.`
+                      : "No sub-tasks defined."}
                   </p>
                 </div>
 
                 {/* Metrics */}
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="rounded-lg border border-slate-200 bg-white px-3 py-3">
+                <div className="flex gap-2">
+                  <div className="rounded-lg border border-slate-200 bg-white px-3 py-3 min-w-[120px]">
                     <p className="text-[10px] font-semibold text-slate-400 tracking-widest uppercase mb-1">
                       Success Rate
                     </p>
-                    <p className="text-xl font-black text-slate-900">50%</p>
+                    <p className="text-xl font-black text-slate-900">{successRate}%</p>
                   </div>
-                  <div className="rounded-lg border border-slate-200 bg-white px-3 py-3">
+                  <div className="rounded-lg border border-slate-200 bg-white px-3 py-3 min-w-[120px]">
                     <p className="text-[10px] font-semibold text-slate-400 tracking-widest uppercase mb-1">
-                      Avg. Delay
+                      Evidence
                     </p>
-                    <p className="text-xl font-black text-red-500">12 Days</p>
+                    <p className="text-xl font-black text-slate-900">
+                      {evidenceItems.filter((e) => e.versions.length > 0).length}
+                    </p>
                   </div>
                 </div>
               </div>
 
-              {/* Right timeline panel */}
-              <div className="flex-1 overflow-y-auto px-6 py-5">
+              {/* Timeline panel */}
+              <div>
                 <div className="relative">
                   {/* Vertical line */}
                   <div className="absolute left-4 top-4 bottom-4 w-px bg-slate-200" />

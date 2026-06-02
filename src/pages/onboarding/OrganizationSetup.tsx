@@ -32,12 +32,13 @@ const OrganizationSetup = () => {
     setIsLoading(true);
 
     try {
-      await schoolOrganisationService.setup({
+      const response = await schoolOrganisationService.setup({
         organisation_name: name,
         official_domain: domain,
         country,
         region_or_local_authority: region,
       });
+      console.log("Organisation setup response:", response);
 
       updateOrganization({ name, domain, country, region });
       nextStep();

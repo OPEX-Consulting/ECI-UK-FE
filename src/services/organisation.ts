@@ -33,7 +33,7 @@ export const rerunClassification = async (
   id: string,
 ): Promise<import("@/types/organisation").ApiRerunClassificationResponse> => {
   const response = await api.post<import("@/types/organisation").ApiRerunClassificationResponse>(
-    `/admin/organisations/${id}/rerun-classification`
+    `/admin/organisations/${id}/rerun-classification/`
   );
   return response.data;
 };
@@ -68,6 +68,11 @@ export const updateSchoolType = async (
     `/admin/school-types/${id}`,
     payload,
   );
+  return response.data;
+};
+
+export const getSchoolType = async (id: string): Promise<ApiSchoolType> => {
+  const response = await api.get<ApiSchoolType>(`/school-types/${id}`);
   return response.data;
 };
 

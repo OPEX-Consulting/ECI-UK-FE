@@ -54,6 +54,8 @@ const ReviewActivation = () => {
     retry: 1,
   });
 
+  console.log("Classification summary:", summary);
+
   const handleActivate = async () => {
     setIsActivating(true);
     setActivationError('');
@@ -273,7 +275,7 @@ const ReviewActivation = () => {
                         className="inline-flex items-center gap-1.5 text-sm bg-slate-50 px-3 py-1.5 rounded-full border"
                       >
                         <CheckCircle2 className="h-3.5 w-3.5 text-green-600 shrink-0" />
-                        {fw.name || fw}
+                        {typeof fw === 'string' ? fw : fw.name || fw.id}
                       </span>
                     ))}
                   </div>

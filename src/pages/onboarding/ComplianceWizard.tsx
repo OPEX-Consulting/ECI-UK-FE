@@ -50,12 +50,20 @@ const ComplianceWizard = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // Guard: redirect to organisation setup if not completed
+  useEffect(() => {
+    if (!state.organization.name) {
+      navigate('/onboarding/organization', { replace: true });
+    }
+  }, []);
+
   // Fetch school types dynamically from database using the school-facing endpoint
   const { data: apiSchoolTypes, isLoading: isLoadingSchoolTypes } = useQuery({
     queryKey: ['school-types'],
     queryFn: () => classificationService.getSchoolTypes(0, 100),
     retry: 1, // Let it retry once since this is a public/school endpoint now
   });
+  console.log("apiSchoolTypes:", apiSchoolTypes);
 
   // Fetch startup mappings dynamically
   const { data: startupData, isLoading: isLoadingStartup } = useQuery({
@@ -107,16 +115,20 @@ const ComplianceWizard = () => {
     setIsLoading(true);
 
     try {
+      console.log("School type selected:", schoolType, "available types:", apiSchoolTypes);
+      const payload = buildStepPayload(currentStepId, {
+        schoolType,
+        fundingType,
+        ageRanges,
+        specialProvisions,
+        operationalActivities,
+      }, startupData);
+      console.log("Saving step:", { step: activeStepIndex + 1, stepId: currentStepId, payload });
+
       // POST this step to the API (step is 1-indexed)
       await classificationService.saveStep({
         step: activeStepIndex + 1,
-        payload: buildStepPayload(currentStepId, {
-          schoolType,
-          fundingType,
-          ageRanges,
-          specialProvisions,
-          operationalActivities,
-        }, startupData),
+        payload,
       });
 
       if (activeStepIndex < STEPS.length - 1) {
@@ -127,6 +139,7 @@ const ComplianceWizard = () => {
         navigate('/onboarding/review');
       }
     } catch (err: any) {
+      console.error("Step save error:", err.response?.data, err.response?.status);
       const detail = err.response?.data?.detail;
       const parsedDetail = Array.isArray(detail) ? detail[0]?.msg : detail;
       setError(parsedDetail || err.response?.data?.message || err.message || 'Failed to save this step. Please try again.');

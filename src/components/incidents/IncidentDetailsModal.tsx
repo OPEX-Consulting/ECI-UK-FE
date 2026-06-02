@@ -262,15 +262,74 @@ export const IncidentDetailsModal = ({
   }));
 
   // Robustly map audit entries (history)
-  const auditEntries: AuditEntry[] = (incident.history || []).map((h: any) => ({
-    id: h.id || String(Math.random()),
-    incidentId: incident.id,
-    action: h.action || h.event_type || "Event",
-    performedBy: h.performedBy || h.user_id || "",
-    performedByName: h.performedByName || h.user_name || "User",
-    timestamp: h.timestamp || h.created_at || new Date().toISOString(),
-    details: h.details || h.description || "",
-  }));
+  const resolveUserId = (id: string) => {
+    const user = orgUsers.find((u: any) => u.id === id);
+    return user?.name || user?.email || id;
+  };
+
+  const auditEntries: AuditEntry[] = (incident.history || []).map((h: any) => {
+    const rawDetails = h.details || h.description || "";
+    const details = (() => {
+      // If it's already an object
+      if (typeof rawDetails === "object" && rawDetails !== null) {
+        if (rawDetails.new_officer_id) {
+          const name = resolveUserId(rawDetails.new_officer_id);
+          return `Officer assigned: ${name}`;
+        }
+        if (rawDetails.old_officer_id || rawDetails.new_officer_id) {
+          const oldName = rawDetails.old_officer_id ? resolveUserId(rawDetails.old_officer_id) : "none";
+          const newName = rawDetails.new_officer_id ? resolveUserId(rawDetails.new_officer_id) : "none";
+          return `Reassigned from ${oldName} to ${newName}`;
+        }
+        if (rawDetails.file_name) {
+          return `Uploaded: ${rawDetails.file_name}`;
+        }
+        if (rawDetails.old_status || rawDetails.new_status) {
+          const oldStatus = rawDetails.old_status ? rawDetails.old_status.replace(/-/g, " ") : "unknown";
+          const newStatus = rawDetails.new_status ? rawDetails.new_status.replace(/-/g, " ") : "unknown";
+          return `Status changed from ${oldStatus} to ${newStatus}`;
+        }
+        return JSON.stringify(rawDetails);
+      }
+      // If it's a JSON string
+      if (typeof rawDetails === "string" && rawDetails.startsWith("{")) {
+        try {
+          const parsed = JSON.parse(rawDetails);
+          if (parsed.new_officer_id) {
+            const name = resolveUserId(parsed.new_officer_id);
+            return `Officer assigned: ${name}`;
+          }
+          if (parsed.old_officer_id || parsed.new_officer_id) {
+            const oldName = parsed.old_officer_id ? resolveUserId(parsed.old_officer_id) : "none";
+            const newName = parsed.new_officer_id ? resolveUserId(parsed.new_officer_id) : "none";
+            return `Reassigned from ${oldName} to ${newName}`;
+          }
+          if (parsed.file_name) {
+            return `Uploaded: ${parsed.file_name}`;
+          }
+          if (parsed.old_status || parsed.new_status) {
+            const oldStatus = parsed.old_status ? parsed.old_status.replace(/-/g, " ") : "unknown";
+            const newStatus = parsed.new_status ? parsed.new_status.replace(/-/g, " ") : "unknown";
+            return `Status changed from ${oldStatus} to ${newStatus}`;
+          }
+          return JSON.stringify(parsed);
+        } catch {
+          return rawDetails;
+        }
+      }
+      return rawDetails;
+    })();
+
+    return {
+      id: h.id || String(Math.random()),
+      incidentId: incident.id,
+      action: h.action || h.event_type || "Event",
+      performedBy: h.performedBy || h.user_id || "",
+      performedByName: h.performedByName || h.user_name || "User",
+      timestamp: h.timestamp || h.created_at || new Date().toISOString(),
+      details,
+    };
+  });
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>

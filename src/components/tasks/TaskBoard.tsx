@@ -175,6 +175,25 @@ const DraggableTaskCard = ({
                 {getFramework(task.frameworkId)?.name}
               </span>
             )}
+            {task.subTasks && task.subTasks.length > 0 && (
+              <div className="flex items-center gap-1.5 mt-2">
+                <div className="flex-1 h-1.5 rounded-full bg-slate-200 overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-emerald-500"
+                    style={{
+                      width: `${Math.round(
+                        (task.subTasks.filter((st) => st.status === "completed" || st.status === "complete").length /
+                          task.subTasks.length) *
+                          100
+                      )}%`,
+                    }}
+                  />
+                </div>
+                <span className="text-[10px] text-slate-500 font-medium whitespace-nowrap">
+                  {task.subTasks.filter((st) => st.status === "completed" || st.status === "complete").length}/{task.subTasks.length}
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Footer */}

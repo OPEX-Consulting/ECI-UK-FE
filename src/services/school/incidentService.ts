@@ -79,6 +79,17 @@ export const mapBackendIncidentToFrontend = (item: BackendIncident): Incident =>
   };
 };
 
+/** Map frontend status values to backend enum values */
+const toBackendStatus = (status: string): string => {
+  const map: Record<string, string> = {
+    submitted: 'open',
+    'under-review': 'action_in_progress',
+    'info-requested': 'information_requested',
+    finalized: 'resolved/closed',
+  };
+  return map[status] ?? status;
+};
+
 export const schoolIncidentService = {
   listIncidents: async (): Promise<Incident[]> => {
     const response = await api.get<BackendIncident[]>("/school/incidents");
@@ -122,7 +133,10 @@ export const schoolIncidentService = {
   },
 
   updateStatus: async (incidentId: string, status: string): Promise<Incident> => {
-    const response = await api.post<BackendIncident>(`/school/incidents/${incidentId}/status`, { status });
+    const backendStatus = toBackendStatus(status);
+    const payload = { status: backendStatus };
+    console.log("INCIDENT_UPDATE_STATUS:", { incidentId, url: `/school/incidents/${incidentId}/status`, method: "POST", payload });
+    const response = await api.post<BackendIncident>(`/school/incidents/${incidentId}/status`, payload);
     return mapBackendIncidentToFrontend(response.data);
   },
 
