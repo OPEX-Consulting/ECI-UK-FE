@@ -14,7 +14,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ORGS as MOCK_ORGS } from "@/mocks/organisations";
 
 // ─── UI Helpers ───────────────────────────────────────────────────────────────
 
@@ -70,23 +69,25 @@ const AdminOrganisations = () => {
     queryFn: () => getOrganisations(0, 100),
   });
 
+  console.log("API Orgs response:", apiOrgs);
+
   const organisations = useMemo(() => {
     if (!apiOrgs) return [];
     
-    // Map API data to UI model
     return apiOrgs.map(apiOrg => {
-      // Normalize status: e.g., "active" -> "Active"
       const status = (apiOrg.status.charAt(0).toUpperCase() + apiOrg.status.slice(1)) as OrgStatus;
+      
+      const meta = apiOrg.metadata ?? {};
       
       return {
         id: apiOrg.id,
         name: apiOrg.name,
         schoolType: apiOrg.type,
         status,
-        region: apiOrg.metadata?.region || "N/A",
-        compliance: apiOrg.metadata?.compliance_score || 0,
+        region: meta.region ?? apiOrg.region ?? "N/A",
+        compliance: meta.compliance_score ?? meta.compliance ?? 0,
         frameworks: apiOrg.assigned_frameworks?.length || 0,
-        users: apiOrg.metadata?.total_users || 0,
+        users: meta.total_users ?? 0,
       };
     });
   }, [apiOrgs]);

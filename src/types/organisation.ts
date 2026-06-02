@@ -118,6 +118,14 @@ export interface ApiOrgDetail {
   last_activity: string | null;
 }
 
+export interface FrameworkCompliance {
+  name: string;
+  completion: number;
+  overdue: number;
+  evidenceGaps: number;
+  lastActivity: string;
+}
+
 export interface ApiRerunClassificationResponse {
   org_id: string;
   old_frameworks: string[];
