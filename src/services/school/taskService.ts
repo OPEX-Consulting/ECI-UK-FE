@@ -1,5 +1,6 @@
 import api from "@/lib/api";
 import { Task, TaskStatus } from "@/contexts/TaskContext";
+import type { ApiFrameworkSubTask } from "@/types/framework";
 
 /**
  * Maps frontend TaskStatus values (kebab-case) to backend enum values (snake_case).
@@ -45,6 +46,9 @@ const mapBackendTaskToFrontend = (backendTask: any): Task => {
     evidenceUploaded: backendTask.evidence_list?.length ? 100 : 0,
     attachments: backendTask.evidence_list || [],
     frameworkId: backendTask.framework_id,
+    subTasks: backendTask.subtasks || backendTask.sub_tasks || undefined,
+    actionItems: backendTask.action_items || undefined,
+    legal_counsel_review: backendTask.legal_counsel_review ?? false,
   };
 };
 
@@ -135,5 +139,85 @@ export const schoolTaskService = {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
     return mapBackendTaskToFrontend(response.data);
+  },
+
+  /**
+   * Add evidence to a task's action item.
+   */
+  addEvidence: async (taskId: string, actionItemId: string, file: File): Promise<any> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    console.log("ADD_EVIDENCE_REQUEST:", {
+      url: `/school/tasks/${taskId}/action-items/${actionItemId}/evidence`,
+      method: "POST",
+      actionItemId,
+      fileName: file.name,
+      fileSize: file.size,
+      fileType: file.type,
+    });
+    // Log FormData entries
+    for (const [key, value] of (formData as any).entries()) {
+      console.log("FORM_DATA_ENTRY:", { key, value });
+    }
+    const response = await api.post(
+      `/school/tasks/${taskId}/action-items/${actionItemId}/evidence`,
+      formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } }
+    );
+    console.log("ADD_EVIDENCE_RESPONSE:", response.data);
+    return response.data;
+  },
+
+  /**
+   * Add a subtask to a task.
+   */
+  addSubtask: async (taskId: string, data: { title: string; description?: string; evidence_required?: boolean }): Promise<ApiFrameworkSubTask> => {
+    const response = await api.post<ApiFrameworkSubTask>(`/school/tasks/${taskId}/subtasks`, data);
+    return response.data;
+  },
+
+  /**
+   * Update a subtask's details.
+   */
+  updateSubtask: async (taskId: string, subtaskId: string, data: { title?: string; description?: string; evidence_required?: boolean; display_order?: number }): Promise<ApiFrameworkSubTask> => {
+    const response = await api.patch<ApiFrameworkSubTask>(`/school/tasks/${taskId}/subtasks/${subtaskId}`, data);
+    return response.data;
+  },
+
+  /**
+   * Mark a subtask as complete.
+   */
+  completeSubtask: async (taskId: string, subtaskId: string): Promise<ApiFrameworkSubTask> => {
+    const url = `/school/tasks/${taskId}/subtasks/${subtaskId}/complete`;
+    const payload = { status: "completed" };
+    console.log("COMPLETE_SUBTASK_REQUEST:", { url, method: "POST", payload });
+    const response = await api.post<ApiFrameworkSubTask>(url, payload);
+    console.log("COMPLETE_SUBTASK_RESPONSE:", response.data);
+    return response.data;
+  },
+
+  /**
+   * Delete a subtask.
+   */
+  deleteSubtask: async (taskId: string, subtaskId: string): Promise<void> => {
+    await api.delete(`/school/tasks/${taskId}/subtasks/${subtaskId}`);
+  },
+
+  /**
+   * Get task analytics data.
+   */
+  getTaskAnalytics: async (taskId: string): Promise<any> => {
+    const response = await api.get(`/school/tasks/${taskId}/analytics`);
+    return response.data;
+  },
+
+  /**
+   * Toggle legal counsel review status for a task.
+   */
+  toggleLegalCounselReview: async (taskId: string): Promise<{ legal_counsel_review: boolean }> => {
+    const response = await api.post<{ legal_counsel_review: boolean }>(
+      `/school/tasks/${taskId}/legal-counsel-review/toggle`
+    );
+    return response.data;
   },
 };

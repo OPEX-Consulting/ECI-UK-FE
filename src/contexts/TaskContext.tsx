@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 import { User, HARDCODED_USERS } from '@/types/incident';
+import type { ApiFrameworkSubTask } from '@/types/framework';
 
 import { FRAMEWORK_MOCK_TASKS } from '@/data/frameworkTasks';
 
@@ -31,6 +32,9 @@ export interface Task {
   evidenceUploaded: number; // Percentage 0-100
   attachments: TaskAttachment[];
   frameworkId?: string; // Optional link to a framework
+  subTasks?: ApiFrameworkSubTask[];
+  actionItems?: import('@/types/framework').ApiActionItem[];
+  legal_counsel_review?: boolean;
 }
 
 interface TaskContextType {
