@@ -39,3 +39,65 @@ export interface DashboardResponse {
   compliance_distribution: ComplianceDistData[];
   framework_status: FrameworkStatus[];
 }
+
+// ── Admin Dashboard Stats ──────────────────────────────────────────────────────
+
+export interface ReadinessScore {
+  score?: number;
+  change?: string;
+  label?: string;
+  last_month?: number;
+}
+
+export interface ComplianceVelocity {
+  days?: number;
+  label?: string;
+}
+
+export interface OrganisationCounts {
+  total?: number;
+  active?: number;
+  inactive?: number;
+  weekly_change?: number;
+}
+
+export interface PendingActions {
+  count?: number;
+  label?: string;
+}
+
+export interface AdminStats {
+  readiness_score?: ReadinessScore;
+  compliance_velocity?: ComplianceVelocity;
+  total_organisations?: OrganisationCounts;
+  pending_actions?: PendingActions;
+}
+
+export interface FrameworkComplianceItem {
+  name?: string;
+  completed?: number;
+}
+
+export interface LibraryStatusItem {
+  name?: string;
+  progress?: number;
+  next_date?: string;
+  color?: string;
+}
+
+export interface RecentIncident {
+  name?: string;
+  id?: string;
+  framework?: string;
+  type?: string;
+  status?: string;
+  date?: string;
+}
+
+export interface PaginatedIncidents {
+  items?: RecentIncident[];
+  total?: number;
+  page?: number;
+  limit?: number;
+  pages?: number;
+}
