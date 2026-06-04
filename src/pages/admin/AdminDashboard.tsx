@@ -1,4 +1,4 @@
-import React from "react";
+import { useState } from "react";
 import {
   TrendingUp,
   Pencil,
@@ -7,71 +7,26 @@ import {
   Calendar,
   ChevronRight,
   Filter,
+  Loader2,
+  AlertTriangle,
+  ChevronLeft,
 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import {
+  getAdminStats,
+  getFrameworkCompliance,
+  getLibraryStatus,
+  getRecentIncidents,
+} from "@/services/dashboardService";
+// ─── Constants ─────────────────────────────────────────────────────────────────
 
-// ─── Mock Data (replace with API integration later) ───────────────────────────
+const LIBRARY_COLORS = ["#16a34a", "#f97316", "#0d9488", "#6366f1", "#dc2626"];
 
-const mockComplianceDistribution = [
-  { name: "ISO 27001:2022", completed: 92 },
-  { name: "GDPR - Privacy", completed: 78 },
-  { name: "SOC 2 Type II", completed: 85 },
-  { name: "NIST CSF", completed: 64 },
-  { name: "HIPAA", completed: 100 },
-];
-
-const mockLibraryStatus = [
-  {
-    name: "Cybersecurity Act",
-    progress: 80,
-    nextDate: "Oct 12",
-    color: "#16a34a",
-  },
-  {
-    name: "Cloud Control Matrix",
-    progress: 45,
-    nextDate: "Sep 30",
-    color: "#f97316",
-  },
-  {
-    name: "PCI-DSS 4.0",
-    progress: 95,
-    nextDate: "Nov 05",
-    color: "#0d9488",
-  },
-];
-
-const mockIncidents = [
-  {
-    name: "Unauth Access Attempt - Region EU-1",
-    id: "INC-8821",
-    framework: "ISO 27001",
-    type: "SECURITY",
-    typeBg: "bg-emerald-500/10",
-    typeText: "text-emerald-700",
-    status: "RESOLVED",
-    date: "Aug 24, 2023",
-  },
-  {
-    name: "Data Retention Policy Violation",
-    id: "INC-8742",
-    framework: "GDPR",
-    type: "PRIVACY",
-    typeBg: "bg-emerald-500/10",
-    typeText: "text-emerald-700",
-    status: "RESOLVED",
-    date: "Aug 20, 2023",
-  },
-  {
-    name: "Third-Party Vendor Breach Alert",
-    id: "INC-8690",
-    framework: "SOC 2 Type II",
-    type: "RISK",
-    typeBg: "bg-emerald-500/10",
-    typeText: "text-emerald-700",
-    status: "RESOLVED",
-    date: "Aug 15, 2023",
-  },
-];
+const formatDate = (iso: string | null) => {
+  if (!iso) return "\u2014";
+  const d = new Date(iso);
+  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+};
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -120,6 +75,92 @@ const CircularProgress = ({ percentage }: { percentage: number }) => {
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 const AdminDashboard = () => {
+  const [incidentPage, setIncidentPage] = useState(1);
+  const INCIDENTS_PER_PAGE = 10;
+
+  const { data: stats, isPending: statsPending, isError: statsError } = useQuery({
+    queryKey: ["admin-stats"],
+    queryFn: getAdminStats,
+  });
+
+  const { data: complianceResp } = useQuery({
+    queryKey: ["admin-framework-compliance"],
+    queryFn: getFrameworkCompliance,
+  });
+
+  const { data: libraryResp } = useQuery({
+    queryKey: ["admin-library-status"],
+    queryFn: getLibraryStatus,
+  });
+
+  const { data: incidentsResp } = useQuery({
+    queryKey: ["admin-recent-incidents"],
+    queryFn: () => getRecentIncidents(100),
+  });
+
+  if (statsPending) {
+    return (
+      <div className="flex h-[50vh] items-center justify-center p-7">
+        <div className="flex flex-col items-center gap-2">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-sm text-muted-foreground">Loading dashboard data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (statsError || !stats) {
+    return (
+      <div className="flex h-[50vh] items-center justify-center p-7">
+        <div className="flex flex-col items-center gap-2 text-destructive">
+          <AlertTriangle className="h-8 w-8" />
+          <p className="text-sm">Failed to load dashboard data.</p>
+        </div>
+      </div>
+    );
+  }
+
+  const complianceList = complianceResp?.items ?? [];
+  const libraryItems = (libraryResp?.items ?? []).map((item, idx) => ({
+    ...item,
+    _progress:
+      item.total_organisations > 0
+        ? Math.round((item.organisations_completed / item.total_organisations) * 100)
+        : 0,
+    _color: LIBRARY_COLORS[idx % LIBRARY_COLORS.length],
+  }));
+
+  const allIncidents = incidentsResp?.items ?? [];
+  const totalIncidents = incidentsResp?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(totalIncidents / INCIDENTS_PER_PAGE));
+  const {
+    compliance_readiness: cr,
+    compliance_velocity: cv,
+    total_organisations: to,
+    pending_actions: pa,
+  } = stats;
+
+  const totalOrgs = to.total_active + to.total_inactive;
+  const activePct = totalOrgs > 0 ? (to.total_active / totalOrgs) * 100 : 0;
+  const inactivePct = totalOrgs > 0 ? (to.total_inactive / totalOrgs) * 100 : 0;
+
+  const readinessLabel =
+    cr.overall_percentage >= 80 ? "High" : cr.overall_percentage >= 50 ? "Medium" : "Low";
+
+  const incidents = allIncidents.slice(
+    (incidentPage - 1) * INCIDENTS_PER_PAGE,
+    incidentPage * INCIDENTS_PER_PAGE,
+  );
+
+  const pageNumbers: (number | "...")[] = [];
+  for (let i = 1; i <= totalPages; i++) {
+    if (i === 1 || i === totalPages || Math.abs(i - incidentPage) <= 1) {
+      pageNumbers.push(i);
+    } else if (pageNumbers[pageNumbers.length - 1] !== "...") {
+      pageNumbers.push("...");
+    }
+  }
+
   return (
     <div className="space-y-6 p-7 transition-colors duration-300">
       {/* Page Header */}
@@ -143,16 +184,16 @@ const AdminDashboard = () => {
             <div className="flex items-center gap-1.5">
               <TrendingUp className="w-3.5 h-3.5 text-emerald-500" />
               <span className="text-emerald-500 text-xs font-medium">
-                +2.4%
+                +{cr.percentage_increase.toFixed(1)}%
               </span>
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <CircularProgress percentage={84} />
+            <CircularProgress percentage={cr.overall_percentage} />
             <div>
-              <p className="text-foreground text-xl font-bold">High</p>
+              <p className="text-foreground text-xl font-bold">{readinessLabel}</p>
               <p className="text-muted-foreground text-xs mt-0.5">
-                Last month: 81.6%
+                Last month: {cr.last_month_percentage.toFixed(1)}%
               </p>
             </div>
           </div>
@@ -169,7 +210,7 @@ const AdminDashboard = () => {
           <div className="flex items-end justify-between">
             <div>
               <p className="text-foreground text-3xl font-bold leading-none">
-                14 Days
+                {Math.round(cv.average_days)} Days
               </p>
               <p className="text-muted-foreground text-xs mt-1.5">
                 Avg. Time to Close
@@ -196,29 +237,29 @@ const AdminDashboard = () => {
             <Building2 className="w-4 h-4 text-muted-foreground/40" />
           </div>
           <p className="text-foreground text-4xl font-bold leading-none mb-1">
-            148
+            {totalOrgs}
           </p>
           <p className="text-emerald-500 text-xs font-medium mb-3">
-            +3 this week
+            {cr.organisations_with_tasks} with active tasks
           </p>
           <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5">
             <span>
               Active:{" "}
-              <span className="text-foreground font-medium">132</span>
+              <span className="text-foreground font-medium">{to.total_active}</span>
             </span>
             <span>
               Inactive:{" "}
-              <span className="text-foreground font-medium">16</span>
+              <span className="text-foreground font-medium">{to.total_inactive}</span>
             </span>
           </div>
           <div className="h-1.5 bg-muted rounded-full overflow-hidden flex">
             <div
               className="h-full bg-emerald-500 rounded-l-full transition-all duration-500"
-              style={{ width: "89%" }}
+              style={{ width: `${activePct}%` }}
             />
             <div
               className="h-full bg-red-400 rounded-r-full transition-all duration-500"
-              style={{ width: "11%" }}
+              style={{ width: `${inactivePct}%` }}
             />
           </div>
         </div>
@@ -232,7 +273,7 @@ const AdminDashboard = () => {
             <AlertCircle className="w-4 h-4 text-red-500" />
           </div>
           <p className="text-red-500 text-4xl font-bold leading-none mb-2">
-            15
+            {pa.total}
           </p>
           <p className="text-muted-foreground text-xs leading-relaxed">
             Overdue tasks requiring immediate attention.
@@ -268,25 +309,25 @@ const AdminDashboard = () => {
             </div>
           </div>
           <div className="space-y-5">
-            {mockComplianceDistribution.map((item) => (
-              <div key={item.name} className="space-y-1.5">
+            {complianceList.map((item) => (
+              <div key={item.framework_id} className="space-y-1.5">
                 <div className="flex items-center justify-between">
                   <span className="text-foreground text-sm font-medium">
-                    {item.name}
+                    {item.framework_title}
                   </span>
                   <span className="text-foreground text-sm font-semibold">
-                    {item.completed}%
+                    {Math.round(item.completed_tasks)}%
                   </span>
                 </div>
                 <div className="h-3.5 bg-muted rounded overflow-hidden flex">
                   <div
                     className="h-full bg-[#1a5e3a] transition-all duration-700"
-                    style={{ width: `${item.completed}%` }}
+                    style={{ width: `${item.completed_tasks}%` }}
                   />
-                  {item.completed < 100 && (
+                  {item.completed_tasks < 100 && (
                     <div
                       className="h-full bg-[#d1e7dd] transition-all duration-700"
-                      style={{ width: `${100 - item.completed}%` }}
+                      style={{ width: `${item.incomplete_tasks}%` }}
                     />
                   )}
                 </div>
@@ -306,31 +347,31 @@ const AdminDashboard = () => {
             </button>
           </div>
           <div className="space-y-3">
-            {mockLibraryStatus.map((lib) => (
+            {libraryItems.map((lib) => (
               <div
-                key={lib.name}
+                key={lib.framework_id}
                 className="p-3.5 bg-muted/40 border border-border rounded-lg"
               >
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-foreground text-sm font-semibold">
-                    {lib.name}
+                    {lib.framework_title}
                   </p>
                   <span className="text-foreground text-sm font-semibold">
-                    {lib.progress}%
+                    {lib._progress}%
                   </span>
                 </div>
                 <div className="h-1.5 bg-muted rounded-full overflow-hidden mb-2.5">
                   <div
                     className="h-full rounded-full transition-all duration-500"
                     style={{
-                      width: `${lib.progress}%`,
-                      backgroundColor: lib.color,
+                      width: `${lib._progress}%`,
+                      backgroundColor: lib._color,
                     }}
                   />
                 </div>
                 <div className="flex items-center gap-1.5 text-muted-foreground">
                   <Calendar className="w-3 h-3" />
-                  <span className="text-xs">Next: {lib.nextDate}</span>
+                  <span className="text-xs">Next: {formatDate(lib.next_due_date)}</span>
                 </div>
               </div>
             ))}
@@ -376,27 +417,29 @@ const AdminDashboard = () => {
               </tr>
             </thead>
             <tbody>
-              {mockIncidents.map((incident) => (
+              {incidents.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="py-8 text-center text-sm text-muted-foreground">
+                    No incidents found.
+                  </td>
+                </tr>
+              )}
+              {incidents.map((incident, idx) => (
                 <tr
-                  key={incident.id}
+                  key={incident.incident_name + idx}
                   className="border-b border-border/50 last:border-0 hover:bg-muted/30 transition-colors"
                 >
                   <td className="py-4 px-6">
                     <p className="text-foreground text-sm font-medium">
-                      {incident.name}
-                    </p>
-                    <p className="text-muted-foreground text-xs mt-0.5">
-                      ID: {incident.id}
+                      {incident.incident_name}
                     </p>
                   </td>
                   <td className="py-4 px-4 text-muted-foreground text-sm">
-                    {incident.framework}
+                    {incident.framework ?? "\u2014"}
                   </td>
                   <td className="py-4 px-4">
-                    <span
-                      className={`text-xs px-2.5 py-1 rounded font-semibold ${incident.typeBg} ${incident.typeText}`}
-                    >
-                      {incident.type}
+                    <span className="text-xs px-2.5 py-1 rounded font-semibold bg-emerald-500/10 text-emerald-700">
+                      {incident.incident_type}
                     </span>
                   </td>
                   <td className="py-4 px-4">
@@ -406,13 +449,58 @@ const AdminDashboard = () => {
                     </span>
                   </td>
                   <td className="py-4 px-4 text-muted-foreground text-sm">
-                    {incident.date}
+                    {formatDate(incident.finalized_date)}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between px-6 py-3 border-t border-border">
+            <p className="text-xs text-muted-foreground">
+              Page {incidentPage} of {totalPages}
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setIncidentPage((p) => Math.max(1, p - 1))}
+                disabled={incidentPage <= 1}
+                className="flex items-center gap-1 px-3 py-1.5 text-sm text-muted-foreground border border-border rounded-lg hover:bg-muted/50 transition-colors disabled:opacity-40 disabled:pointer-events-none"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" />
+                Previous
+              </button>
+              {pageNumbers.map((p, idx) =>
+                p === "..." ? (
+                  <span key={`ellipsis-${idx}`} className="text-muted-foreground px-1">
+                    ...
+                  </span>
+                ) : (
+                  <button
+                    key={p}
+                    onClick={() => setIncidentPage(p)}
+                    className={`w-8 h-8 text-sm rounded-lg transition-colors ${
+                      p === incidentPage
+                        ? "bg-primary text-primary-foreground font-semibold"
+                        : "text-muted-foreground hover:bg-muted/50"
+                    }`}
+                  >
+                    {p}
+                  </button>
+                ),
+              )}
+              <button
+                onClick={() => setIncidentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={incidentPage >= totalPages}
+                className="flex items-center gap-1 px-3 py-1.5 text-sm text-muted-foreground border border-border rounded-lg hover:bg-muted/50 transition-colors disabled:opacity-40 disabled:pointer-events-none"
+              >
+                Next
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
