@@ -1,6 +1,9 @@
 import { useNavigate } from "react-router-dom";
+import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { useQuery } from "@tanstack/react-query";
+import { schoolDashboardService } from "@/services/school/dashboardService";
 import {
   TrendingDown,
   ShieldCheck,
@@ -8,111 +11,8 @@ import {
   Info,
   AlertCircle,
   FileText,
-  Link2,
-  Fingerprint,
-  ChevronDown,
+  Loader2,
 } from "lucide-react";
-
-// ─── Mock Data (replace with API integration later) ───────────────────────────
-
-const mockTaskDistribution = [
-  { label: "TO-DO", value: 24 },
-  { label: "IN PROGRESS", value: 18 },
-  { label: "IN REVIEW", value: "07" },
-  { label: "DONE", value: 112 },
-];
-
-const mockFrameworks = [
-  {
-    badge: "ISO",
-    badgeBg: "bg-emerald-500/10",
-    badgeText: "text-emerald-700",
-    name: "ISO 27001:2022",
-    subtitle: "Information Security",
-    score: 92,
-    scoreColor: "text-emerald-600",
-    bars: [50, 60, 55, 70, 65, 90],
-    barColor: "#1a5e3a",
-    controls: "14/15 Active Controls",
-    status: "Healthy",
-    statusColor: "text-emerald-500",
-  },
-  {
-    badge: "GDPR",
-    badgeBg: "bg-amber-500/10",
-    badgeText: "text-amber-700",
-    name: "EU GDPR",
-    subtitle: "Data Privacy",
-    score: 76,
-    scoreColor: "text-amber-600",
-    bars: [45, 55, 50, 60, 55, 85],
-    barColor: "#f59e0b",
-    controls: "22/31 Active Controls",
-    status: "Pending Evidence",
-    statusColor: "text-amber-500",
-  },
-  {
-    badge: "NIST",
-    badgeBg: "bg-emerald-500/10",
-    badgeText: "text-emerald-700",
-    name: "NIST CSF 2.0",
-    subtitle: "Cybersecurity Framework",
-    score: 84,
-    scoreColor: "text-emerald-600",
-    bars: [40, 50, 45, 60, 55, 80],
-    barColor: "#1a5e3a",
-    controls: "42/50 Active Controls",
-    status: "On Track",
-    statusColor: "text-emerald-500",
-  },
-];
-
-const mockUrgentActions = [
-  {
-    icon: "file",
-    task: "Annual Pentest Evidence Upload",
-    framework: "ISO 27001 (A.12.6.1)",
-    issue: "Critical Overdue",
-    issueColor: "text-red-500",
-    deadline: "Oct 24, 2023",
-    status: "IMMEDIATE",
-    statusDot: "bg-red-500",
-    statusColor: "text-red-500",
-  },
-  {
-    icon: "link",
-    task: "IAM Access Review Verification",
-    framework: "NIST CSF (PR.AC-1)",
-    issue: "Evidence Pending",
-    issueColor: "text-muted-foreground",
-    deadline: "Tomorrow",
-    status: "HIGH PRIORITY",
-    statusDot: "bg-amber-500",
-    statusColor: "text-amber-500",
-  },
-  {
-    icon: "fingerprint",
-    task: "Privacy Policy Revision Approval",
-    framework: "GDPR (Art. 13)",
-    issue: "Legal Signature Missing",
-    issueColor: "text-muted-foreground",
-    deadline: "Oct 29, 2023",
-    status: "PENDING LEGAL",
-    statusDot: "bg-gray-400",
-    statusColor: "text-muted-foreground",
-  },
-  {
-    icon: "file",
-    task: "Asset Registry Audit Trace",
-    framework: "ISO 27001 (A.8.1.1)",
-    issue: "Anomaly Detected",
-    issueColor: "text-muted-foreground",
-    deadline: "Oct 30, 2023",
-    status: "IN REVIEW",
-    statusDot: "bg-emerald-500",
-    statusColor: "text-emerald-500",
-  },
-];
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -158,23 +58,66 @@ const CircularProgress = ({ percentage }: { percentage: number }) => {
   );
 };
 
-const ActionIcon = ({ icon }: { icon: string }) => {
-  const cls = "w-4 h-4 text-muted-foreground";
-  switch (icon) {
-    case "link":
-      return <Link2 className={cls} />;
-    case "fingerprint":
-      return <Fingerprint className={cls} />;
-    default:
-      return <FileText className={cls} />;
-  }
+// ─── Main Component ───────────────────────────────────────────────────────────
+
+const DistItem = ({ label, value }: { label: string; value: number }) => (
+  <div className="bg-muted/40 border border-border rounded-lg px-3 py-3 text-center">
+    <p className="text-muted-foreground text-[9px] uppercase tracking-wider font-semibold mb-1">{label}</p>
+    <p className="text-foreground text-2xl font-bold">{value}</p>
+  </div>
+);
+
+const displayFramework = (fw: string | null) => {
+  if (!fw) return null;
+  const lowered = fw.toLowerCase();
+  if (lowered === "unknown" || lowered === "uncategorised" || lowered === "uncategorized") return null;
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}/i.test(fw)) return null;
+  return fw;
 };
 
-// ─── Main Component ───────────────────────────────────────────────────────────
+const formatDeadline = (iso: string | null) => {
+  if (!iso) return "\u2014";
+  const d = new Date(iso);
+  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+};
 
 export const OfficerDashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+
+  const [urgentPage, setUrgentPage] = useState(0);
+  const URGENT_PAGE_SIZE = 8;
+
+  const { data: dashboard, isPending: dashPending } = useQuery({
+    queryKey: ["officer-dashboard"],
+    queryFn: () => schoolDashboardService.getOfficerDashboard(),
+  });
+  const { data: fwCompliance, isPending: fwPending } = useQuery({
+    queryKey: ["officer-fw-compliance"],
+    queryFn: () => schoolDashboardService.getOfficerFrameworkCompliance(),
+  });
+  const { data: urgentActions, isPending: urgentPending } = useQuery({
+    queryKey: ["officer-urgent-actions"],
+    queryFn: () => schoolDashboardService.getUrgentActions(),
+  });
+
+  const isLoading = dashPending || fwPending || urgentPending;
+
+  if (isLoading) {
+    return (
+      <AppLayout>
+        <div className="flex h-[50vh] items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </AppLayout>
+    );
+  }
+
+  const taskDist = dashboard?.task_distribution;
+  const frameworks = fwCompliance?.items ?? [];
+  const urgentItems = urgentActions?.items ?? [];
+  const paginatedUrgent = urgentItems.slice(urgentPage * URGENT_PAGE_SIZE, (urgentPage + 1) * URGENT_PAGE_SIZE);
+  const urgentTotalPages = Math.max(1, Math.ceil(urgentItems.length / URGENT_PAGE_SIZE));
 
   return (
     <AppLayout>
@@ -200,17 +143,17 @@ export const OfficerDashboard = () => {
               Readiness Score
             </p>
             <div className="flex justify-center mb-5">
-              <CircularProgress percentage={88} />
+              <CircularProgress percentage={Math.round(dashboard?.readiness_score.percentage ?? 0)} />
             </div>
             <div className="flex items-center justify-around">
               <div className="text-center">
-                <p className="text-foreground text-2xl font-bold">142</p>
+                <p className="text-foreground text-2xl font-bold">{dashboard?.readiness_score.passed ?? 0}</p>
                 <p className="text-muted-foreground text-xs uppercase tracking-wider">
                   Passed
                 </p>
               </div>
               <div className="text-center">
-                <p className="text-foreground text-2xl font-bold">12</p>
+                <p className="text-foreground text-2xl font-bold">{dashboard?.readiness_score.flagged ?? 0}</p>
                 <p className="text-muted-foreground text-xs uppercase tracking-wider">
                   Flagged
                 </p>
@@ -233,16 +176,16 @@ export const OfficerDashboard = () => {
               </div>
               <div className="flex items-center gap-1 text-emerald-500">
                 <TrendingDown className="w-3 h-3" />
-                <span className="text-xs font-medium">0.5d</span>
+                <span className="text-xs font-medium">{dashboard?.compliance_velocity.average_days.toFixed(1)}d</span>
               </div>
             </div>
             <p className="text-foreground text-4xl font-bold leading-none mt-3 mb-2">
-              4.2 Days
+              {dashboard?.compliance_velocity.average_days.toFixed(1) ?? 0} Days
             </p>
             <div className="h-1.5 bg-muted rounded-full overflow-hidden">
               <div
                 className="h-full bg-emerald-500 rounded-full transition-all duration-500"
-                style={{ width: "70%" }}
+                style={{ width: `${Math.min(100, (dashboard?.compliance_velocity.average_days ?? 0) * 15)}%` }}
               />
             </div>
           </div>
@@ -261,7 +204,7 @@ export const OfficerDashboard = () => {
               Pending Approvals
             </p>
             <p className="text-foreground text-4xl font-bold leading-none mt-1 mb-2">
-              07 Items
+              {dashboard?.pending_items ?? 0} Items
             </p>
             <p className="text-muted-foreground text-sm italic">
               Requires review in next 24h
@@ -284,19 +227,14 @@ export const OfficerDashboard = () => {
               </div>
             </div>
             <div className="grid grid-cols-4 gap-3">
-              {mockTaskDistribution.map((task) => (
-                <div
-                  key={task.label}
-                  className="bg-muted/40 border border-border rounded-lg px-3 py-3 text-center"
-                >
-                  <p className="text-muted-foreground text-[9px] uppercase tracking-wider font-semibold mb-1">
-                    {task.label}
-                  </p>
-                  <p className="text-foreground text-2xl font-bold">
-                    {task.value}
-                  </p>
-                </div>
-              ))}
+              {taskDist && (
+                <>
+                  <DistItem label="TO-DO" value={taskDist.todo} />
+                  <DistItem label="IN PROGRESS" value={taskDist.in_progress} />
+                  <DistItem label="IN REVIEW" value={taskDist.in_review} />
+                  <DistItem label="DONE" value={taskDist.done} />
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -310,58 +248,67 @@ export const OfficerDashboard = () => {
             </p>
           </div>
           <div className="grid grid-cols-3 gap-4">
-            {mockFrameworks.map((fw) => (
-              <div
-                key={fw.name}
-                className="bg-card p-5 border border-border rounded-[10px] transition-colors duration-300"
-              >
-                <div className="flex items-start gap-3 mb-4">
-                  <span
-                    className={`text-[10px] px-2.5 py-1.5 rounded-md font-bold uppercase tracking-wider ${fw.badgeBg} ${fw.badgeText}`}
-                  >
-                    {fw.badge}
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-foreground text-sm font-semibold">
-                      {fw.name}
-                    </p>
-                    <p className="text-muted-foreground text-xs">
-                      {fw.subtitle}
-                    </p>
-                  </div>
-                  <span className={`text-xl font-bold ${fw.scoreColor}`}>
-                    {fw.score}%
-                  </span>
-                </div>
-                <div className="flex items-end gap-1.5 h-[40px] mb-3">
-                  {fw.bars.map((h, i) => (
-                    <div
-                      key={i}
-                      className={`flex-1 rounded-sm transition-all duration-300 ${
-                        i === fw.bars.length - 1
-                          ? ""
-                          : "bg-muted-foreground/15"
+            {frameworks.map((fw) => {
+              const statusColor =
+                fw.status === "Healthy" || fw.status === "On Track"
+                  ? "text-emerald-500"
+                  : fw.status === "Pending Evidence"
+                    ? "text-amber-500"
+                    : "text-muted-foreground";
+              return (
+                <div
+                  key={fw.framework_id}
+                  className="bg-card p-5 border border-border rounded-[10px] transition-colors duration-300"
+                >
+                  <div className="flex items-start gap-3 mb-4">
+                    <span
+                      className={`text-[10px] px-2.5 py-1.5 rounded-md font-bold uppercase tracking-wider ${
+                        fw.percentage >= 80
+                          ? "bg-emerald-500/10 text-emerald-700"
+                          : "bg-amber-500/10 text-amber-700"
                       }`}
-                      style={{
-                        height: `${h * 0.4}px`,
-                        backgroundColor:
-                          i === fw.bars.length - 1
-                            ? fw.barColor
-                            : undefined,
-                      }}
-                    />
-                  ))}
+                    >
+                      {fw.category}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-foreground text-sm font-semibold">
+                        {fw.framework_name}
+                      </p>
+                      <p className="text-muted-foreground text-xs">
+                        {fw.category}
+                      </p>
+                    </div>
+                    <span className={`text-xl font-bold ${
+                      fw.percentage >= 80 ? "text-emerald-600" : "text-amber-600"
+                    }`}>
+                      {Math.round(fw.percentage)}%
+                    </span>
+                  </div>
+                  <div className="flex items-end gap-1.5 h-[40px] mb-3">
+                    {[50, 60, 55, 70, 65, fw.percentage].map((h, i) => (
+                      <div
+                        key={i}
+                        className={`flex-1 rounded-sm transition-all duration-300 ${
+                          i === 5 ? "" : "bg-muted-foreground/15"
+                        }`}
+                        style={{
+                          height: `${h * 0.4}px`,
+                          backgroundColor: i === 5 ? "#1a5e3a" : undefined,
+                        }}
+                      />
+                    ))}
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground text-xs">
+                      {fw.active_controls}/{fw.total_controls} Active Controls
+                    </span>
+                    <span className={`text-xs font-medium ${statusColor}`}>
+                      {fw.status}
+                    </span>
+                  </div>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground text-xs">
-                    {fw.controls}
-                  </span>
-                  <span className={`text-xs font-medium ${fw.statusColor}`}>
-                    {fw.status}
-                  </span>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
@@ -403,54 +350,111 @@ export const OfficerDashboard = () => {
                 </tr>
               </thead>
               <tbody>
-                {mockUrgentActions.map((action, idx) => (
-                  <tr
-                    key={idx}
-                    className="border-b border-border/50 last:border-0 hover:bg-muted/30 transition-colors cursor-pointer"
-                  >
-                    <td className="py-4 px-6">
-                      <div className="flex items-center gap-2.5">
-                        <ActionIcon icon={action.icon} />
-                        <span className="text-foreground text-sm font-medium">
-                          {action.task}
+                {                urgentItems.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="py-8 text-center text-sm text-muted-foreground">
+                    No urgent actions.
+                  </td>
+                </tr>
+              ) : (
+                paginatedUrgent.map((action) => {
+                  const s = action.status.toUpperCase();
+                  const dotColor = s === "TODO"
+                    ? "bg-gray-400"
+                    : s === "IN_PROGRESS"
+                      ? "bg-blue-500"
+                      : s === "REVIEW"
+                        ? "bg-amber-500"
+                        : s === "DONE"
+                          ? "bg-emerald-500"
+                          : s === "CRITICAL" || s === "IMMEDIATE"
+                            ? "bg-red-500"
+                            : s === "HIGH" || s === "HIGH PRIORITY"
+                              ? "bg-amber-500"
+                              : s === "IN REVIEW" || s === "PENDING"
+                                ? "bg-gray-400"
+                                : "bg-emerald-500";
+                  const textColor = s === "TODO" || s === "PENDING"
+                    ? "text-gray-500"
+                    : s === "IN_PROGRESS"
+                      ? "text-blue-500"
+                      : s === "REVIEW"
+                        ? "text-amber-500"
+                        : s === "DONE"
+                          ? "text-emerald-500"
+                          : s === "CRITICAL" || s === "IMMEDIATE"
+                            ? "text-red-500"
+                            : s === "HIGH" || s === "HIGH PRIORITY"
+                              ? "text-amber-500"
+                              : s === "IN REVIEW"
+                                ? "text-emerald-500"
+                                : "text-muted-foreground";
+                  return (
+                    <tr
+                      key={action.id}
+                      className="border-b border-border/50 last:border-0 hover:bg-muted/30 transition-colors cursor-pointer"
+                    >
+                      <td className="py-4 px-6">
+                        <div className="flex items-center gap-2.5">
+                          <FileText className="w-4 h-4 text-muted-foreground" />
+                          <span className="text-foreground text-sm font-medium">
+                            {action.title}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="py-4 px-4 text-muted-foreground text-sm">
+                        {displayFramework(action.framework) ?? "\u2014"}
+                      </td>
+                      <td className="py-4 px-4">
+                        <span className={`text-sm font-medium ${
+                          action.issue === "Critical Overdue"
+                            ? "text-red-500"
+                            : "text-muted-foreground"
+                        }`}>
+                          {action.issue}
                         </span>
-                      </div>
-                    </td>
-                    <td className="py-4 px-4 text-muted-foreground text-sm">
-                      {action.framework}
-                    </td>
-                    <td className="py-4 px-4">
-                      <span
-                        className={`text-sm font-medium ${action.issueColor}`}
-                      >
-                        {action.issue}
-                      </span>
-                    </td>
-                    <td className="py-4 px-4 text-muted-foreground text-sm">
-                      {action.deadline}
-                    </td>
-                    <td className="py-4 px-4">
-                      <span className="flex items-center gap-1.5">
-                        <span
-                          className={`w-2 h-2 rounded-full ${action.statusDot}`}
-                        />
-                        <span
-                          className={`text-xs font-semibold uppercase tracking-wider ${action.statusColor}`}
-                        >
-                          {action.status}
+                      </td>
+                      <td className="py-4 px-4 text-muted-foreground text-sm">
+                        {formatDeadline(action.deadline)}
+                      </td>
+                      <td className="py-4 px-4">
+                        <span className="flex items-center gap-1.5">
+                          <span className={`w-2 h-2 rounded-full ${dotColor}`} />
+                          <span className={`text-xs font-semibold uppercase tracking-wider ${textColor}`}>
+                            {action.status}
+                          </span>
                         </span>
-                      </span>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
               </tbody>
             </table>
           </div>
-          <div className="flex justify-center py-4 border-t border-border">
-            <button className="flex items-center gap-1.5 text-muted-foreground text-xs font-semibold uppercase tracking-wider hover:text-foreground transition-colors">
-              Load More Actions
-              <ChevronDown className="w-3.5 h-3.5" />
-            </button>
+          <div className="flex items-center justify-between py-4 border-t border-border px-6">
+            <span className="text-xs text-muted-foreground">
+              {urgentItems.length} total
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setUrgentPage(Math.max(0, urgentPage - 1))}
+                disabled={urgentPage === 0}
+                className="px-3 py-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground disabled:opacity-30 transition-colors"
+              >
+                Previous
+              </button>
+              <span className="text-xs text-muted-foreground">
+                {urgentPage + 1} / {urgentTotalPages}
+              </span>
+              <button
+                onClick={() => setUrgentPage(Math.min(urgentTotalPages - 1, urgentPage + 1))}
+                disabled={urgentPage >= urgentTotalPages - 1}
+                className="px-3 py-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground disabled:opacity-30 transition-colors"
+              >
+                Next
+              </button>
+            </div>
           </div>
         </div>
       </div>

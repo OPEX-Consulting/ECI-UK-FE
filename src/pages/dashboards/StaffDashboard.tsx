@@ -2,6 +2,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
+import { useQuery } from '@tanstack/react-query';
+import { schoolDashboardService } from '@/services/school/dashboardService';
 import {
   FileText,
   AlertTriangle,
@@ -18,80 +20,10 @@ import {
   Filter,
   Calendar,
   Folder,
+  Loader2,
 } from 'lucide-react';
 
-// ─── Mock Data ───────────────────────────────────────────────────────────────
 
-const mockAssignments = [
-  {
-    id: "task-1",
-    title: "Upload Pentest Report",
-    status: "OVERDUE",
-    statusColor: "text-red-600 bg-red-500/10 border-red-200/50",
-    borderColor: "border-red-500/20 hover:border-red-500/35",
-    date: "Oct 12, 2023",
-    category: "Security Operations",
-    iconBg: "bg-blue-500/10",
-    iconColor: "text-blue-500",
-  },
-  {
-    id: "task-2",
-    title: "Review IAM Policy",
-    status: "DUE TODAY",
-    statusColor: "text-amber-600 bg-amber-500/10 border-amber-200/50",
-    borderColor: "border-amber-500/20 hover:border-amber-500/35",
-    date: "Oct 25, 2023",
-    category: "Governance",
-    iconBg: "bg-blue-500/10",
-    iconColor: "text-blue-500",
-  },
-  {
-    id: "task-3",
-    title: "Update Asset Registry",
-    status: "ON TRACK",
-    statusColor: "text-emerald-600 bg-emerald-500/10 border-emerald-200/50",
-    borderColor: "border-emerald-500/20 hover:border-emerald-500/35",
-    date: "Oct 28, 2023",
-    category: "Asset Management",
-    iconBg: "bg-blue-500/10",
-    iconColor: "text-blue-500",
-  },
-];
-
-const mockFrameworks = [
-  { name: "ISO 27001", progress: 82, badge: "ISO" },
-  { name: "GDPR", progress: 65, badge: "EU" },
-];
-
-const mockActivity = [
-  {
-    id: "act-1",
-    type: "approved",
-    title: 'Evidence Approved for "Network Access Log Review"',
-    time: "2 HOURS AGO",
-    author: "BY AUDIT TEAM",
-    quote: "Documentation looks solid, Marcus. Covers all requirements for Q3.",
-  },
-  {
-    id: "act-2",
-    type: "comment",
-    title: 'New Comment on "Encryption Standard Update"',
-    time: "YESTERDAY",
-    author: "SARAH JENKINS",
-  },
-  {
-    id: "act-3",
-    type: "submitted",
-    title: 'File Submitted: "Firewall_Config_v2.pdf"',
-    time: "2 DAYS AGO",
-  },
-  {
-    id: "act-4",
-    type: "adjusted",
-    title: "Deadline Adjusted for High Priority Task",
-    time: "3 DAYS AGO",
-  },
-];
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
 
@@ -140,9 +72,97 @@ const CircularProgress = ({ percentage, trend }: { percentage: number; trend?: s
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 
+const statusStyle = (status: string) => {
+  const s = status.toUpperCase();
+  if (s === "OVERDUE" || s === "CRITICAL")
+    return "text-red-600 bg-red-500/10 border-red-200/50";
+  if (s === "DUE TODAY" || s === "HIGH" || s === "DUE_SOON")
+    return "text-amber-600 bg-amber-500/10 border-amber-200/50";
+  return "text-emerald-600 bg-emerald-500/10 border-emerald-200/50";
+};
+
+const borderStyle = (status: string) => {
+  const s = status.toUpperCase();
+  if (s === "OVERDUE" || s === "CRITICAL")
+    return "border-red-500/20 hover:border-red-500/35";
+  if (s === "DUE TODAY" || s === "HIGH" || s === "DUE_SOON")
+    return "border-amber-500/20 hover:border-amber-500/35";
+  return "border-emerald-500/20 hover:border-emerald-500/35";
+};
+
+const formatTimestamp = (iso: string) => {
+  const d = new Date(iso);
+  const now = new Date();
+  const diffMs = now.getTime() - d.getTime();
+  const diffHrs = Math.floor(diffMs / 3600000);
+  if (diffHrs < 1) return "JUST NOW";
+  if (diffHrs < 24) return `${diffHrs} HOURS AGO`;
+  const diffDays = Math.floor(diffHrs / 24);
+  if (diffDays === 1) return "YESTERDAY";
+  return `${diffDays} DAYS AGO`;
+};
+
+const displayFramework = (fw: string | null) => {
+  if (!fw) return null;
+  const lowered = fw.toLowerCase();
+  if (lowered === "unknown" || lowered === "uncategorised" || lowered === "uncategorized") return null;
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}/i.test(fw)) return null;
+  return fw;
+};
+
+const formatDueDate = (iso: string | null) => {
+  if (!iso) return "No date";
+  const d = new Date(iso);
+  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+};
+
+const activityIcon = (action: string) => {
+  const a = action.toLowerCase();
+  if (a.includes("approv") || a.includes("accept")) return "approved";
+  if (a.includes("comment") || a.includes("message")) return "comment";
+  if (a.includes("submit") || a.includes("upload") || a.includes("file"))
+    return "submitted";
+  if (a.includes("adjust") || a.includes("deadline") || a.includes("change"))
+    return "adjusted";
+  return "comment";
+};
+
 export const StaffDashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+
+  const { data: dashboard, isPending: dashPending } = useQuery({
+    queryKey: ["teacher-dashboard"],
+    queryFn: () => schoolDashboardService.getTeacherDashboard(),
+  });
+  const { data: activityResp, isPending: actPending } = useQuery({
+    queryKey: ["teacher-activity"],
+    queryFn: () => schoolDashboardService.getTeacherActivity(),
+  });
+  const { data: assignmentsResp, isPending: assignPending } = useQuery({
+    queryKey: ["teacher-assignments"],
+    queryFn: () => schoolDashboardService.getTeacherAssignments(),
+  });
+  const { data: fwContribution, isPending: fwPending } = useQuery({
+    queryKey: ["teacher-fw-contribution"],
+    queryFn: () => schoolDashboardService.getTeacherFrameworkContribution(),
+  });
+
+  const isLoading = dashPending || actPending || assignPending || fwPending;
+
+  if (isLoading) {
+    return (
+      <AppLayout>
+        <div className="flex h-[50vh] items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </AppLayout>
+    );
+  }
+
+  const assignments = assignmentsResp?.items ?? [];
+  const activityItems = activityResp?.items ?? [];
+  const frameworks = fwContribution?.items ?? [];
 
   return (
     <AppLayout>
@@ -174,7 +194,10 @@ export const StaffDashboard = () => {
               </button>
             </div>
             <div className="py-2">
-              <CircularProgress percentage={94} trend="↑ 1.2%" />
+              <CircularProgress
+                percentage={Math.round(dashboard?.compliance_health.percentage ?? 0)}
+                trend={`↑ ${(dashboard?.compliance_health.increase ?? 0).toFixed(1)}%`}
+              />
             </div>
           </div>
 
@@ -190,7 +213,7 @@ export const StaffDashboard = () => {
             </div>
             <div className="mt-4">
               <p className="text-foreground text-4xl font-bold leading-none mb-1">
-                2.8 Days
+                {dashboard?.compliance_velocity_days.toFixed(1)} Days
               </p>
               <p className="font-semibold text-muted-foreground text-[10px] uppercase tracking-widest mb-3">
                 Completion Velocity
@@ -198,7 +221,7 @@ export const StaffDashboard = () => {
               <div className="h-1.5 bg-muted rounded-full overflow-hidden">
                 <div
                   className="h-full bg-emerald-600 rounded-full transition-all duration-500"
-                  style={{ width: "80%" }}
+                  style={{ width: `${Math.min(100, (dashboard?.compliance_velocity_days ?? 0) * 20)}%` }}
                 />
               </div>
             </div>
@@ -217,13 +240,13 @@ export const StaffDashboard = () => {
             </div>
             <div className="mt-4">
               <p className="text-red-600 text-4xl font-bold leading-none mb-1">
-                3 Tasks
+                {dashboard?.due_tasks ?? 0} Tasks
               </p>
               <p className="font-semibold text-red-500/80 text-[10px] uppercase tracking-widest mb-3">
                 Items Due Soon
               </p>
               <p className="text-muted-foreground text-xs italic">
-                Required for quarterly audit compliance.
+                {dashboard?.total_incidents ?? 0} total incidents reported.
               </p>
             </div>
           </div>
@@ -247,94 +270,110 @@ export const StaffDashboard = () => {
                 </div>
               </div>
 
-              <div className="space-y-3">
-                {mockAssignments.map((assignment) => (
-                  <div
-                    key={assignment.id}
-                    className={`p-4 border-2 ${assignment.borderColor} rounded-[10px] bg-card flex items-center justify-between transition-all`}
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className={`w-10 h-10 rounded-lg ${assignment.iconBg} flex items-center justify-center`}>
-                        <AlertTriangle className={`w-5 h-5 ${assignment.status === 'OVERDUE' ? 'text-red-500' : assignment.status === 'DUE TODAY' ? 'text-amber-500' : 'text-emerald-500'}`} />
-                      </div>
-                      <div>
-                        <h3 className="font-bold text-foreground text-sm">{assignment.title}</h3>
-                        <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
-                          <span className="flex items-center gap-1">
-                            <Calendar className="w-3 h-3" /> {assignment.date}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Folder className="w-3 h-3" /> {assignment.category}
-                          </span>
+              {assignments.length === 0 ? (
+                <p className="text-muted-foreground text-sm py-6 text-center">No active assignments.</p>
+              ) : (
+                <div className="space-y-3">
+                  {assignments.map((a) => (
+                    <div
+                      key={a.id}
+                      onClick={() => navigate("/tasks")}
+                      className={`p-4 border-2 ${borderStyle(a.priority)} rounded-[10px] bg-card flex items-center justify-between transition-all cursor-pointer`}
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                          <AlertTriangle className={`w-5 h-5 ${
+                            a.priority === "OVERDUE" || a.priority === "CRITICAL"
+                              ? "text-red-500"
+                              : a.priority === "HIGH" || a.priority === "DUE_SOON"
+                                ? "text-amber-500"
+                                : "text-emerald-500"
+                          }`} />
+                        </div>
+                        <div>
+                          <h3 className="font-bold text-foreground text-sm">{a.title}</h3>
+                          <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
+                            <span className="flex items-center gap-1">
+                              <Calendar className="w-3 h-3" /> {formatDueDate(a.due_date)}
+                            </span>
+                            {displayFramework(a.framework) && (
+                              <span className="flex items-center gap-1">
+                                <Folder className="w-3 h-3" /> {displayFramework(a.framework)}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
+                      <div className="flex items-center gap-3">
+                        <span className={`text-[9px] px-2 py-0.5 rounded font-bold uppercase tracking-wider border ${statusStyle(a.priority)}`}>
+                          {a.status}
+                        </span>
+                        <ChevronRight className="w-4 h-4 text-muted-foreground/60" />
+                      </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <span className={`text-[9px] px-2 py-0.5 rounded font-bold uppercase tracking-wider border ${assignment.statusColor}`}>
-                        {assignment.status}
-                      </span>
-                      <ChevronRight className="w-4 h-4 text-muted-foreground/60" />
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Framework Contributions */}
             <div>
               <h2 className="text-lg font-bold text-foreground mb-4">Framework Contributions</h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {mockFrameworks.map((fw) => (
-                  <div key={fw.name} className="bg-card p-4 border border-border rounded-[10px] flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <span className="text-[10px] px-2.5 py-1.5 rounded-md font-bold uppercase bg-muted text-muted-foreground tracking-wider">
-                        {fw.badge}
-                      </span>
-                      <div>
-                        <p className="text-foreground text-sm font-semibold">{fw.name}</p>
-                        <div className="w-[120px] h-1.5 bg-muted rounded-full overflow-hidden mt-1.5">
-                          <div className="h-full bg-emerald-600 rounded-full" style={{ width: `${fw.progress}%` }} />
+              {frameworks.length === 0 ? (
+                <p className="text-muted-foreground text-sm py-6 text-center">No framework contributions.</p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {frameworks.map((fw) => (
+                    <div key={fw.framework_id} className="bg-card p-4 border border-border rounded-[10px] flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <span className="text-[10px] px-2.5 py-1.5 rounded-md font-bold uppercase bg-muted text-muted-foreground tracking-wider">
+                          {fw.framework_name.slice(0, 6)}
+                        </span>
+                        <div>
+                          <p className="text-foreground text-sm font-semibold">{fw.framework_name}</p>
+                          <div className="w-[120px] h-1.5 bg-muted rounded-full overflow-hidden mt-1.5">
+                            <div className="h-full bg-emerald-600 rounded-full" style={{ width: `${fw.percentage}%` }} />
+                          </div>
                         </div>
                       </div>
+                      <span className="text-sm font-bold text-muted-foreground">{Math.round(fw.percentage)}%</span>
                     </div>
-                    <span className="text-sm font-bold text-muted-foreground">{fw.progress}%</span>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
           {/* Right Column: Recent Activity */}
           <div className="bg-card p-5 border border-border rounded-[10px]">
             <h2 className="text-lg font-bold text-foreground mb-6">Recent Activity</h2>
-            <div className="relative pl-6 border-l border-border space-y-6 ml-3">
-              {mockActivity.map((activity) => (
-                <div key={activity.id} className="relative">
-                  {/* Node Icon */}
-                  <div className="absolute -left-[36px] top-0 w-6 h-6 rounded-full bg-card border border-border flex items-center justify-center">
-                    {activity.type === 'approved' && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />}
-                    {activity.type === 'comment' && <MessageSquare className="w-3.5 h-3.5 text-muted-foreground" />}
-                    {activity.type === 'submitted' && <Upload className="w-3.5 h-3.5 text-muted-foreground" />}
-                    {activity.type === 'adjusted' && <Flag className="w-3.5 h-3.5 text-red-500" />}
-                  </div>
-
-                  {/* Content */}
-                  <div>
-                    <h4 className="text-xs font-semibold text-foreground leading-tight">
-                      {activity.title}
-                    </h4>
-                    <p className="text-[9px] text-muted-foreground font-semibold tracking-wider mt-1 uppercase">
-                      {activity.time} {activity.author ? `• ${activity.author}` : ''}
-                    </p>
-                    {activity.quote && (
-                      <div className="bg-slate-50 border border-slate-100 rounded-lg p-2.5 mt-2 text-xs italic text-slate-600 font-medium">
-                        "{activity.quote}"
+            {activityItems.length === 0 ? (
+              <p className="text-muted-foreground text-sm py-6 text-center">No recent activity.</p>
+            ) : (
+              <div className="relative pl-6 border-l border-border space-y-6 ml-3">
+                {activityItems.map((act) => {
+                  const iconType = activityIcon(act.action);
+                  return (
+                    <div key={act.id} className="relative">
+                      <div className="absolute -left-[36px] top-0 w-6 h-6 rounded-full bg-card border border-border flex items-center justify-center">
+                        {iconType === 'approved' && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />}
+                        {iconType === 'comment' && <MessageSquare className="w-3.5 h-3.5 text-muted-foreground" />}
+                        {iconType === 'submitted' && <Upload className="w-3.5 h-3.5 text-muted-foreground" />}
+                        {iconType === 'adjusted' && <Flag className="w-3.5 h-3.5 text-red-500" />}
                       </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
+                      <div>
+                        <h4 className="text-xs font-semibold text-foreground leading-tight">
+                          {act.entity_name}
+                        </h4>
+                        <p className="text-[9px] text-muted-foreground font-semibold tracking-wider mt-1 uppercase">
+                          {formatTimestamp(act.timestamp)} &bull; {act.action}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       </div>

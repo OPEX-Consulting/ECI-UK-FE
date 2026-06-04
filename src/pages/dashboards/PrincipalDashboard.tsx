@@ -3,102 +3,19 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
+import { useQuery } from "@tanstack/react-query";
+import { schoolDashboardService } from "@/services/school/dashboardService";
 import {
-  TrendingUp,
   Clock,
   AlertCircle,
   ExternalLink,
   ChevronRight,
   Download,
+  Loader2,
+  AlertTriangle,
 } from "lucide-react";
 
-// ─── Mock Data (replace with API integration later) ───────────────────────────
 
-const mockDistributionCategories = [
-  {
-    name: "Safeguarding",
-    percentage: 98,
-    bars: [65, 80, 55, 90, 70],
-  },
-  {
-    name: "Health & Safety",
-    percentage: 84,
-    bars: [50, 60, 45, 75, 55],
-  },
-  {
-    name: "GDPR / Privacy",
-    percentage: 91,
-    bars: [60, 55, 85, 70, 50],
-  },
-  {
-    name: "Finance Controls",
-    percentage: 72,
-    bars: [45, 50, 40, 60, 55],
-  },
-];
-
-const mockFrameworkHealth = [
-  {
-    name: "KCSIE 2025",
-    subtitle: "STATUTORY GUIDANCE",
-    score: 88,
-    change: "+1.2%",
-    bars: [50, 70, 55, 80, 65, 90, 75],
-  },
-  {
-    name: "ISO 27001",
-    subtitle: "INFORMATION SECURITY",
-    score: 64,
-    change: "STABLE",
-    bars: [40, 55, 45, 60, 50, 55, 45],
-  },
-];
-
-const mockPendingActions = [
-  {
-    label: "Critical Overdue",
-    description: "Staff Safeguarding Audit",
-    variant: "critical" as const,
-  },
-  {
-    label: "Due in 24h",
-    description: "Financial Risk Assessment",
-    variant: "warning" as const,
-  },
-];
-
-const mockIncidents = [
-  {
-    name: "Unauthorised Visitor Access",
-    category: "Site Security",
-    status: "Under Review",
-    statusColor: "amber",
-    priority: "HIGH",
-    priorityBg: "bg-red-500",
-    priorityText: "text-white",
-    date: "Oct 24, 09:12",
-  },
-  {
-    name: "Data Breach (Accidental Email)",
-    category: "GDPR",
-    status: "Resolved",
-    statusColor: "emerald",
-    priority: "MEDIUM",
-    priorityBg: "bg-amber-500",
-    priorityText: "text-white",
-    date: "Oct 22, 14:45",
-  },
-  {
-    name: "Missing Fire Drill Record",
-    category: "H&S Compliance",
-    status: "Under Review",
-    statusColor: "amber",
-    priority: "LOW",
-    priorityBg: "bg-gray-200",
-    priorityText: "text-gray-700",
-    date: "Oct 21, 10:30",
-  },
-];
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -175,6 +92,109 @@ export const PrincipalDashboard = () => {
     "department" | "framework"
   >("framework");
 
+  const {
+    data: principalDash,
+    isPending: pdPending,
+    isError: pdError,
+  } = useQuery({
+    queryKey: ["school-principal-dashboard"],
+    queryFn: () => schoolDashboardService.getPrincipalDashboard(),
+  });
+
+  const {
+    data: velocity,
+    isPending: velPending,
+    isError: velError,
+  } = useQuery({
+    queryKey: ["school-compliance-velocity"],
+    queryFn: () => schoolDashboardService.getComplianceVelocity(),
+  });
+  const {
+    data: pendingActions,
+    isPending: paPending,
+    isError: paError,
+  } = useQuery({
+    queryKey: ["school-pending-actions"],
+    queryFn: () => schoolDashboardService.getPendingActions(),
+  });
+  const {
+    data: distribution,
+    isPending: distPending,
+    isError: distError,
+  } = useQuery({
+    queryKey: ["school-distribution"],
+    queryFn: () => schoolDashboardService.getDistribution(),
+  });
+  const {
+    data: frameworkHealth,
+    isPending: fhPending,
+    isError: fhError,
+  } = useQuery({
+    queryKey: ["school-framework-health"],
+    queryFn: () => schoolDashboardService.getFrameworkHealth(),
+  });
+  const {
+    data: incidentsResp,
+    isPending: incPending,
+    isError: incError,
+  } = useQuery({
+    queryKey: ["school-recent-incidents"],
+    queryFn: () => schoolDashboardService.getRecentIncidents(),
+  });
+
+  const isLoading = pdPending || velPending || paPending || distPending || fhPending || incPending;
+  const hasError = pdError || velError || paError || distError || fhError || incError;
+
+  if (isLoading) {
+    return (
+      <AppLayout>
+        <div className="flex h-[50vh] items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </AppLayout>
+    );
+  }
+
+  if (hasError) {
+    return (
+      <AppLayout>
+        <div className="flex h-[50vh] items-center justify-center text-destructive flex-col gap-2">
+          <AlertTriangle className="h-8 w-8" />
+          <p className="text-sm">Failed to load dashboard data.</p>
+        </div>
+      </AppLayout>
+    );
+  }
+
+  const displayFramework = (fw: string | null) => {
+    if (!fw) return null;
+    const lowered = fw.toLowerCase();
+    if (lowered === "unknown" || lowered === "uncategorised" || lowered === "uncategorized") return null;
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}/i.test(fw)) return null;
+    return fw;
+  };
+
+  const allPending: { label: string; description: string; framework: string | null; variant: "critical" | "warning" }[] = [
+    ...(pendingActions?.critical_overdue ?? []).map((a) => ({
+      label: "Critical Overdue",
+      description: a.title,
+      framework: displayFramework(a.framework),
+      variant: "critical" as const,
+    })),
+    ...(pendingActions?.due_in_24h ?? []).map((a) => ({
+      label: "Due in 24h",
+      description: a.title,
+      framework: displayFramework(a.framework),
+      variant: "warning" as const,
+    })),
+  ];
+
+  const catDist = distribution?.by_category ?? [];
+  const fwDist = distribution?.by_framework ?? [];
+
+  const fwHealthItems = frameworkHealth?.items ?? [];
+  const incidents = incidentsResp?.items ?? [];
+
   return (
     <AppLayout>
       <div className="space-y-6">
@@ -202,11 +222,10 @@ export const PrincipalDashboard = () => {
               Regulatory Readiness Score
             </p>
             <div className="flex justify-center mb-3">
-              <CircularProgress percentage={92} />
+              <CircularProgress percentage={Math.round(principalDash?.incident_readiness.percentage ?? 0)} />
             </div>
             <p className="text-center text-muted-foreground text-xs leading-relaxed">
-              Institutional compliance is trending positively across all
-              monitored frameworks.
+              {principalDash?.total_incidents.label ?? "Institutional compliance overview"}
             </p>
           </div>
 
@@ -216,7 +235,7 @@ export const PrincipalDashboard = () => {
               Operational Compliance Velocity
             </p>
             <p className="text-foreground text-4xl font-bold leading-none mb-1">
-              4.2{" "}
+              {velocity ? `${velocity.current_mttr_days.toFixed(1)}` : "\u2014"}{" "}
               <span className="text-lg font-normal text-muted-foreground">
                 days
               </span>
@@ -230,13 +249,13 @@ export const PrincipalDashboard = () => {
                 <p className="text-emerald-600 text-[10px] font-semibold uppercase tracking-wider">
                   Target
                 </p>
-                <p className="text-foreground text-lg font-bold mt-0.5">5.0d</p>
+                <p className="text-foreground text-lg font-bold mt-0.5">{velocity ? `${velocity.target_days.toFixed(1)}d` : "\u2014"}</p>
               </div>
               <div className="flex-1 bg-muted/50 border border-border rounded-lg px-3 py-2.5">
                 <p className="text-muted-foreground text-[10px] font-semibold uppercase tracking-wider">
                   Previous
                 </p>
-                <p className="text-foreground text-lg font-bold mt-0.5">4.8d</p>
+                <p className="text-foreground text-lg font-bold mt-0.5">{velocity ? `${velocity.previous_mttr_days.toFixed(1)}d` : "\u2014"}</p>
               </div>
             </div>
           </div>
@@ -246,40 +265,54 @@ export const PrincipalDashboard = () => {
             <p className="font-semibold text-muted-foreground text-[10px] uppercase tracking-widest mb-4">
               Pending Institutional Actions
             </p>
-            <div className="space-y-3 mb-4">
-              {mockPendingActions.map((action, i) => (
-                <div
-                  key={i}
-                  className={`flex items-start justify-between p-3 rounded-lg border-l-4 ${
-                    action.variant === "critical"
-                      ? "bg-red-50 dark:bg-red-500/5 border-red-500"
-                      : "bg-amber-50 dark:bg-amber-500/5 border-amber-400"
-                  }`}
-                >
-                  <div>
-                    <p
-                      className={`text-sm font-semibold ${
-                        action.variant === "critical"
-                          ? "text-red-600"
-                          : "text-amber-600"
-                      }`}
-                    >
-                      {action.label}
-                    </p>
-                    <p className="text-muted-foreground text-xs mt-0.5">
-                      {action.description}
-                    </p>
+            {allPending.length === 0 ? (
+              <p className="text-muted-foreground text-sm py-6 text-center">No pending actions.</p>
+            ) : (
+              <div className="space-y-3 mb-4">
+                {allPending.slice(0, 5).map((action, i) => (
+                  <div
+                    key={i}
+                    className={`flex items-start justify-between p-3 rounded-lg border-l-4 ${
+                      action.variant === "critical"
+                        ? "bg-red-50 dark:bg-red-500/5 border-red-500"
+                        : "bg-amber-50 dark:bg-amber-500/5 border-amber-400"
+                    }`}
+                  >
+                    <div>
+                      <p
+                        className={`text-sm font-semibold ${
+                          action.variant === "critical"
+                            ? "text-red-600"
+                            : "text-amber-600"
+                        }`}
+                      >
+                        {action.label}
+                      </p>
+                      <p className="text-muted-foreground text-xs mt-0.5">
+                        {action.description}
+                      </p>
+                      {action.framework && (
+                        <p className="text-muted-foreground/60 text-[10px] mt-0.5 uppercase tracking-wider">
+                          {action.framework}
+                        </p>
+                      )}
+                    </div>
+                    {action.variant === "critical" ? (
+                      <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+                    ) : (
+                      <Clock className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                    )}
                   </div>
-                  {action.variant === "critical" ? (
-                    <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
-                  ) : (
-                    <Clock className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
-                  )}
-                </div>
-              ))}
-            </div>
-            <button className="w-full py-2.5 bg-foreground text-background rounded-lg text-sm font-semibold hover:opacity-90 transition-opacity">
-              View All 12 Actions
+                ))}
+              </div>
+            )}
+            <button
+              onClick={() => navigate("/tasks")}
+              className="w-full py-2.5 bg-foreground text-background rounded-lg text-sm font-semibold hover:opacity-90 transition-opacity"
+            >
+              View All {pendingActions
+                ? pendingActions.critical_overdue.length + pendingActions.due_in_24h.length
+                : 0} Actions
             </button>
           </div>
         </div>
@@ -314,22 +347,31 @@ export const PrincipalDashboard = () => {
             </div>
           </div>
           <div className="grid grid-cols-4 gap-6">
-            {mockDistributionCategories.map((cat) => (
-              <div key={cat.name}>
-                <div className="flex items-baseline justify-between mb-3">
-                  <span className="text-foreground text-sm font-medium">
-                    {cat.name}
-                  </span>
-                  <span className="text-muted-foreground text-sm">
-                    {cat.percentage}%
-                  </span>
+            {(distributionView === "department" ? catDist : fwDist).map((item) => {
+              const pct = "percentage" in item ? item.percentage : item.percentage;
+              const rawLabel = "category" in item ? item.category : item.framework_name;
+              const label = displayFramework(rawLabel) ?? "Framework";
+              const bars = [pct * 0.6, pct * 0.8, pct * 0.55, pct * 0.9, pct * 0.7].map(
+                (v) => Math.round(v),
+              );
+              const itemKey = "framework_id" in item ? item.framework_id : item.category;
+              return (
+                <div key={itemKey}>
+                  <div className="flex items-baseline justify-between mb-3">
+                    <span className="text-foreground text-sm font-medium">
+                      {label}
+                    </span>
+                    <span className="text-muted-foreground text-sm">
+                      {pct}%
+                    </span>
+                  </div>
+                  <MiniBarChart
+                    bars={bars}
+                    highlightIndex={bars.indexOf(Math.max(...bars))}
+                  />
                 </div>
-                <MiniBarChart
-                  bars={cat.bars}
-                  highlightIndex={cat.bars.indexOf(Math.max(...cat.bars))}
-                />
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
@@ -340,43 +382,50 @@ export const PrincipalDashboard = () => {
             <p className="font-semibold text-foreground text-lg">
               Framework Health
             </p>
-            {mockFrameworkHealth.map((fw) => (
-              <div
-                key={fw.name}
-                className="bg-card p-5 border border-border rounded-[10px] transition-colors duration-300"
-              >
-                <div className="flex items-start justify-between mb-1">
-                  <div>
-                    <p className="text-foreground text-base font-bold">
-                      {fw.name}
-                    </p>
-                    <p className="text-muted-foreground text-[10px] uppercase tracking-widest mt-0.5">
-                      {fw.subtitle}
-                    </p>
+            {fwHealthItems.map((fw) => {
+              const bars = [50, 70, 55, 80, 65, 90, 75].map((b) =>
+                Math.round(b * (fw.percentage / 100)),
+              );
+              const trendStr =
+                fw.trend > 0 ? `+${fw.trend.toFixed(1)}%` : fw.trend < 0 ? `${fw.trend.toFixed(1)}%` : "STABLE";
+              return (
+                <div
+                  key={fw.framework_id}
+                  className="bg-card p-5 border border-border rounded-[10px] transition-colors duration-300"
+                >
+                  <div className="flex items-start justify-between mb-1">
+                    <div>
+                      <p className="text-foreground text-base font-bold">
+                        {displayFramework(fw.framework_name) ?? "Framework"}
+                      </p>
+                      <p className="text-muted-foreground text-[10px] uppercase tracking-widest mt-0.5">
+                        Framework Health
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-foreground text-xl font-bold">
+                        {fw.percentage}%
+                      </p>
+                      <p
+                        className={`text-xs font-medium ${
+                          fw.trend > 0
+                            ? "text-emerald-500"
+                            : "text-muted-foreground"
+                        }`}
+                      >
+                        {trendStr}
+                      </p>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-foreground text-xl font-bold">
-                      {fw.score}%
-                    </p>
-                    <p
-                      className={`text-xs font-medium ${
-                        fw.change.startsWith("+")
-                          ? "text-emerald-500"
-                          : "text-muted-foreground"
-                      }`}
-                    >
-                      {fw.change}
-                    </p>
+                  <div className="mt-4">
+                    <MiniBarChart
+                      bars={bars}
+                      highlightIndex={bars.indexOf(Math.max(...bars))}
+                    />
                   </div>
                 </div>
-                <div className="mt-4">
-                  <MiniBarChart
-                    bars={fw.bars}
-                    highlightIndex={fw.bars.indexOf(Math.max(...fw.bars))}
-                  />
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           {/* Recent Operational Incidents */}
@@ -415,51 +464,65 @@ export const PrincipalDashboard = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {mockIncidents.map((incident, idx) => (
-                    <tr
-                      key={idx}
-                      className="border-b border-border/50 last:border-0 hover:bg-muted/30 transition-colors cursor-pointer"
-                    >
-                      <td className="py-4 px-6">
-                        <p className="text-foreground text-sm font-medium">
-                          {incident.name}
-                        </p>
-                      </td>
-                      <td className="py-4 px-4 text-muted-foreground text-sm">
-                        {incident.category}
-                      </td>
-                      <td className="py-4 px-4">
-                        <span className="flex items-center gap-1.5 text-xs font-medium">
-                          <span
-                            className={`w-1.5 h-1.5 rounded-full ${
-                              incident.statusColor === "emerald"
-                                ? "bg-emerald-500"
-                                : "bg-amber-500"
-                            }`}
-                          />
-                          <span
-                            className={
-                              incident.statusColor === "emerald"
-                                ? "text-emerald-600"
-                                : "text-amber-600"
-                            }
-                          >
-                            {incident.status}
-                          </span>
-                        </span>
-                      </td>
-                      <td className="py-4 px-4">
-                        <span
-                          className={`text-[10px] px-2.5 py-1 rounded font-bold uppercase tracking-wider ${incident.priorityBg} ${incident.priorityText}`}
-                        >
-                          {incident.priority}
-                        </span>
-                      </td>
-                      <td className="py-4 px-4 text-muted-foreground text-sm whitespace-nowrap">
-                        {incident.date}
+                  {incidents.length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="py-8 text-center text-sm text-muted-foreground">
+                        No incidents found.
                       </td>
                     </tr>
-                  ))}
+                  )}
+                  {incidents.map((incident) => {
+                    const isResolved =
+                      incident.status.toLowerCase().includes("resolved") ||
+                      incident.status.toLowerCase().includes("closed");
+                    return (
+                      <tr
+                        key={incident.id}
+                        className="border-b border-border/50 last:border-0 hover:bg-muted/30 transition-colors cursor-pointer"
+                      >
+                        <td className="py-4 px-6">
+                          <p className="text-foreground text-sm font-medium">
+                            {incident.incident_name}
+                          </p>
+                        </td>
+                        <td className="py-4 px-4 text-muted-foreground text-sm">
+                          {incident.category}
+                        </td>
+                        <td className="py-4 px-4">
+                          <span className="flex items-center gap-1.5 text-xs font-medium">
+                            <span
+                              className={`w-1.5 h-1.5 rounded-full ${
+                                isResolved ? "bg-emerald-500" : "bg-amber-500"
+                              }`}
+                            />
+                            <span
+                              className={
+                                isResolved ? "text-emerald-600" : "text-amber-600"
+                              }
+                            >
+                              {incident.status}
+                            </span>
+                          </span>
+                        </td>
+                        <td className="py-4 px-4">
+                          <span
+                            className={`text-[10px] px-2.5 py-1 rounded font-bold uppercase tracking-wider ${
+                              incident.priority === "HIGH" || incident.priority === "CRITICAL"
+                                ? "bg-red-500 text-white"
+                                : incident.priority === "MEDIUM"
+                                  ? "bg-amber-500 text-white"
+                                  : "bg-gray-200 text-gray-700"
+                            }`}
+                          >
+                            {incident.priority}
+                          </span>
+                        </td>
+                        <td className="py-4 px-4 text-muted-foreground text-sm whitespace-nowrap">
+                          {incident.date}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
