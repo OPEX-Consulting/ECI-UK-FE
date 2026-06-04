@@ -1,374 +1,506 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import React from "react";
+import { useState } from "react";
+import {
+  TrendingUp,
+  Pencil,
+  Building2,
+  AlertCircle,
+  Calendar,
+  ChevronRight,
+  Filter,
+  Loader2,
+  AlertTriangle,
+  ChevronLeft,
+} from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  LineChart,
-  Line,
-  Cell,
-} from "recharts";
-import {
-  Building2,
-  CheckCircle2,
-  Clock,
-  PauseCircle,
-  Loader2,
-  AlertCircle,
-} from "lucide-react";
-import { getAdminDashboardData } from "@/services/dashboardService";
+  getAdminStats,
+  getFrameworkCompliance,
+  getLibraryStatus,
+  getRecentIncidents,
+} from "@/services/dashboardService";
+// ─── Constants ─────────────────────────────────────────────────────────────────
 
-const schoolTypeColors = [
-  "#34d399",
-  "#60a5fa",
-  "#f59e0b",
-  "#a78bfa",
-  "#f87171",
-  "#2dd4bf",
-  "#818cf8",
-];
+const LIBRARY_COLORS = ["#16a34a", "#f97316", "#0d9488", "#6366f1", "#dc2626"];
+
+const formatDate = (iso: string | null) => {
+  if (!iso) return "\u2014";
+  const d = new Date(iso);
+  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+};
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-interface StatCardProps {
-  label: string;
-  value: number;
-  change: string;
-  positive: boolean;
-  icon: React.ReactNode;
-}
+const CircularProgress = ({ percentage }: { percentage: number }) => {
+  const radius = 26;
+  const circumference = 2 * Math.PI * radius;
+  const strokeDashoffset = circumference - (percentage / 100) * circumference;
 
-const StatCard = ({ label, value, change, positive, icon }: StatCardProps) => (
-  <div className="flex-1 bg-card p-5 border border-border rounded-[10px] min-w-0 transition-colors duration-300">
-    <div className="flex justify-between items-start mb-3">
-      <p className="font-semibold text-muted-foreground text-xs uppercase tracking-widest">
-        {label}
-      </p>
-      <span className="text-muted-foreground/40">{icon}</span>
-    </div>
-    <p className="mb-2 font-bold text-foreground text-4xl leading-none">
-      {value}
-    </p>
-    <p className={`text-xs ${positive ? "text-emerald-500" : "text-red-500"}`}>
-      {change}
-    </p>
-  </div>
-);
-
-const CustomBarTooltip = ({ active, payload, label }: any) => {
-  if (active && payload && payload.length) {
-    return (
-      <div className="bg-popover shadow-lg p-2 border border-border rounded-md text-popover-foreground text-xs">
-        <p className="mb-1 font-medium">{label}</p>
-        <p className="text-emerald-500">{payload[0].value} orgs</p>
-      </div>
-    );
-  }
-  return null;
-};
-
-const CustomLineTooltip = ({ active, payload, label }: any) => {
-  if (active && payload && payload.length) {
-    return (
-      <div className="bg-popover shadow-lg p-2 border border-border rounded-md text-popover-foreground text-xs">
-        <p className="mb-1 font-medium">{label}</p>
-        <p className="text-emerald-500">{payload[0].value.toFixed(1)}%</p>
-      </div>
-    );
-  }
-  return null;
-};
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-// Formats snake_case strings to Title Case (e.g., "academy_trust" -> "Academy Trust")
-const formatSchoolType = (type: string) => {
-  return type
-    .split("_")
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
-};
-
-// Formats numeric changes to string (e.g., 8 -> "+8 this week", -3 -> "-3 this week")
-const formatChangeText = (num: number) => {
-  const sign = num >= 0 ? "+" : "";
-  return `${sign}${num} this week`;
+  return (
+    <svg width="66" height="66" viewBox="0 0 66 66" className="shrink-0">
+      <circle
+        cx="33"
+        cy="33"
+        r={radius}
+        fill="none"
+        stroke="hsl(var(--border))"
+        strokeWidth="5"
+      />
+      <circle
+        cx="33"
+        cy="33"
+        r={radius}
+        fill="none"
+        stroke="#1a5e3a"
+        strokeWidth="5"
+        strokeLinecap="round"
+        strokeDasharray={circumference}
+        strokeDashoffset={strokeDashoffset}
+        transform="rotate(-90 33 33)"
+        className="transition-all duration-700"
+      />
+      <text
+        x="33"
+        y="33"
+        textAnchor="middle"
+        dominantBaseline="central"
+        className="fill-foreground font-bold"
+        style={{ fontSize: "14px" }}
+      >
+        {percentage}%
+      </text>
+    </svg>
+  );
 };
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 const AdminDashboard = () => {
-  const { data, isLoading, isError } = useQuery({
-    queryKey: ["adminDashboard"],
-    queryFn: getAdminDashboardData,
+  const [incidentPage, setIncidentPage] = useState(1);
+  const INCIDENTS_PER_PAGE = 10;
+
+  const { data: stats, isPending: statsPending, isError: statsError } = useQuery({
+    queryKey: ["admin-stats"],
+    queryFn: getAdminStats,
   });
 
-  if (isLoading) {
+  const { data: complianceResp } = useQuery({
+    queryKey: ["admin-framework-compliance"],
+    queryFn: getFrameworkCompliance,
+  });
+
+  const { data: libraryResp } = useQuery({
+    queryKey: ["admin-library-status"],
+    queryFn: getLibraryStatus,
+  });
+
+  const { data: incidentsResp } = useQuery({
+    queryKey: ["admin-recent-incidents"],
+    queryFn: () => getRecentIncidents(100),
+  });
+
+  if (statsPending) {
     return (
-      <div className="flex justify-center items-center min-h-[calc(100vh-100px)]">
-        <Loader2 className="w-8 h-8 text-primary animate-spin" />
+      <div className="flex h-[50vh] items-center justify-center p-7">
+        <div className="flex flex-col items-center gap-2">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-sm text-muted-foreground">Loading dashboard data...</p>
+        </div>
       </div>
     );
   }
 
-  if (isError || !data) {
+  if (statsError || !stats) {
     return (
-      <div className="flex flex-col justify-center items-center min-h-[calc(100vh-100px)] text-destructive">
-        <AlertCircle className="mb-4 w-10 h-10" />
-        <p className="font-medium text-lg">Failed to load dashboard data</p>
-        <p className="text-muted-foreground text-sm">
-          Please try refreshing the page.
-        </p>
+      <div className="flex h-[50vh] items-center justify-center p-7">
+        <div className="flex flex-col items-center gap-2 text-destructive">
+          <AlertTriangle className="h-8 w-8" />
+          <p className="text-sm">Failed to load dashboard data.</p>
+        </div>
       </div>
     );
   }
 
-  // ─── Data Mapping ───
-  const mappedSchoolTypeData = data.orgs_by_school_type.map((item) => ({
-    name: formatSchoolType(item.school_type),
-    value: item.count,
+  const complianceList = complianceResp?.items ?? [];
+  const libraryItems = (libraryResp?.items ?? []).map((item, idx) => ({
+    ...item,
+    _progress:
+      item.total_organisations > 0
+        ? Math.round((item.organisations_completed / item.total_organisations) * 100)
+        : 0,
+    _color: LIBRARY_COLORS[idx % LIBRARY_COLORS.length],
   }));
 
-  const mappedComplianceDistData = data.compliance_distribution.map((item) => ({
-    name: item.range,
-    value: item.count,
-  }));
+  const allIncidents = incidentsResp?.items ?? [];
+  const totalIncidents = incidentsResp?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(totalIncidents / INCIDENTS_PER_PAGE));
+  const {
+    compliance_readiness: cr,
+    compliance_velocity: cv,
+    total_organisations: to,
+    pending_actions: pa,
+  } = stats;
 
-  const { kpis } = data;
+  const totalOrgs = to.total_active + to.total_inactive;
+  const activePct = totalOrgs > 0 ? (to.total_active / totalOrgs) * 100 : 0;
+  const inactivePct = totalOrgs > 0 ? (to.total_inactive / totalOrgs) * 100 : 0;
+
+  const readinessLabel =
+    cr.overall_percentage >= 80 ? "High" : cr.overall_percentage >= 50 ? "Medium" : "Low";
+
+  const incidents = allIncidents.slice(
+    (incidentPage - 1) * INCIDENTS_PER_PAGE,
+    incidentPage * INCIDENTS_PER_PAGE,
+  );
+
+  const pageNumbers: (number | "...")[] = [];
+  for (let i = 1; i <= totalPages; i++) {
+    if (i === 1 || i === totalPages || Math.abs(i - incidentPage) <= 1) {
+      pageNumbers.push(i);
+    } else if (pageNumbers[pageNumbers.length - 1] !== "...") {
+      pageNumbers.push("...");
+    }
+  }
 
   return (
     <div className="space-y-6 p-7 transition-colors duration-300">
       {/* Page Header */}
       <div>
-        <h1 className="font-semibold text-foreground text-xl font-serif">Dashboard</h1>
+        <h1 className="font-semibold text-foreground text-xl font-serif">
+          Dashboard
+        </h1>
         <p className="mt-0.5 text-muted-foreground text-sm">
           Real-time overview of the ECI ecosystem
         </p>
       </div>
 
       {/* Stat Cards */}
-      <div className="flex gap-4">
-        <StatCard
-          label="TOTAL ORGANISATIONS"
-          value={kpis.total_organisations.count}
-          change={formatChangeText(kpis.total_organisations.weekly_change)}
-          positive={kpis.total_organisations.weekly_change >= 0}
-          icon={<Building2 className="w-5 h-5" />}
-        />
-        <StatCard
-          label="ACTIVE"
-          value={kpis.active.count}
-          change={formatChangeText(kpis.active.weekly_change)}
-          positive={kpis.active.weekly_change >= 0}
-          icon={<CheckCircle2 className="w-5 h-5" />}
-        />
-        <StatCard
-          label="ONBOARDING"
-          value={kpis.onboarding.count}
-          change={formatChangeText(kpis.onboarding.weekly_change)}
-          positive={kpis.onboarding.weekly_change >= 0}
-          icon={<Clock className="w-5 h-5" />}
-        />
-        <StatCard
-          label="INACTIVE / SUSPENDED"
-          value={kpis.inactive_suspended.count}
-          change={formatChangeText(kpis.inactive_suspended.weekly_change)}
-          positive={kpis.inactive_suspended.weekly_change <= 0} // Usually, lower suspensions are positive
-          icon={<PauseCircle className="w-5 h-5" />}
-        />
-      </div>
-
-      {/* Charts Row */}
-      <div className="gap-4 grid grid-cols-2">
-        {/* Bar Chart */}
-        <div className="bg-card p-[22px] border border-border rounded-[10px] transition-colors duration-300">
-          <p className="mb-4 font-semibold text-foreground text-sm">
-            Organisations by School Type
-          </p>
-          <ResponsiveContainer width="100%" height={240}>
-            <BarChart
-              data={mappedSchoolTypeData}
-              layout="vertical"
-              margin={{ top: 0, right: 10, left: 0, bottom: 0 }}
-              barSize={12}
-            >
-              <CartesianGrid
-                horizontal={false}
-                stroke="hsl(var(--border))"
-                opacity={0.5}
-              />
-              <XAxis
-                type="number"
-                tickCount={5}
-                tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <YAxis
-                type="category"
-                dataKey="name"
-                width={148}
-                tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <Tooltip
-                content={<CustomBarTooltip />}
-                cursor={{ fill: "hsl(var(--muted))", opacity: 0.1 }}
-              />
-              <Bar dataKey="value" radius={[0, 4, 4, 0]}>
-                {mappedSchoolTypeData.map((_entry, index) => (
-                  <Cell
-                    key={`cell-${index}`}
-                    fill={schoolTypeColors[index % schoolTypeColors.length]}
-                  />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
+      <div className="grid grid-cols-4 gap-4">
+        {/* Readiness Score */}
+        <div className="bg-card p-5 border border-border rounded-[10px] transition-colors duration-300">
+          <div className="flex items-center justify-between mb-3">
+            <p className="font-semibold text-muted-foreground text-[10px] uppercase tracking-widest">
+              Readiness Score
+            </p>
+            <div className="flex items-center gap-1.5">
+              <TrendingUp className="w-3.5 h-3.5 text-emerald-500" />
+              <span className="text-emerald-500 text-xs font-medium">
+                +{cr.percentage_increase.toFixed(1)}%
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <CircularProgress percentage={cr.overall_percentage} />
+            <div>
+              <p className="text-foreground text-xl font-bold">{readinessLabel}</p>
+              <p className="text-muted-foreground text-xs mt-0.5">
+                Last month: {cr.last_month_percentage.toFixed(1)}%
+              </p>
+            </div>
+          </div>
         </div>
 
-        {/* Line Chart */}
-        <div className="bg-card p-[22px] border border-border rounded-[10px] transition-colors duration-300">
-          <p className="mb-4 font-semibold text-foreground text-sm">
-            Platform Compliance Trend (12 Weeks)
+        {/* Compliance Velocity */}
+        <div className="bg-card p-5 border border-border rounded-[10px] transition-colors duration-300">
+          <div className="flex items-center justify-between mb-3">
+            <p className="font-semibold text-muted-foreground text-[10px] uppercase tracking-widest">
+              Compliance Velocity
+            </p>
+            <Pencil className="w-3.5 h-3.5 text-muted-foreground/40" />
+          </div>
+          <div className="flex items-end justify-between">
+            <div>
+              <p className="text-foreground text-3xl font-bold leading-none">
+                {Math.round(cv.average_days)} Days
+              </p>
+              <p className="text-muted-foreground text-xs mt-1.5">
+                Avg. Time to Close
+              </p>
+            </div>
+            <div className="flex items-end gap-1 pb-1">
+              {[40, 55, 70, 85, 60].map((h, i) => (
+                <div
+                  key={i}
+                  className={`w-2.5 rounded-sm ${i === 3 ? "bg-emerald-500" : "bg-muted-foreground/20"}`}
+                  style={{ height: `${h * 0.4}px` }}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Total Organisation */}
+        <div className="bg-card p-5 border border-border rounded-[10px] transition-colors duration-300">
+          <div className="flex items-center justify-between mb-3">
+            <p className="font-semibold text-muted-foreground text-[10px] uppercase tracking-widest">
+              Total Organisation
+            </p>
+            <Building2 className="w-4 h-4 text-muted-foreground/40" />
+          </div>
+          <p className="text-foreground text-4xl font-bold leading-none mb-1">
+            {totalOrgs}
           </p>
-          <ResponsiveContainer width="100%" height={240}>
-            <LineChart
-              data={data.compliance_trend}
-              margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
-            >
-              <CartesianGrid
-                stroke="hsl(var(--border))"
-                strokeDasharray="4 4"
-              />
-              <XAxis
-                dataKey="week"
-                tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <YAxis
-                domain={[50, 100]}
-                tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <Tooltip
-                content={<CustomLineTooltip />}
-                cursor={{ stroke: "hsl(var(--primary))" }}
-              />
-              <Line
-                type="monotone"
-                dataKey="score"
-                stroke="hsl(var(--primary))"
-                strokeWidth={2}
-                dot={{ fill: "hsl(var(--primary))", r: 4, strokeWidth: 0 }}
-                activeDot={{
-                  r: 6,
-                  fill: "hsl(var(--primary))",
-                  stroke: "hsl(var(--background))",
-                  strokeWidth: 2,
-                }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
+          <p className="text-emerald-500 text-xs font-medium mb-3">
+            {cr.organisations_with_tasks} with active tasks
+          </p>
+          <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5">
+            <span>
+              Active:{" "}
+              <span className="text-foreground font-medium">{to.total_active}</span>
+            </span>
+            <span>
+              Inactive:{" "}
+              <span className="text-foreground font-medium">{to.total_inactive}</span>
+            </span>
+          </div>
+          <div className="h-1.5 bg-muted rounded-full overflow-hidden flex">
+            <div
+              className="h-full bg-emerald-500 rounded-l-full transition-all duration-500"
+              style={{ width: `${activePct}%` }}
+            />
+            <div
+              className="h-full bg-red-400 rounded-r-full transition-all duration-500"
+              style={{ width: `${inactivePct}%` }}
+            />
+          </div>
+        </div>
+
+        {/* Pending Actions */}
+        <div className="bg-card p-5 border-2 border-red-400/60 rounded-[10px] transition-colors duration-300">
+          <div className="flex items-center justify-between mb-3">
+            <p className="font-semibold text-red-500 text-[10px] uppercase tracking-widest">
+              Pending Actions
+            </p>
+            <AlertCircle className="w-4 h-4 text-red-500" />
+          </div>
+          <p className="text-red-500 text-4xl font-bold leading-none mb-2">
+            {pa.total}
+          </p>
+          <p className="text-muted-foreground text-xs leading-relaxed">
+            Overdue tasks requiring immediate attention.
+          </p>
+          <button className="flex items-center gap-1 mt-3 text-red-500 text-sm font-semibold hover:text-red-600 transition-colors">
+            Resolve Now
+            <ChevronRight className="w-4 h-4" />
+          </button>
         </div>
       </div>
 
-      {/* Bottom Row */}
-      <div className="gap-4 grid grid-cols-2">
+      {/* Middle Row: Compliance Distribution + Library Status */}
+      <div className="gap-4 grid grid-cols-[1fr_340px]">
         {/* Compliance Distribution */}
         <div className="bg-card p-[22px] border border-border rounded-[10px] transition-colors duration-300">
-          <p className="mb-4 font-semibold text-foreground text-sm">
-            Compliance Distribution
-          </p>
-          <ResponsiveContainer width="100%" height={180}>
-            <BarChart
-              data={mappedComplianceDistData}
-              margin={{ top: 5, right: 10, left: -20, bottom: 0 }}
-              barSize={32}
-            >
-              <CartesianGrid vertical={false} stroke="hsl(var(--border))" />
-              <XAxis
-                dataKey="name"
-                tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <YAxis
-                tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <Tooltip
-                content={<CustomBarTooltip />}
-                cursor={{ fill: "hsl(var(--muted))", opacity: 0.1 }}
-              />
-              <Bar
-                dataKey="value"
-                fill="hsl(var(--primary))"
-                radius={[4, 4, 0, 0]}
-              >
-                {mappedComplianceDistData.map((_entry, index) => (
-                  <Cell
-                    key={`cell-dist-${index}`}
-                    fill={
-                      index === 2
-                        ? "hsl(var(--primary))"
-                        : index === 3
-                          ? "hsl(var(--primary) / 0.7)"
-                          : "hsl(var(--muted))"
-                    }
-                  />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Framework Library Status */}
-        <div className="bg-card p-[22px] border border-border rounded-[10px] transition-colors duration-300">
-          <p className="mb-4 font-semibold text-foreground text-sm">
-            Framework Library Status
-          </p>
-          <div className="space-y-3">
-            {data.framework_status.map((fw) => (
-              <div
-                key={fw.title}
-                className="flex justify-between items-center gap-3"
-              >
-                <div className="min-w-0">
-                  <p className="text-foreground text-sm truncate leading-tight">
-                    {fw.title}
-                  </p>
-                  <p className="mt-0.5 text-muted-foreground text-xs">
-                    v{fw.version}
-                  </p>
+          <div className="flex items-center justify-between mb-6">
+            <p className="font-semibold text-foreground text-sm">
+              Compliance Distribution
+            </p>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#1a5e3a]" />
+                <span className="text-muted-foreground text-xs">
+                  Completed
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#d1e7dd]" />
+                <span className="text-muted-foreground text-xs">
+                  In Progress
+                </span>
+              </div>
+            </div>
+          </div>
+          <div className="space-y-5">
+            {complianceList.map((item) => (
+              <div key={item.framework_id} className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-foreground text-sm font-medium">
+                    {item.framework_title}
+                  </span>
+                  <span className="text-foreground text-sm font-semibold">
+                    {Math.round(item.completed_tasks)}%
+                  </span>
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <span className="text-muted-foreground/60 text-xs">
-                    {fw.org_count} orgs
-                  </span>
-                  <span
-                    className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                      fw.status === "Published"
-                        ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
-                        : "bg-amber-500/10 text-amber-500 border border-amber-500/20"
-                    }`}
-                  >
-                    {fw.status}
-                  </span>
+                <div className="h-3.5 bg-muted rounded overflow-hidden flex">
+                  <div
+                    className="h-full bg-[#1a5e3a] transition-all duration-700"
+                    style={{ width: `${item.completed_tasks}%` }}
+                  />
+                  {item.completed_tasks < 100 && (
+                    <div
+                      className="h-full bg-[#d1e7dd] transition-all duration-700"
+                      style={{ width: `${item.incomplete_tasks}%` }}
+                    />
+                  )}
                 </div>
               </div>
             ))}
           </div>
         </div>
+
+        {/* Library Status */}
+        <div className="bg-card p-[22px] border border-border rounded-[10px] transition-colors duration-300">
+          <div className="flex items-center justify-between mb-5">
+            <p className="font-semibold text-foreground text-sm">
+              Library Status
+            </p>
+            <button className="text-primary text-xs font-medium hover:underline">
+              View All
+            </button>
+          </div>
+          <div className="space-y-3">
+            {libraryItems.map((lib) => (
+              <div
+                key={lib.framework_id}
+                className="p-3.5 bg-muted/40 border border-border rounded-lg"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-foreground text-sm font-semibold">
+                    {lib.framework_title}
+                  </p>
+                  <span className="text-foreground text-sm font-semibold">
+                    {lib._progress}%
+                  </span>
+                </div>
+                <div className="h-1.5 bg-muted rounded-full overflow-hidden mb-2.5">
+                  <div
+                    className="h-full rounded-full transition-all duration-500"
+                    style={{
+                      width: `${lib._progress}%`,
+                      backgroundColor: lib._color,
+                    }}
+                  />
+                </div>
+                <div className="flex items-center gap-1.5 text-muted-foreground">
+                  <Calendar className="w-3 h-3" />
+                  <span className="text-xs">Next: {formatDate(lib.next_due_date)}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Recent Finalized Incidents */}
+      <div className="bg-card border border-border rounded-[10px] transition-colors duration-300">
+        <div className="flex items-center justify-between p-[22px] pb-0 mb-2">
+          <p className="font-semibold text-foreground text-lg">
+            Recent Finalized Incidents
+          </p>
+          <div className="flex items-center gap-2">
+            <button className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-muted-foreground border border-border rounded-lg hover:bg-muted/50 transition-colors">
+              <Filter className="w-3.5 h-3.5" />
+              All Frameworks
+            </button>
+            <button className="px-3 py-1.5 text-sm font-semibold text-foreground border border-border rounded-lg hover:bg-muted/50 transition-colors">
+              Export CSV
+            </button>
+          </div>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-border">
+                <th className="text-left py-3 px-6 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  Incident Name
+                </th>
+                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  Framework
+                </th>
+                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  Type
+                </th>
+                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  Status
+                </th>
+                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  Finalized Date
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {incidents.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="py-8 text-center text-sm text-muted-foreground">
+                    No incidents found.
+                  </td>
+                </tr>
+              )}
+              {incidents.map((incident, idx) => (
+                <tr
+                  key={incident.incident_name + idx}
+                  className="border-b border-border/50 last:border-0 hover:bg-muted/30 transition-colors"
+                >
+                  <td className="py-4 px-6">
+                    <p className="text-foreground text-sm font-medium">
+                      {incident.incident_name}
+                    </p>
+                  </td>
+                  <td className="py-4 px-4 text-muted-foreground text-sm">
+                    {incident.framework ?? "\u2014"}
+                  </td>
+                  <td className="py-4 px-4">
+                    <span className="text-xs px-2.5 py-1 rounded font-semibold bg-emerald-500/10 text-emerald-700">
+                      {incident.incident_type}
+                    </span>
+                  </td>
+                  <td className="py-4 px-4">
+                    <span className="flex items-center gap-1.5 text-emerald-600 text-xs font-medium">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                      {incident.status}
+                    </span>
+                  </td>
+                  <td className="py-4 px-4 text-muted-foreground text-sm">
+                    {formatDate(incident.finalized_date)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between px-6 py-3 border-t border-border">
+            <p className="text-xs text-muted-foreground">
+              Page {incidentPage} of {totalPages}
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setIncidentPage((p) => Math.max(1, p - 1))}
+                disabled={incidentPage <= 1}
+                className="flex items-center gap-1 px-3 py-1.5 text-sm text-muted-foreground border border-border rounded-lg hover:bg-muted/50 transition-colors disabled:opacity-40 disabled:pointer-events-none"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" />
+                Previous
+              </button>
+              {pageNumbers.map((p, idx) =>
+                p === "..." ? (
+                  <span key={`ellipsis-${idx}`} className="text-muted-foreground px-1">
+                    ...
+                  </span>
+                ) : (
+                  <button
+                    key={p}
+                    onClick={() => setIncidentPage(p)}
+                    className={`w-8 h-8 text-sm rounded-lg transition-colors ${
+                      p === incidentPage
+                        ? "bg-primary text-primary-foreground font-semibold"
+                        : "text-muted-foreground hover:bg-muted/50"
+                    }`}
+                  >
+                    {p}
+                  </button>
+                ),
+              )}
+              <button
+                onClick={() => setIncidentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={incidentPage >= totalPages}
+                className="flex items-center gap-1 px-3 py-1.5 text-sm text-muted-foreground border border-border rounded-lg hover:bg-muted/50 transition-colors disabled:opacity-40 disabled:pointer-events-none"
+              >
+                Next
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
