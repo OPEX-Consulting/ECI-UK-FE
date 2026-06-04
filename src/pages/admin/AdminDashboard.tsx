@@ -1,373 +1,417 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import React from "react";
-import { useQuery } from "@tanstack/react-query";
 import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  LineChart,
-  Line,
-  Cell,
-} from "recharts";
-import {
+  TrendingUp,
+  Pencil,
   Building2,
-  CheckCircle2,
-  Clock,
-  PauseCircle,
-  Loader2,
   AlertCircle,
+  Calendar,
+  ChevronRight,
+  Filter,
 } from "lucide-react";
-import { getAdminDashboardData } from "@/services/dashboardService";
 
-const schoolTypeColors = [
-  "#34d399",
-  "#60a5fa",
-  "#f59e0b",
-  "#a78bfa",
-  "#f87171",
-  "#2dd4bf",
-  "#818cf8",
+// ─── Mock Data (replace with API integration later) ───────────────────────────
+
+const mockComplianceDistribution = [
+  { name: "ISO 27001:2022", completed: 92 },
+  { name: "GDPR - Privacy", completed: 78 },
+  { name: "SOC 2 Type II", completed: 85 },
+  { name: "NIST CSF", completed: 64 },
+  { name: "HIPAA", completed: 100 },
+];
+
+const mockLibraryStatus = [
+  {
+    name: "Cybersecurity Act",
+    progress: 80,
+    nextDate: "Oct 12",
+    color: "#16a34a",
+  },
+  {
+    name: "Cloud Control Matrix",
+    progress: 45,
+    nextDate: "Sep 30",
+    color: "#f97316",
+  },
+  {
+    name: "PCI-DSS 4.0",
+    progress: 95,
+    nextDate: "Nov 05",
+    color: "#0d9488",
+  },
+];
+
+const mockIncidents = [
+  {
+    name: "Unauth Access Attempt - Region EU-1",
+    id: "INC-8821",
+    framework: "ISO 27001",
+    type: "SECURITY",
+    typeBg: "bg-emerald-500/10",
+    typeText: "text-emerald-700",
+    status: "RESOLVED",
+    date: "Aug 24, 2023",
+  },
+  {
+    name: "Data Retention Policy Violation",
+    id: "INC-8742",
+    framework: "GDPR",
+    type: "PRIVACY",
+    typeBg: "bg-emerald-500/10",
+    typeText: "text-emerald-700",
+    status: "RESOLVED",
+    date: "Aug 20, 2023",
+  },
+  {
+    name: "Third-Party Vendor Breach Alert",
+    id: "INC-8690",
+    framework: "SOC 2 Type II",
+    type: "RISK",
+    typeBg: "bg-emerald-500/10",
+    typeText: "text-emerald-700",
+    status: "RESOLVED",
+    date: "Aug 15, 2023",
+  },
 ];
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-interface StatCardProps {
-  label: string;
-  value: number;
-  change: string;
-  positive: boolean;
-  icon: React.ReactNode;
-}
+const CircularProgress = ({ percentage }: { percentage: number }) => {
+  const radius = 26;
+  const circumference = 2 * Math.PI * radius;
+  const strokeDashoffset = circumference - (percentage / 100) * circumference;
 
-const StatCard = ({ label, value, change, positive, icon }: StatCardProps) => (
-  <div className="flex-1 bg-card p-5 border border-border rounded-[10px] min-w-0 transition-colors duration-300">
-    <div className="flex justify-between items-start mb-3">
-      <p className="font-semibold text-muted-foreground text-xs uppercase tracking-widest">
-        {label}
-      </p>
-      <span className="text-muted-foreground/40">{icon}</span>
-    </div>
-    <p className="mb-2 font-bold text-foreground text-4xl leading-none">
-      {value}
-    </p>
-    <p className={`text-xs ${positive ? "text-emerald-500" : "text-red-500"}`}>
-      {change}
-    </p>
-  </div>
-);
-
-const CustomBarTooltip = ({ active, payload, label }: any) => {
-  if (active && payload && payload.length) {
-    return (
-      <div className="bg-popover shadow-lg p-2 border border-border rounded-md text-popover-foreground text-xs">
-        <p className="mb-1 font-medium">{label}</p>
-        <p className="text-emerald-500">{payload[0].value} orgs</p>
-      </div>
-    );
-  }
-  return null;
-};
-
-const CustomLineTooltip = ({ active, payload, label }: any) => {
-  if (active && payload && payload.length) {
-    return (
-      <div className="bg-popover shadow-lg p-2 border border-border rounded-md text-popover-foreground text-xs">
-        <p className="mb-1 font-medium">{label}</p>
-        <p className="text-emerald-500">{payload[0].value.toFixed(1)}%</p>
-      </div>
-    );
-  }
-  return null;
-};
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-// Formats snake_case strings to Title Case (e.g., "academy_trust" -> "Academy Trust")
-const formatSchoolType = (type: string) => {
-  return type
-    .split("_")
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
-};
-
-// Formats numeric changes to string (e.g., 8 -> "+8 this week", -3 -> "-3 this week")
-const formatChangeText = (num: number) => {
-  const sign = num >= 0 ? "+" : "";
-  return `${sign}${num} this week`;
+  return (
+    <svg width="66" height="66" viewBox="0 0 66 66" className="shrink-0">
+      <circle
+        cx="33"
+        cy="33"
+        r={radius}
+        fill="none"
+        stroke="hsl(var(--border))"
+        strokeWidth="5"
+      />
+      <circle
+        cx="33"
+        cy="33"
+        r={radius}
+        fill="none"
+        stroke="#1a5e3a"
+        strokeWidth="5"
+        strokeLinecap="round"
+        strokeDasharray={circumference}
+        strokeDashoffset={strokeDashoffset}
+        transform="rotate(-90 33 33)"
+        className="transition-all duration-700"
+      />
+      <text
+        x="33"
+        y="33"
+        textAnchor="middle"
+        dominantBaseline="central"
+        className="fill-foreground font-bold"
+        style={{ fontSize: "14px" }}
+      >
+        {percentage}%
+      </text>
+    </svg>
+  );
 };
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 const AdminDashboard = () => {
-  const { data, isLoading, isError } = useQuery({
-    queryKey: ["adminDashboard"],
-    queryFn: getAdminDashboardData,
-  });
-
-  if (isLoading) {
-    return (
-      <div className="flex justify-center items-center min-h-[calc(100vh-100px)]">
-        <Loader2 className="w-8 h-8 text-primary animate-spin" />
-      </div>
-    );
-  }
-
-  if (isError || !data) {
-    return (
-      <div className="flex flex-col justify-center items-center min-h-[calc(100vh-100px)] text-destructive">
-        <AlertCircle className="mb-4 w-10 h-10" />
-        <p className="font-medium text-lg">Failed to load dashboard data</p>
-        <p className="text-muted-foreground text-sm">
-          Please try refreshing the page.
-        </p>
-      </div>
-    );
-  }
-
-  // ─── Data Mapping ───
-  const mappedSchoolTypeData = data.orgs_by_school_type.map((item) => ({
-    name: formatSchoolType(item.school_type),
-    value: item.count,
-  }));
-
-  const mappedComplianceDistData = data.compliance_distribution.map((item) => ({
-    name: item.range,
-    value: item.count,
-  }));
-
-  const { kpis } = data;
-
   return (
     <div className="space-y-6 p-7 transition-colors duration-300">
       {/* Page Header */}
       <div>
-        <h1 className="font-semibold text-foreground text-xl font-serif">Dashboard</h1>
+        <h1 className="font-semibold text-foreground text-xl font-serif">
+          Dashboard
+        </h1>
         <p className="mt-0.5 text-muted-foreground text-sm">
           Real-time overview of the ECI ecosystem
         </p>
       </div>
 
       {/* Stat Cards */}
-      <div className="flex gap-4">
-        <StatCard
-          label="TOTAL ORGANISATIONS"
-          value={kpis.total_organisations.count}
-          change={formatChangeText(kpis.total_organisations.weekly_change)}
-          positive={kpis.total_organisations.weekly_change >= 0}
-          icon={<Building2 className="w-5 h-5" />}
-        />
-        <StatCard
-          label="ACTIVE"
-          value={kpis.active.count}
-          change={formatChangeText(kpis.active.weekly_change)}
-          positive={kpis.active.weekly_change >= 0}
-          icon={<CheckCircle2 className="w-5 h-5" />}
-        />
-        <StatCard
-          label="ONBOARDING"
-          value={kpis.onboarding.count}
-          change={formatChangeText(kpis.onboarding.weekly_change)}
-          positive={kpis.onboarding.weekly_change >= 0}
-          icon={<Clock className="w-5 h-5" />}
-        />
-        <StatCard
-          label="INACTIVE / SUSPENDED"
-          value={kpis.inactive_suspended.count}
-          change={formatChangeText(kpis.inactive_suspended.weekly_change)}
-          positive={kpis.inactive_suspended.weekly_change <= 0} // Usually, lower suspensions are positive
-          icon={<PauseCircle className="w-5 h-5" />}
-        />
-      </div>
-
-      {/* Charts Row */}
-      <div className="gap-4 grid grid-cols-2">
-        {/* Bar Chart */}
-        <div className="bg-card p-[22px] border border-border rounded-[10px] transition-colors duration-300">
-          <p className="mb-4 font-semibold text-foreground text-sm">
-            Organisations by School Type
-          </p>
-          <ResponsiveContainer width="100%" height={240}>
-            <BarChart
-              data={mappedSchoolTypeData}
-              layout="vertical"
-              margin={{ top: 0, right: 10, left: 0, bottom: 0 }}
-              barSize={12}
-            >
-              <CartesianGrid
-                horizontal={false}
-                stroke="hsl(var(--border))"
-                opacity={0.5}
-              />
-              <XAxis
-                type="number"
-                tickCount={5}
-                tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <YAxis
-                type="category"
-                dataKey="name"
-                width={148}
-                tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <Tooltip
-                content={<CustomBarTooltip />}
-                cursor={{ fill: "hsl(var(--muted))", opacity: 0.1 }}
-              />
-              <Bar dataKey="value" radius={[0, 4, 4, 0]}>
-                {mappedSchoolTypeData.map((_entry, index) => (
-                  <Cell
-                    key={`cell-${index}`}
-                    fill={schoolTypeColors[index % schoolTypeColors.length]}
-                  />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
+      <div className="grid grid-cols-4 gap-4">
+        {/* Readiness Score */}
+        <div className="bg-card p-5 border border-border rounded-[10px] transition-colors duration-300">
+          <div className="flex items-center justify-between mb-3">
+            <p className="font-semibold text-muted-foreground text-[10px] uppercase tracking-widest">
+              Readiness Score
+            </p>
+            <div className="flex items-center gap-1.5">
+              <TrendingUp className="w-3.5 h-3.5 text-emerald-500" />
+              <span className="text-emerald-500 text-xs font-medium">
+                +2.4%
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <CircularProgress percentage={84} />
+            <div>
+              <p className="text-foreground text-xl font-bold">High</p>
+              <p className="text-muted-foreground text-xs mt-0.5">
+                Last month: 81.6%
+              </p>
+            </div>
+          </div>
         </div>
 
-        {/* Line Chart */}
-        <div className="bg-card p-[22px] border border-border rounded-[10px] transition-colors duration-300">
-          <p className="mb-4 font-semibold text-foreground text-sm">
-            Platform Compliance Trend (12 Weeks)
+        {/* Compliance Velocity */}
+        <div className="bg-card p-5 border border-border rounded-[10px] transition-colors duration-300">
+          <div className="flex items-center justify-between mb-3">
+            <p className="font-semibold text-muted-foreground text-[10px] uppercase tracking-widest">
+              Compliance Velocity
+            </p>
+            <Pencil className="w-3.5 h-3.5 text-muted-foreground/40" />
+          </div>
+          <div className="flex items-end justify-between">
+            <div>
+              <p className="text-foreground text-3xl font-bold leading-none">
+                14 Days
+              </p>
+              <p className="text-muted-foreground text-xs mt-1.5">
+                Avg. Time to Close
+              </p>
+            </div>
+            <div className="flex items-end gap-1 pb-1">
+              {[40, 55, 70, 85, 60].map((h, i) => (
+                <div
+                  key={i}
+                  className={`w-2.5 rounded-sm ${i === 3 ? "bg-emerald-500" : "bg-muted-foreground/20"}`}
+                  style={{ height: `${h * 0.4}px` }}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Total Organisation */}
+        <div className="bg-card p-5 border border-border rounded-[10px] transition-colors duration-300">
+          <div className="flex items-center justify-between mb-3">
+            <p className="font-semibold text-muted-foreground text-[10px] uppercase tracking-widest">
+              Total Organisation
+            </p>
+            <Building2 className="w-4 h-4 text-muted-foreground/40" />
+          </div>
+          <p className="text-foreground text-4xl font-bold leading-none mb-1">
+            148
           </p>
-          <ResponsiveContainer width="100%" height={240}>
-            <LineChart
-              data={data.compliance_trend}
-              margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
-            >
-              <CartesianGrid
-                stroke="hsl(var(--border))"
-                strokeDasharray="4 4"
-              />
-              <XAxis
-                dataKey="week"
-                tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <YAxis
-                domain={[50, 100]}
-                tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <Tooltip
-                content={<CustomLineTooltip />}
-                cursor={{ stroke: "hsl(var(--primary))" }}
-              />
-              <Line
-                type="monotone"
-                dataKey="score"
-                stroke="hsl(var(--primary))"
-                strokeWidth={2}
-                dot={{ fill: "hsl(var(--primary))", r: 4, strokeWidth: 0 }}
-                activeDot={{
-                  r: 6,
-                  fill: "hsl(var(--primary))",
-                  stroke: "hsl(var(--background))",
-                  strokeWidth: 2,
-                }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
+          <p className="text-emerald-500 text-xs font-medium mb-3">
+            +3 this week
+          </p>
+          <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5">
+            <span>
+              Active:{" "}
+              <span className="text-foreground font-medium">132</span>
+            </span>
+            <span>
+              Inactive:{" "}
+              <span className="text-foreground font-medium">16</span>
+            </span>
+          </div>
+          <div className="h-1.5 bg-muted rounded-full overflow-hidden flex">
+            <div
+              className="h-full bg-emerald-500 rounded-l-full transition-all duration-500"
+              style={{ width: "89%" }}
+            />
+            <div
+              className="h-full bg-red-400 rounded-r-full transition-all duration-500"
+              style={{ width: "11%" }}
+            />
+          </div>
+        </div>
+
+        {/* Pending Actions */}
+        <div className="bg-card p-5 border-2 border-red-400/60 rounded-[10px] transition-colors duration-300">
+          <div className="flex items-center justify-between mb-3">
+            <p className="font-semibold text-red-500 text-[10px] uppercase tracking-widest">
+              Pending Actions
+            </p>
+            <AlertCircle className="w-4 h-4 text-red-500" />
+          </div>
+          <p className="text-red-500 text-4xl font-bold leading-none mb-2">
+            15
+          </p>
+          <p className="text-muted-foreground text-xs leading-relaxed">
+            Overdue tasks requiring immediate attention.
+          </p>
+          <button className="flex items-center gap-1 mt-3 text-red-500 text-sm font-semibold hover:text-red-600 transition-colors">
+            Resolve Now
+            <ChevronRight className="w-4 h-4" />
+          </button>
         </div>
       </div>
 
-      {/* Bottom Row */}
-      <div className="gap-4 grid grid-cols-2">
+      {/* Middle Row: Compliance Distribution + Library Status */}
+      <div className="gap-4 grid grid-cols-[1fr_340px]">
         {/* Compliance Distribution */}
         <div className="bg-card p-[22px] border border-border rounded-[10px] transition-colors duration-300">
-          <p className="mb-4 font-semibold text-foreground text-sm">
-            Compliance Distribution
-          </p>
-          <ResponsiveContainer width="100%" height={180}>
-            <BarChart
-              data={mappedComplianceDistData}
-              margin={{ top: 5, right: 10, left: -20, bottom: 0 }}
-              barSize={32}
-            >
-              <CartesianGrid vertical={false} stroke="hsl(var(--border))" />
-              <XAxis
-                dataKey="name"
-                tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <YAxis
-                tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <Tooltip
-                content={<CustomBarTooltip />}
-                cursor={{ fill: "hsl(var(--muted))", opacity: 0.1 }}
-              />
-              <Bar
-                dataKey="value"
-                fill="hsl(var(--primary))"
-                radius={[4, 4, 0, 0]}
-              >
-                {mappedComplianceDistData.map((_entry, index) => (
-                  <Cell
-                    key={`cell-dist-${index}`}
-                    fill={
-                      index === 2
-                        ? "hsl(var(--primary))"
-                        : index === 3
-                          ? "hsl(var(--primary) / 0.7)"
-                          : "hsl(var(--muted))"
-                    }
-                  />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Framework Library Status */}
-        <div className="bg-card p-[22px] border border-border rounded-[10px] transition-colors duration-300">
-          <p className="mb-4 font-semibold text-foreground text-sm">
-            Framework Library Status
-          </p>
-          <div className="space-y-3">
-            {data.framework_status.map((fw) => (
-              <div
-                key={fw.title}
-                className="flex justify-between items-center gap-3"
-              >
-                <div className="min-w-0">
-                  <p className="text-foreground text-sm truncate leading-tight">
-                    {fw.title}
-                  </p>
-                  <p className="mt-0.5 text-muted-foreground text-xs">
-                    v{fw.version}
-                  </p>
+          <div className="flex items-center justify-between mb-6">
+            <p className="font-semibold text-foreground text-sm">
+              Compliance Distribution
+            </p>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#1a5e3a]" />
+                <span className="text-muted-foreground text-xs">
+                  Completed
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#d1e7dd]" />
+                <span className="text-muted-foreground text-xs">
+                  In Progress
+                </span>
+              </div>
+            </div>
+          </div>
+          <div className="space-y-5">
+            {mockComplianceDistribution.map((item) => (
+              <div key={item.name} className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-foreground text-sm font-medium">
+                    {item.name}
+                  </span>
+                  <span className="text-foreground text-sm font-semibold">
+                    {item.completed}%
+                  </span>
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <span className="text-muted-foreground/60 text-xs">
-                    {fw.org_count} orgs
-                  </span>
-                  <span
-                    className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                      fw.status === "Published"
-                        ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
-                        : "bg-amber-500/10 text-amber-500 border border-amber-500/20"
-                    }`}
-                  >
-                    {fw.status}
-                  </span>
+                <div className="h-3.5 bg-muted rounded overflow-hidden flex">
+                  <div
+                    className="h-full bg-[#1a5e3a] transition-all duration-700"
+                    style={{ width: `${item.completed}%` }}
+                  />
+                  {item.completed < 100 && (
+                    <div
+                      className="h-full bg-[#d1e7dd] transition-all duration-700"
+                      style={{ width: `${100 - item.completed}%` }}
+                    />
+                  )}
                 </div>
               </div>
             ))}
           </div>
+        </div>
+
+        {/* Library Status */}
+        <div className="bg-card p-[22px] border border-border rounded-[10px] transition-colors duration-300">
+          <div className="flex items-center justify-between mb-5">
+            <p className="font-semibold text-foreground text-sm">
+              Library Status
+            </p>
+            <button className="text-primary text-xs font-medium hover:underline">
+              View All
+            </button>
+          </div>
+          <div className="space-y-3">
+            {mockLibraryStatus.map((lib) => (
+              <div
+                key={lib.name}
+                className="p-3.5 bg-muted/40 border border-border rounded-lg"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-foreground text-sm font-semibold">
+                    {lib.name}
+                  </p>
+                  <span className="text-foreground text-sm font-semibold">
+                    {lib.progress}%
+                  </span>
+                </div>
+                <div className="h-1.5 bg-muted rounded-full overflow-hidden mb-2.5">
+                  <div
+                    className="h-full rounded-full transition-all duration-500"
+                    style={{
+                      width: `${lib.progress}%`,
+                      backgroundColor: lib.color,
+                    }}
+                  />
+                </div>
+                <div className="flex items-center gap-1.5 text-muted-foreground">
+                  <Calendar className="w-3 h-3" />
+                  <span className="text-xs">Next: {lib.nextDate}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Recent Finalized Incidents */}
+      <div className="bg-card border border-border rounded-[10px] transition-colors duration-300">
+        <div className="flex items-center justify-between p-[22px] pb-0 mb-2">
+          <p className="font-semibold text-foreground text-lg">
+            Recent Finalized Incidents
+          </p>
+          <div className="flex items-center gap-2">
+            <button className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-muted-foreground border border-border rounded-lg hover:bg-muted/50 transition-colors">
+              <Filter className="w-3.5 h-3.5" />
+              All Frameworks
+            </button>
+            <button className="px-3 py-1.5 text-sm font-semibold text-foreground border border-border rounded-lg hover:bg-muted/50 transition-colors">
+              Export CSV
+            </button>
+          </div>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-border">
+                <th className="text-left py-3 px-6 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  Incident Name
+                </th>
+                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  Framework
+                </th>
+                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  Type
+                </th>
+                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  Status
+                </th>
+                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  Finalized Date
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {mockIncidents.map((incident) => (
+                <tr
+                  key={incident.id}
+                  className="border-b border-border/50 last:border-0 hover:bg-muted/30 transition-colors"
+                >
+                  <td className="py-4 px-6">
+                    <p className="text-foreground text-sm font-medium">
+                      {incident.name}
+                    </p>
+                    <p className="text-muted-foreground text-xs mt-0.5">
+                      ID: {incident.id}
+                    </p>
+                  </td>
+                  <td className="py-4 px-4 text-muted-foreground text-sm">
+                    {incident.framework}
+                  </td>
+                  <td className="py-4 px-4">
+                    <span
+                      className={`text-xs px-2.5 py-1 rounded font-semibold ${incident.typeBg} ${incident.typeText}`}
+                    >
+                      {incident.type}
+                    </span>
+                  </td>
+                  <td className="py-4 px-4">
+                    <span className="flex items-center gap-1.5 text-emerald-600 text-xs font-medium">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                      {incident.status}
+                    </span>
+                  </td>
+                  <td className="py-4 px-4 text-muted-foreground text-sm">
+                    {incident.date}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
