@@ -18,9 +18,15 @@ import {
   getLibraryStatus,
   getRecentIncidents,
 } from "@/services/dashboardService";
-import type {
-  AdminStats,
-} from "@/types/dashboard";
+// ─── Constants ─────────────────────────────────────────────────────────────────
+
+const LIBRARY_COLORS = ["#16a34a", "#f97316", "#0d9488", "#6366f1", "#dc2626"];
+
+const formatDate = (iso: string | null) => {
+  if (!iso) return "\u2014";
+  const d = new Date(iso);
+  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+};
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -70,26 +76,26 @@ const CircularProgress = ({ percentage }: { percentage: number }) => {
 
 const AdminDashboard = () => {
   const [incidentPage, setIncidentPage] = useState(1);
-  const INCIDENT_LIMIT = 10;
+  const INCIDENTS_PER_PAGE = 10;
 
   const { data: stats, isPending: statsPending, isError: statsError } = useQuery({
     queryKey: ["admin-stats"],
     queryFn: getAdminStats,
   });
 
-  const { data: complianceData } = useQuery({
+  const { data: complianceResp } = useQuery({
     queryKey: ["admin-framework-compliance"],
     queryFn: getFrameworkCompliance,
   });
 
-  const { data: libraryData } = useQuery({
+  const { data: libraryResp } = useQuery({
     queryKey: ["admin-library-status"],
     queryFn: getLibraryStatus,
   });
 
-  const { data: incidentsData } = useQuery({
-    queryKey: ["admin-recent-incidents", incidentPage],
-    queryFn: () => getRecentIncidents(incidentPage, INCIDENT_LIMIT),
+  const { data: incidentsResp } = useQuery({
+    queryKey: ["admin-recent-incidents"],
+    queryFn: () => getRecentIncidents(100),
   });
 
   if (statsPending) {
@@ -103,7 +109,7 @@ const AdminDashboard = () => {
     );
   }
 
-  if (statsError) {
+  if (statsError || !stats) {
     return (
       <div className="flex h-[50vh] items-center justify-center p-7">
         <div className="flex flex-col items-center gap-2 text-destructive">
@@ -114,8 +120,46 @@ const AdminDashboard = () => {
     );
   }
 
-  const incidents = incidentsData?.items ?? [];
-  const totalPages = incidentsData?.pages ?? 1;
+  const complianceList = complianceResp?.items ?? [];
+  const libraryItems = (libraryResp?.items ?? []).map((item, idx) => ({
+    ...item,
+    _progress:
+      item.total_organisations > 0
+        ? Math.round((item.organisations_completed / item.total_organisations) * 100)
+        : 0,
+    _color: LIBRARY_COLORS[idx % LIBRARY_COLORS.length],
+  }));
+
+  const allIncidents = incidentsResp?.items ?? [];
+  const totalIncidents = incidentsResp?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(totalIncidents / INCIDENTS_PER_PAGE));
+  const {
+    compliance_readiness: cr,
+    compliance_velocity: cv,
+    total_organisations: to,
+    pending_actions: pa,
+  } = stats;
+
+  const totalOrgs = to.total_active + to.total_inactive;
+  const activePct = totalOrgs > 0 ? (to.total_active / totalOrgs) * 100 : 0;
+  const inactivePct = totalOrgs > 0 ? (to.total_inactive / totalOrgs) * 100 : 0;
+
+  const readinessLabel =
+    cr.overall_percentage >= 80 ? "High" : cr.overall_percentage >= 50 ? "Medium" : "Low";
+
+  const incidents = allIncidents.slice(
+    (incidentPage - 1) * INCIDENTS_PER_PAGE,
+    incidentPage * INCIDENTS_PER_PAGE,
+  );
+
+  const pageNumbers: (number | "...")[] = [];
+  for (let i = 1; i <= totalPages; i++) {
+    if (i === 1 || i === totalPages || Math.abs(i - incidentPage) <= 1) {
+      pageNumbers.push(i);
+    } else if (pageNumbers[pageNumbers.length - 1] !== "...") {
+      pageNumbers.push("...");
+    }
+  }
 
   return (
     <div className="space-y-6 p-7 transition-colors duration-300">
@@ -140,16 +184,16 @@ const AdminDashboard = () => {
             <div className="flex items-center gap-1.5">
               <TrendingUp className="w-3.5 h-3.5 text-emerald-500" />
               <span className="text-emerald-500 text-xs font-medium">
-                {stats?.readiness_score?.change ?? "+0%"}
+                +{cr.percentage_increase.toFixed(1)}%
               </span>
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <CircularProgress percentage={stats?.readiness_score?.score ?? 0} />
+            <CircularProgress percentage={cr.overall_percentage} />
             <div>
-              <p className="text-foreground text-xl font-bold">{stats?.readiness_score?.label ?? "N/A"}</p>
+              <p className="text-foreground text-xl font-bold">{readinessLabel}</p>
               <p className="text-muted-foreground text-xs mt-0.5">
-                Last month: {stats?.readiness_score?.last_month ?? 0}%
+                Last month: {cr.last_month_percentage.toFixed(1)}%
               </p>
             </div>
           </div>
@@ -166,10 +210,10 @@ const AdminDashboard = () => {
           <div className="flex items-end justify-between">
             <div>
               <p className="text-foreground text-3xl font-bold leading-none">
-                {stats?.compliance_velocity?.days ?? 0} Days
+                {Math.round(cv.average_days)} Days
               </p>
               <p className="text-muted-foreground text-xs mt-1.5">
-                {stats?.compliance_velocity?.label ?? "Avg. Time to Close"}
+                Avg. Time to Close
               </p>
             </div>
             <div className="flex items-end gap-1 pb-1">
@@ -193,33 +237,29 @@ const AdminDashboard = () => {
             <Building2 className="w-4 h-4 text-muted-foreground/40" />
           </div>
           <p className="text-foreground text-4xl font-bold leading-none mb-1">
-            {stats?.total_organisations?.total ?? 0}
+            {totalOrgs}
           </p>
           <p className="text-emerald-500 text-xs font-medium mb-3">
-            +{stats?.total_organisations?.weekly_change ?? 0} this week
+            {cr.organisations_with_tasks} with active tasks
           </p>
           <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5">
             <span>
               Active:{" "}
-              <span className="text-foreground font-medium">{stats?.total_organisations?.active ?? 0}</span>
+              <span className="text-foreground font-medium">{to.total_active}</span>
             </span>
             <span>
               Inactive:{" "}
-              <span className="text-foreground font-medium">{stats?.total_organisations?.inactive ?? 0}</span>
+              <span className="text-foreground font-medium">{to.total_inactive}</span>
             </span>
           </div>
           <div className="h-1.5 bg-muted rounded-full overflow-hidden flex">
             <div
               className="h-full bg-emerald-500 rounded-l-full transition-all duration-500"
-              style={{
-                width: `${stats?.total_organisations?.total ? ((stats.total_organisations.active ?? 0) / stats.total_organisations.total) * 100 : 0}%`,
-              }}
+              style={{ width: `${activePct}%` }}
             />
             <div
               className="h-full bg-red-400 rounded-r-full transition-all duration-500"
-              style={{
-                width: `${stats?.total_organisations?.total ? ((stats.total_organisations.inactive ?? 0) / stats.total_organisations.total) * 100 : 0}%`,
-              }}
+              style={{ width: `${inactivePct}%` }}
             />
           </div>
         </div>
@@ -233,10 +273,10 @@ const AdminDashboard = () => {
             <AlertCircle className="w-4 h-4 text-red-500" />
           </div>
           <p className="text-red-500 text-4xl font-bold leading-none mb-2">
-            {stats?.pending_actions?.count ?? 0}
+            {pa.total}
           </p>
           <p className="text-muted-foreground text-xs leading-relaxed">
-            {stats?.pending_actions?.label ?? "Overdue tasks requiring immediate attention."}
+            Overdue tasks requiring immediate attention.
           </p>
           <button className="flex items-center gap-1 mt-3 text-red-500 text-sm font-semibold hover:text-red-600 transition-colors">
             Resolve Now
@@ -269,25 +309,25 @@ const AdminDashboard = () => {
             </div>
           </div>
           <div className="space-y-5">
-            {(complianceData ?? []).map((item) => (
-              <div key={item.name} className="space-y-1.5">
+            {complianceList.map((item) => (
+              <div key={item.framework_id} className="space-y-1.5">
                 <div className="flex items-center justify-between">
                   <span className="text-foreground text-sm font-medium">
-                    {item.name}
+                    {item.framework_title}
                   </span>
                   <span className="text-foreground text-sm font-semibold">
-                    {item.completed}%
+                    {Math.round(item.completed_tasks)}%
                   </span>
                 </div>
                 <div className="h-3.5 bg-muted rounded overflow-hidden flex">
                   <div
                     className="h-full bg-[#1a5e3a] transition-all duration-700"
-                    style={{ width: `${item.completed}%` }}
+                    style={{ width: `${item.completed_tasks}%` }}
                   />
-                  {item.completed < 100 && (
+                  {item.completed_tasks < 100 && (
                     <div
                       className="h-full bg-[#d1e7dd] transition-all duration-700"
-                      style={{ width: `${100 - item.completed}%` }}
+                      style={{ width: `${item.incomplete_tasks}%` }}
                     />
                   )}
                 </div>
@@ -307,31 +347,31 @@ const AdminDashboard = () => {
             </button>
           </div>
           <div className="space-y-3">
-            {(libraryData ?? []).map((lib) => (
+            {libraryItems.map((lib) => (
               <div
-                key={lib.name}
+                key={lib.framework_id}
                 className="p-3.5 bg-muted/40 border border-border rounded-lg"
               >
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-foreground text-sm font-semibold">
-                    {lib.name}
+                    {lib.framework_title}
                   </p>
                   <span className="text-foreground text-sm font-semibold">
-                    {lib.progress}%
+                    {lib._progress}%
                   </span>
                 </div>
                 <div className="h-1.5 bg-muted rounded-full overflow-hidden mb-2.5">
                   <div
                     className="h-full rounded-full transition-all duration-500"
                     style={{
-                      width: `${lib.progress}%`,
-                    backgroundColor: lib.color ?? "#16a34a",
-                  }}
+                      width: `${lib._progress}%`,
+                      backgroundColor: lib._color,
+                    }}
                   />
                 </div>
                 <div className="flex items-center gap-1.5 text-muted-foreground">
                   <Calendar className="w-3 h-3" />
-                  <span className="text-xs">Next: {lib.next_date}</span>
+                  <span className="text-xs">Next: {formatDate(lib.next_due_date)}</span>
                 </div>
               </div>
             ))}
@@ -384,25 +424,22 @@ const AdminDashboard = () => {
                   </td>
                 </tr>
               )}
-              {incidents.map((incident) => (
+              {incidents.map((incident, idx) => (
                 <tr
-                  key={incident.id}
+                  key={incident.incident_name + idx}
                   className="border-b border-border/50 last:border-0 hover:bg-muted/30 transition-colors"
                 >
                   <td className="py-4 px-6">
                     <p className="text-foreground text-sm font-medium">
-                      {incident.name}
-                    </p>
-                    <p className="text-muted-foreground text-xs mt-0.5">
-                      ID: {incident.id}
+                      {incident.incident_name}
                     </p>
                   </td>
                   <td className="py-4 px-4 text-muted-foreground text-sm">
-                    {incident.framework}
+                    {incident.framework ?? "\u2014"}
                   </td>
                   <td className="py-4 px-4">
                     <span className="text-xs px-2.5 py-1 rounded font-semibold bg-emerald-500/10 text-emerald-700">
-                      {incident.type}
+                      {incident.incident_type}
                     </span>
                   </td>
                   <td className="py-4 px-4">
@@ -412,7 +449,7 @@ const AdminDashboard = () => {
                     </span>
                   </td>
                   <td className="py-4 px-4 text-muted-foreground text-sm">
-                    {incident.date}
+                    {formatDate(incident.finalized_date)}
                   </td>
                 </tr>
               ))}
@@ -434,26 +471,25 @@ const AdminDashboard = () => {
                 <ChevronLeft className="w-3.5 h-3.5" />
                 Previous
               </button>
-              {Array.from({ length: totalPages }, (_, i) => i + 1)
-                .filter((p) => p === 1 || p === totalPages || Math.abs(p - incidentPage) <= 1)
-                .map((p, idx, arr) => {
-                  const showEllipsis = idx > 0 && p - arr[idx - 1] > 1;
-                  return (
-                    <span key={p} className="flex items-center gap-1">
-                      {showEllipsis && <span className="text-muted-foreground px-1">...</span>}
-                      <button
-                        onClick={() => setIncidentPage(p)}
-                        className={`w-8 h-8 text-sm rounded-lg transition-colors ${
-                          p === incidentPage
-                            ? "bg-primary text-primary-foreground font-semibold"
-                            : "text-muted-foreground hover:bg-muted/50"
-                        }`}
-                      >
-                        {p}
-                      </button>
-                    </span>
-                  );
-                })}
+              {pageNumbers.map((p, idx) =>
+                p === "..." ? (
+                  <span key={`ellipsis-${idx}`} className="text-muted-foreground px-1">
+                    ...
+                  </span>
+                ) : (
+                  <button
+                    key={p}
+                    onClick={() => setIncidentPage(p)}
+                    className={`w-8 h-8 text-sm rounded-lg transition-colors ${
+                      p === incidentPage
+                        ? "bg-primary text-primary-foreground font-semibold"
+                        : "text-muted-foreground hover:bg-muted/50"
+                    }`}
+                  >
+                    {p}
+                  </button>
+                ),
+              )}
               <button
                 onClick={() => setIncidentPage((p) => Math.min(totalPages, p + 1))}
                 disabled={incidentPage >= totalPages}

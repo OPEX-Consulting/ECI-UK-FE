@@ -2,9 +2,9 @@ import api from "@/lib/api";
 import {
   DashboardResponse,
   AdminStats,
-  FrameworkComplianceItem,
-  LibraryStatusItem,
-  PaginatedIncidents,
+  FrameworkComplianceResponse,
+  LibraryStatusResponse,
+  RecentIncidentsResponse,
 } from "@/types/dashboard";
 
 export const getAdminDashboardData = async (): Promise<DashboardResponse> => {
@@ -17,22 +17,21 @@ export const getAdminStats = async (): Promise<AdminStats> => {
   return response.data;
 };
 
-export const getFrameworkCompliance = async (): Promise<FrameworkComplianceItem[]> => {
-  const response = await api.get<FrameworkComplianceItem[]>("/admin/stats/framework-compliance");
+export const getFrameworkCompliance = async (): Promise<FrameworkComplianceResponse> => {
+  const response = await api.get<FrameworkComplianceResponse>("/admin/stats/framework-compliance");
   return response.data;
 };
 
-export const getLibraryStatus = async (): Promise<LibraryStatusItem[]> => {
-  const response = await api.get<LibraryStatusItem[]>("/admin/stats/library-status");
+export const getLibraryStatus = async (): Promise<LibraryStatusResponse> => {
+  const response = await api.get<LibraryStatusResponse>("/admin/stats/library-status");
   return response.data;
 };
 
 export const getRecentIncidents = async (
-  page = 1,
   limit = 10,
-): Promise<PaginatedIncidents> => {
-  const response = await api.get<PaginatedIncidents>("/admin/stats/recent-incidents", {
-    params: { page, limit },
+): Promise<RecentIncidentsResponse> => {
+  const response = await api.get<RecentIncidentsResponse>("/admin/stats/recent-incidents", {
+    params: { limit },
   });
   return response.data;
 };

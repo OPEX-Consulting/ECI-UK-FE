@@ -42,62 +42,86 @@ export interface DashboardResponse {
 
 // ── Admin Dashboard Stats ──────────────────────────────────────────────────────
 
-export interface ReadinessScore {
-  score?: number;
-  change?: string;
-  label?: string;
-  last_month?: number;
+export interface ComplianceReadiness {
+  overall_percentage: number;
+  last_month_percentage: number;
+  percentage_increase: number;
+  total_organisations: number;
+  organisations_with_tasks: number;
 }
 
 export interface ComplianceVelocity {
-  days?: number;
-  label?: string;
+  average_days: number;
+  total_completed_tasks: number;
 }
 
-export interface OrganisationCounts {
-  total?: number;
-  active?: number;
-  inactive?: number;
-  weekly_change?: number;
+export interface OrganisationCount {
+  total_active: number;
+  total_inactive: number;
+}
+
+export interface PerOrganisationPending {
+  organisation_id: string;
+  organisation_name: string;
+  pending_count: number;
 }
 
 export interface PendingActions {
-  count?: number;
-  label?: string;
+  total: number;
+  per_organisation: PerOrganisationPending[];
 }
 
 export interface AdminStats {
-  readiness_score?: ReadinessScore;
-  compliance_velocity?: ComplianceVelocity;
-  total_organisations?: OrganisationCounts;
-  pending_actions?: PendingActions;
+  compliance_readiness: ComplianceReadiness;
+  compliance_velocity: ComplianceVelocity;
+  total_organisations: OrganisationCount;
+  pending_actions: PendingActions;
 }
 
 export interface FrameworkComplianceItem {
-  name?: string;
-  completed?: number;
+  framework_id: string;
+  framework_title: string;
+  total_organisations: number;
+  total_tasks: number;
+  completed_tasks: number;
+  incomplete_tasks: number;
+}
+
+export interface FrameworkComplianceResponse {
+  items: FrameworkComplianceItem[];
+  total: number;
+}
+
+export interface OrganisationStatus {
+  organisation_id: string;
+  organisation_name: string;
+  completed: boolean;
 }
 
 export interface LibraryStatusItem {
-  name?: string;
-  progress?: number;
-  next_date?: string;
-  color?: string;
+  framework_id: string;
+  framework_title: string;
+  slug: string;
+  total_organisations: number;
+  organisation_statuses: OrganisationStatus[];
+  organisations_completed: number;
+  next_due_date: string | null;
+}
+
+export interface LibraryStatusResponse {
+  items: LibraryStatusItem[];
+  total: number;
 }
 
 export interface RecentIncident {
-  name?: string;
-  id?: string;
-  framework?: string;
-  type?: string;
-  status?: string;
-  date?: string;
+  incident_name: string;
+  framework: string | null;
+  incident_type: string;
+  status: string;
+  finalized_date: string;
 }
 
-export interface PaginatedIncidents {
-  items?: RecentIncident[];
-  total?: number;
-  page?: number;
-  limit?: number;
-  pages?: number;
+export interface RecentIncidentsResponse {
+  total: number;
+  items: RecentIncident[];
 }
