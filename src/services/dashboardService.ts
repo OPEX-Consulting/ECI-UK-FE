@@ -5,6 +5,7 @@ import {
   FrameworkComplianceResponse,
   LibraryStatusResponse,
   RecentIncidentsResponse,
+  PendingActionsReminderResponse,
 } from "@/types/dashboard";
 
 export const getAdminDashboardData = async (): Promise<DashboardResponse> => {
@@ -33,5 +34,10 @@ export const getRecentIncidents = async (
   const response = await api.get<RecentIncidentsResponse>("/admin/stats/recent-incidents", {
     params: { limit },
   });
+  return response.data;
+};
+
+export const remindPendingActions = async (): Promise<PendingActionsReminderResponse> => {
+  const response = await api.post<PendingActionsReminderResponse>("/admin/stats/pending-actions/remind");
   return response.data;
 };

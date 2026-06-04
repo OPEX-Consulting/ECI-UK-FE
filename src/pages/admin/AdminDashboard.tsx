@@ -11,13 +11,15 @@ import {
   AlertTriangle,
   ChevronLeft,
 } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import {
   getAdminStats,
   getFrameworkCompliance,
   getLibraryStatus,
   getRecentIncidents,
+  remindPendingActions,
 } from "@/services/dashboardService";
+import { toast } from "sonner";
 // ─── Constants ─────────────────────────────────────────────────────────────────
 
 const LIBRARY_COLORS = ["#16a34a", "#f97316", "#0d9488", "#6366f1", "#dc2626"];
@@ -96,6 +98,20 @@ const AdminDashboard = () => {
   const { data: incidentsResp } = useQuery({
     queryKey: ["admin-recent-incidents"],
     queryFn: () => getRecentIncidents(100),
+  });
+
+  const remindMutation = useMutation({
+    mutationFn: remindPendingActions,
+    onSuccess: (data) => {
+      toast.success(`Reminders sent to ${data.total_sent} organisation${data.total_sent !== 1 ? "s" : ""}`);
+      if (data.total_failed > 0) {
+        toast.error(`${data.total_failed} reminder${data.total_failed !== 1 ? "s" : ""} failed to send`);
+      }
+    },
+    onError: (err: any) => {
+      const msg = err?.response?.data?.detail || err?.message || "Failed to send reminders";
+      toast.error(msg);
+    },
   });
 
   if (statsPending) {
@@ -278,9 +294,19 @@ const AdminDashboard = () => {
           <p className="text-muted-foreground text-xs leading-relaxed">
             Overdue tasks requiring immediate attention.
           </p>
-          <button className="flex items-center gap-1 mt-3 text-red-500 text-sm font-semibold hover:text-red-600 transition-colors">
-            Resolve Now
-            <ChevronRight className="w-4 h-4" />
+          <button
+            onClick={() => remindMutation.mutate()}
+            disabled={remindMutation.isPending}
+            className="flex items-center gap-1 mt-3 text-red-500 text-sm font-semibold hover:text-red-600 transition-colors disabled:opacity-50"
+          >
+            {remindMutation.isPending ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <>
+                Resolve Now
+                <ChevronRight className="w-4 h-4" />
+              </>
+            )}
           </button>
         </div>
       </div>

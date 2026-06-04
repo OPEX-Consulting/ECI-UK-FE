@@ -125,3 +125,17 @@ export interface RecentIncidentsResponse {
   total: number;
   items: RecentIncident[];
 }
+
+export interface PendingActionsReminderItem {
+  organisation_id: string;
+  organisation_name: string;
+  email: string;
+  sent: boolean;
+  error: string | null;
+}
+
+export interface PendingActionsReminderResponse {
+  total_sent: number;
+  total_failed: number;
+  results: PendingActionsReminderItem[];
+}
