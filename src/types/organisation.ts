@@ -65,6 +65,11 @@ export interface ApiAdminUser {
   created_at: string;
 }
 
+export interface InviteAdminPayload {
+  email: string;
+  role: string;
+}
+
 export interface ApiAuditLog {
   id: string;
   actor_id: string;

@@ -50,6 +50,7 @@ import AdminSchoolTypes from "@/pages/admin/AdminSchoolTypes";
 import AdminUsers from "@/pages/admin/AdminUsers";
 import AdminAuditLog from "@/pages/admin/AdminAuditLog";
 import AdminLogin from "@/pages/admin/AdminLogin";
+import AdminAcceptInvite from "@/pages/admin/AdminAcceptInvite";
 import AdminNotifications from "@/pages/admin/AdminNotifications";
 
 const queryClient = new QueryClient();
@@ -72,6 +73,10 @@ const App = () => (
                     <Route path="/contact" element={<Contact />} />
                     <Route path="/login" element={<Login />} />
                     <Route path="/admin/login" element={<AdminLogin />} />
+                    <Route
+                      path="/admin/accept-invite"
+                      element={<AdminAcceptInvite />}
+                    />
 
                     {/* Onboarding Routes */}
                     <Route path="/onboarding" element={<OnboardingLayout />}>
