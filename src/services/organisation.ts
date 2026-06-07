@@ -6,6 +6,7 @@ import {
   ApiSchoolType,
   ApiAdminUser,
   ApiAuditLog,
+  InviteAdminPayload,
   SchoolTypeCreatePayload,
   SchoolTypeUpdatePayload,
 } from "@/types/organisation";
@@ -97,6 +98,27 @@ export const suspendAdminUser = async (userId: string): Promise<string> => {
 export const unsuspendAdminUser = async (userId: string): Promise<string> => {
   const response = await api.post<string>("/admin/auth/unsuspend", null, {
     params: { user_id: userId },
+  });
+  return response.data;
+};
+
+export const inviteAdminUser = async (
+  payload: InviteAdminPayload,
+): Promise<ApiAdminUser> => {
+  const response = await api.post<ApiAdminUser>(
+    "/admin/auth/invite",
+    payload,
+  );
+  return response.data;
+};
+
+export const acceptAdminInvite = async (
+  token: string,
+  password: string,
+): Promise<unknown> => {
+  const response = await api.post("/admin/auth/accept-invite", {
+    token,
+    password,
   });
   return response.data;
 };

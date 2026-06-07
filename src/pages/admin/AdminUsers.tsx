@@ -9,7 +9,12 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getAdminUsers, suspendAdminUser, unsuspendAdminUser } from "@/services/organisation";
+import {
+  getAdminUsers,
+  suspendAdminUser,
+  unsuspendAdminUser,
+  inviteAdminUser,
+} from "@/services/organisation";
 import {
   Select,
   SelectContent,
@@ -90,8 +95,9 @@ const formatRole = (role: string) => {
 
 const AdminUsers = () => {
   const [showModal, setShowModal] = useState(false);
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [role, setRole] = useState<UserRole>("Platform Admin");
+  const [role, setRole] = useState<UserRole>("platform_admin");
 
   // Suspend / Unsuspend confirmation state
   const [suspendTarget, setSuspendTarget] = useState<AdminUser | null>(null);
@@ -122,6 +128,17 @@ const AdminUsers = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-users"] });
       setUnsuspendTarget(null);
+    },
+  });
+
+  const inviteMutation = useMutation({
+    mutationFn: () => inviteAdminUser({ email, name, role }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+      setShowModal(false);
+      setName("");
+      setEmail("");
+      setRole("platform_admin");
     },
   });
 
@@ -395,7 +412,10 @@ const AdminUsers = () => {
                 </p>
               </div>
               <button
-                onClick={() => setShowModal(false)}
+                onClick={() => {
+                  setShowModal(false);
+                  inviteMutation.reset();
+                }}
                 className="text-muted-foreground hover:text-foreground transition-colors"
               >
                 <X className="w-5 h-5" />
@@ -403,6 +423,18 @@ const AdminUsers = () => {
             </div>
 
             <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1.5">
+                  Full Name
+                </label>
+                <input
+                  type="text"
+                  placeholder="Jane Smith"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="w-full px-3 py-2.5 rounded-md text-sm outline-none bg-background border border-border text-foreground transition-colors focus-within:border-primary"
+                />
+              </div>
               <div>
                 <label className="block text-sm font-medium mb-1.5">
                   Email Address
@@ -425,23 +457,41 @@ const AdminUsers = () => {
                     <SelectValue placeholder="Select a role" />
                   </SelectTrigger>
                   <SelectContent className="bg-popover border border-border text-popover-foreground">
-                    <SelectItem value="Platform Admin">
+                    <SelectItem value="platform_admin">
                       Platform Admin
                     </SelectItem>
-                    <SelectItem value="Content Contributor">
+                    <SelectItem value="content_contributor">
                       Content Contributor
                     </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
+              {inviteMutation.isError && (
+                <div className="px-3 py-2 rounded-lg text-xs font-medium bg-red-500/10 text-red-500 border border-red-500/20">
+                  {inviteMutation.error instanceof Error
+                    ? inviteMutation.error.message
+                    : "Failed to send invite. Please try again."}
+                </div>
+              )}
               <p className="text-xs text-muted-foreground/60">
                 The invite link will expire after 48 hours.
               </p>
               <button
-                onClick={() => setShowModal(false)}
-                className="w-full py-2.5 rounded-md text-sm font-semibold transition-opacity bg-primary text-primary-foreground hover:opacity-90"
+                onClick={() => {
+                  inviteMutation.reset();
+                  inviteMutation.mutate();
+                }}
+                disabled={!name || !email || inviteMutation.isPending}
+                className="w-full py-2.5 rounded-md text-sm font-semibold transition-opacity bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
               >
-                Send Invite
+                {inviteMutation.isPending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Sending…
+                  </>
+                ) : (
+                  "Send Invite"
+                )}
               </button>
             </div>
           </div>
