@@ -5,6 +5,42 @@ export interface ClassificationStepRequest {
   payload: Record<string, unknown>;
 }
 
+const BACKEND_VALUES: Record<string, Record<string, string>> = {
+  funding_governance: {
+    la_maintained: "local_authority_maintained",
+    academy_trust: "academy_trust",
+    single_academy: "academy_trust",
+    proprietor: "independent_proprietor",
+  },
+  age_ranges: {
+    early_years: "early_years_0_5",
+    primary: "primary_5_11",
+    secondary: "secondary_11_16",
+    sixth_form: "sixth_form_16_18",
+  },
+  special_provisions: {
+    sen: "sen_provision",
+    boarding: "residential_boarding",
+    pupil_referral: "pupil_referral_ap",
+    international: "international_students",
+    ey_attached: "early_years_attached",
+  },
+  operational_activities: {
+    transport: "school_transport",
+    remote_learning: "online_remote_learning",
+    cctv: "cctv_in_use",
+    placements: "work_placements",
+    biometrics: "biometric_systems",
+    data_heavy: "data_heavy_systems",
+  },
+};
+
+const toBackendValue = (group: string, key: string): string =>
+  BACKEND_VALUES[group]?.[key] ?? key;
+
+const mapValues = (group: string, keys: string[]): string[] =>
+  keys.map((k) => toBackendValue(group, k));
+
 export const buildStepPayload = (
   stepId: string,
   data: {
@@ -14,39 +50,19 @@ export const buildStepPayload = (
     specialProvisions: string[];
     operationalActivities: string[];
   },
-  startupData?: { id: string, group: string, data: Record<string, string> }[]
+  _startupData?: { id: string; group: string; data: Record<string, string> }[]
 ): Record<string, unknown> => {
-  const getMap = (group: string) => startupData?.find(g => g.group === group)?.data || {};
-
   switch (stepId) {
     case "schoolType":
       return { school_type_id: data.schoolType };
-    case "fundingType": {
-      const fMap = getMap("funding_governance");
-      return { funding_governance: fMap[data.fundingType] || data.fundingType };
-    }
-    case "ageRanges": {
-      const aMap = getMap("age_ranges");
-      return {
-        age_ranges: data.ageRanges.map((val) => aMap[val] || val),
-      };
-    }
-    case "specialProvisions": {
-      const sMap = getMap("special_provisions");
-      return {
-        special_provisions: data.specialProvisions.map(
-          (val) => sMap[val] || val
-        ),
-      };
-    }
-    case "operationalActivities": {
-      const oMap = getMap("operational_activities");
-      return {
-        operational_activities: data.operationalActivities.map(
-          (val) => oMap[val] || val
-        ),
-      };
-    }
+    case "fundingType":
+      return { funding_governance: toBackendValue("funding_governance", data.fundingType) };
+    case "ageRanges":
+      return { age_ranges: mapValues("age_ranges", data.ageRanges) };
+    case "specialProvisions":
+      return { special_provisions: mapValues("special_provisions", data.specialProvisions) };
+    case "operationalActivities":
+      return { operational_activities: mapValues("operational_activities", data.operationalActivities) };
     default:
       return {};
   }

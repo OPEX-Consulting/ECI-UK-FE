@@ -21,6 +21,7 @@ import {
   decodeJwt,
 } from "@/services/school/authService";
 import { normalizeSchoolRole } from "@/lib/utils";
+import { toHumanReadableError } from "@/lib/errorMessages";
 
 interface AuthContextType {
   user: User | null;
@@ -166,22 +167,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
 
       return { success: true, normalizedRole };
     } catch (error: unknown) {
-      const axiosError = error as {
-        response?: { data?: { detail?: unknown }; status?: number };
-      };
-      const status = axiosError.response?.status;
-      const detail = axiosError.response?.data?.detail;
-
-      let errorMessage: string;
-      if (status === 401 || status === 403) {
-        errorMessage = "Invalid credentials. Please check your email and password.";
-      } else if (typeof detail === "string") {
-        errorMessage = detail;
-      } else if (Array.isArray(detail)) {
-        errorMessage = (detail[0] as { msg?: string })?.msg ?? "Login failed.";
-      } else {
-        errorMessage = "Login failed. Please check your credentials.";
-      }
+      const errorMessage = toHumanReadableError(error);
 
       return { success: false, error: errorMessage };
     }
@@ -219,22 +205,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
 
       return { success: true };
     } catch (error: unknown) {
-      const axiosError = error as {
-        response?: { data?: { detail?: unknown }; status?: number };
-      };
-      const status = axiosError.response?.status;
-      const detail = axiosError.response?.data?.detail;
-
-      let errorMessage: string;
-      if (status === 401 || status === 403) {
-        errorMessage = "Invalid credentials. Please check your email and password.";
-      } else if (typeof detail === "string") {
-        errorMessage = detail;
-      } else if (Array.isArray(detail)) {
-        errorMessage = (detail[0] as { msg?: string })?.msg ?? "Login failed.";
-      } else {
-        errorMessage = "Login failed. Please check your credentials.";
-      }
+      const errorMessage = toHumanReadableError(error);
 
       return { success: false, error: errorMessage };
     }

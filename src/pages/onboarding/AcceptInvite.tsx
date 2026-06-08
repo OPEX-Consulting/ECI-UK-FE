@@ -12,6 +12,7 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, ArrowRight, Check, Eye, EyeOff, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { toHumanReadableError } from "@/lib/errorMessages";
 
 const AcceptInvite = () => {
   const [searchParams] = useSearchParams();
@@ -76,14 +77,7 @@ const AcceptInvite = () => {
       // Redirect to dashboard on success
       navigate("/dashboard");
     } catch (err: any) {
-      const detail = err.response?.data?.detail;
-      const parsedDetail = Array.isArray(detail) ? detail[0]?.msg : detail;
-      setError(
-        parsedDetail ||
-          err.response?.data?.message ||
-          err.message ||
-          "Failed to accept invitation. Please try again."
-      );
+      setError(toHumanReadableError(err));
     } finally {
       setIsLoading(false);
     }

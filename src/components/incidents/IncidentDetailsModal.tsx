@@ -50,6 +50,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { schoolIncidentService } from "@/services/school/incidentService";
 import { schoolOrganisationService } from "@/services/school/organisationService";
 import { useAuth } from "@/contexts/AuthContext";
+import { toHumanReadableError } from "@/lib/errorMessages";
 
 /** Coerces any value to a safe string for JSX rendering */
 const safeStr = (val: any, fallback = ""): string => {
@@ -129,8 +130,7 @@ export const IncidentDetailsModal = ({
       toast.success("Incident details updated successfully");
     },
     onError: (err: any) => {
-      const msg = err.response?.data?.detail || err.message || "Failed to update incident details";
-      toast.error(typeof msg === "string" ? msg : "Failed to update incident details");
+      toast.error(toHumanReadableError(err));
     },
   });
 
@@ -143,8 +143,7 @@ export const IncidentDetailsModal = ({
       toast.success("Incident assigned successfully");
     },
     onError: (err: any) => {
-      const msg = err.response?.data?.detail || err.message || "Failed to assign officer";
-      toast.error(typeof msg === "string" ? msg : "Failed to assign officer");
+      toast.error(toHumanReadableError(err));
     },
   });
 
@@ -157,8 +156,7 @@ export const IncidentDetailsModal = ({
       toast.success("Incident status updated successfully");
     },
     onError: (err: any) => {
-      const msg = err.response?.data?.detail || err.message || "Failed to update status";
-      toast.error(typeof msg === "string" ? msg : "Failed to update status");
+      toast.error(toHumanReadableError(err));
     },
   });
 
@@ -170,8 +168,7 @@ export const IncidentDetailsModal = ({
       toast.success("Document uploaded successfully");
     },
     onError: (err: any) => {
-      const msg = err.response?.data?.detail || err.message || "Failed to upload document";
-      toast.error(typeof msg === "string" ? msg : "Failed to upload document");
+      toast.error(toHumanReadableError(err));
     },
   });
 
@@ -184,8 +181,7 @@ export const IncidentDetailsModal = ({
       toast.success("Message sent");
     },
     onError: (err: any) => {
-      const msg = err.response?.data?.detail || err.message || "Failed to send message";
-      toast.error(typeof msg === "string" ? msg : "Failed to send message");
+      toast.error(toHumanReadableError(err));
     },
   });
 

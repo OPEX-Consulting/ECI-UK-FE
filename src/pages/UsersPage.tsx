@@ -23,6 +23,7 @@ import { schoolOrganisationService } from '@/services/school/organisationService
 import { toast } from 'sonner';
 import { normalizeSchoolRole } from '@/lib/utils';
 import { classificationService } from '@/services/school/classificationService';
+import { toHumanReadableError } from '@/lib/errorMessages';
 
 export interface User {
   id: string;
@@ -148,8 +149,7 @@ const UsersPage = () => {
       }
     },
     onError: (err: any) => {
-      const msg = err.response?.data?.detail || err.message || 'Failed to send invitation';
-      toast.error(typeof msg === 'string' ? msg : 'Failed to send invitation');
+      toast.error(toHumanReadableError(err));
     }
   });
 

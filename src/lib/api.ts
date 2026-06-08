@@ -1,4 +1,5 @@
 import axios from "axios";
+import { toHumanReadableError } from "./errorMessages";
 
 const BASE_URL = import.meta.env.VITE_API_URL;
 
@@ -58,6 +59,7 @@ api.interceptors.response.use(
         window.location.href = isAdminPage ? "/admin/login" : "/login";
       }
     }
+    error.humanMessage = toHumanReadableError(error);
     return Promise.reject(error);
   },
 );
