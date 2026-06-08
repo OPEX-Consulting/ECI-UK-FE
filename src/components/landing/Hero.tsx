@@ -43,14 +43,10 @@ const Hero = () => {
             {/* <button className="w-full sm:w-auto rounded-full bg-primary px-8 py-3 text-sm font-semibold text-primary-foreground hover:opacity-90 transition-all shadow-lg flex items-center justify-center gap-2">
               Get started free <ArrowRight className="w-5 h-5" />
             </button> */}
-            <button className="w-full sm:w-auto rounded-full bg-background border border-border px-8 py-3 text-sm font-semibold text-foreground hover:bg-muted transition-all">
+            {/* <button className="w-full sm:w-auto rounded-full bg-background border border-border px-8 py-3 text-sm font-semibold text-foreground hover:bg-muted transition-all">
               See a demo
-            </button>
+            </button> */}
           </div>
-          <p className="text-[12px] text-muted-foreground mt-4">
-            No credit card required · Setup in under 10 minutes · UK schools and
-            FE colleges
-          </p>
 
           {/* Dashboard Preview mockup area */}
           {/* <div className="relative w-full max-w-[1024px] rounded-[22px] border border-border bg-white shadow-2xl overflow-hidden animate-slide-up">

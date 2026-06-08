@@ -1,14 +1,21 @@
 import { Link } from "react-router-dom";
+import edusafeLogo from "@/assets/edusafe-logo.jpg";
 
 const Footer = () => {
   return (
     <footer className="w-full bg-foreground text-background border-t border-white/10">
       <div className="container mx-auto px-6 lg:px-8 py-20">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 lg:gap-24">
-          
+
           {/* Brand Column */}
           <div className="flex flex-col gap-6">
-            <h4 className="font-serif font-bold text-2xl text-white">ECI</h4>
+            <Link to="/" className="flex items-center gap-2">
+              <img
+                src={edusafeLogo}
+                alt="ECI Logo"
+                className="h-10 w-auto rounded-lg shadow-sm dark:brightness-110 transition-all"
+              />
+            </Link>
             <p className="text-muted-foreground text-sm leading-relaxed max-w-xs">
               The UK's first AI-enabled regulatory intelligence platform. Replacing administrative burden with precision and peace of mind for the education sector.
             </p>
