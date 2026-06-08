@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, ArrowRight, Eye, EyeOff, Loader2 } from "lucide-react";
+import { toHumanReadableError } from "@/lib/errorMessages";
 
 const SignUp = () => {
   const [name, setName] = useState("");
@@ -60,9 +61,7 @@ const SignUp = () => {
       nextStep();
       navigate("/onboarding/verify");
     } catch (err: any) {
-      const detail = err.response?.data?.detail;
-      const parsedDetail = Array.isArray(detail) ? detail[0]?.msg : detail;
-      setError(parsedDetail || err.response?.data?.message || err.message || "Failed to create account. Please try again.");
+      setError(toHumanReadableError(err));
     } finally {
       setIsLoading(false);
     }

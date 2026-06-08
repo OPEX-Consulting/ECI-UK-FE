@@ -8,6 +8,7 @@ import { useTheme } from '@/components/theme-provider';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import Navbar from '@/components/landing/Navbar';
+import { toHumanReadableError } from '@/lib/errorMessages';
 
 const AdminLogin = () => {
   const navigate = useNavigate();
@@ -31,7 +32,7 @@ const AdminLogin = () => {
         toast.error(result.error || 'Authentication failed');
       }
     } catch (error) {
-      toast.error('An unexpected error occurred. Please try again.');
+      toast.error(toHumanReadableError(error));
     } finally {
       setIsLoading(false);
     }

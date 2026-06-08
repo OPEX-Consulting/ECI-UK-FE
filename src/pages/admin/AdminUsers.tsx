@@ -22,6 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { toHumanReadableError } from "@/lib/errorMessages";
 
 type UserRole = "Platform Admin" | string;
 type UserStatus = "Active" | "Suspended" | "Invited" | string;
@@ -191,9 +192,7 @@ const AdminUsers = () => {
               Failed to load admin users
             </p>
             <p className="text-xs text-muted-foreground mt-1 max-w-xs">
-              {error instanceof Error
-                ? error.message
-                : "An unexpected error occurred."}
+              {toHumanReadableError(error)}
             </p>
           </div>
         ) : users.length === 0 ? (
@@ -307,9 +306,7 @@ const AdminUsers = () => {
 
               {suspendMutation.isError && (
                 <div className="mt-3 w-full px-3 py-2 rounded-lg text-xs font-medium bg-red-500/10 text-red-500 border border-red-500/20">
-                  {suspendMutation.error instanceof Error
-                    ? suspendMutation.error.message
-                    : "Failed to suspend user. Please try again."}
+                  {toHumanReadableError(suspendMutation.error)}
                 </div>
               )}
 
@@ -363,9 +360,7 @@ const AdminUsers = () => {
 
               {unsuspendMutation.isError && (
                 <div className="mt-3 w-full px-3 py-2 rounded-lg text-xs font-medium bg-red-500/10 text-red-500 border border-red-500/20">
-                  {unsuspendMutation.error instanceof Error
-                    ? unsuspendMutation.error.message
-                    : "Failed to unsuspend user. Please try again."}
+                  {toHumanReadableError(unsuspendMutation.error)}
                 </div>
               )}
 
@@ -468,9 +463,7 @@ const AdminUsers = () => {
               </div>
               {inviteMutation.isError && (
                 <div className="px-3 py-2 rounded-lg text-xs font-medium bg-red-500/10 text-red-500 border border-red-500/20">
-                  {inviteMutation.error instanceof Error
-                    ? inviteMutation.error.message
-                    : "Failed to send invite. Please try again."}
+                  {toHumanReadableError(inviteMutation.error)}
                 </div>
               )}
               <p className="text-xs text-muted-foreground/60">

@@ -1,28 +1,22 @@
-import { useState, useEffect } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState, useEffect, useCallback } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Bell,
-  Trash2,
   CheckCircle2,
   AlertTriangle,
   Info,
   XCircle,
   Search,
-  Filter,
-  Eye,
   Loader2,
   Sparkles,
   Clipboard,
   Check,
-  RefreshCw,
   Plus
 } from "lucide-react";
 import { toast } from "sonner";
 import {
   getNotifications,
-  clearAllNotifications,
   getNotificationDetail,
-  deleteNotification,
 } from "@/services/admin/notificationService";
 import type { ApiNotification, NotificationType } from "@/types/notification";
 import { Button } from "@/components/ui/button";
@@ -34,19 +28,7 @@ import {
   SheetHeader,
   SheetTitle,
   SheetDescription,
-  SheetFooter,
 } from "@/components/ui/sheet";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -158,6 +140,20 @@ const AdminNotifications = () => {
     return DEFAULT_MOCK_NOTIFICATIONS;
   });
 
+  // Tracks permanently-read notification IDs, survives server refetches
+  const [readIds, setReadIds] = useState<Set<string>>(() => {
+    const stored = localStorage.getItem("eci-admin-read-ids");
+    if (stored) {
+      try { return new Set(JSON.parse(stored)); } catch { return new Set(); }
+    }
+    return new Set();
+  });
+
+  // Persist readIds to localStorage
+  useEffect(() => {
+    localStorage.setItem("eci-admin-read-ids", JSON.stringify([...readIds]));
+  }, [readIds]);
+
   // Filters & Search State
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "unread" | "read">("all");
@@ -182,7 +178,7 @@ const AdminNotifications = () => {
   }, [mockMode, queryClient]);
 
   // React Query for Notifications
-  const { data: serverNotifications, isLoading, isError, refetch } = useQuery({
+  const { data: serverNotifications, isLoading } = useQuery({
     queryKey: ["adminNotifications"],
     queryFn: getNotifications,
     enabled: !mockMode,
@@ -196,8 +192,11 @@ const AdminNotifications = () => {
     }
   });
 
-  // Compute active list
-  const activeNotifications = mockMode ? localNotifications : (serverNotifications || []);
+  // Compute active list with read status overridden by readIds
+  const activeNotifications = (mockMode ? localNotifications : (serverNotifications || [])).map((n) => ({
+    ...n,
+    read: readIds.has(n.id) ? true : n.read,
+  }));
 
   // Filter lists
   const filteredNotifications = activeNotifications
@@ -224,101 +223,32 @@ const AdminNotifications = () => {
   // Count helper
   const totalUnread = activeNotifications.filter((n) => !n.read).length;
 
-  // Clear All Mutation/Handler
-  const handleClearAll = async () => {
-    if (mockMode) {
-      setLocalNotifications([]);
-      toast.success("Cleared all mock notifications successfully!");
-      return;
-    }
-
-    try {
-      await clearAllNotifications();
-      queryClient.invalidateQueries({ queryKey: ["adminNotifications"] });
-      toast.success("All notifications cleared from the database!");
-    } catch (err) {
-      toast.error("Failed to clear notifications on live database.");
-    }
-  };
-
-  // Delete Single Handler
-  const handleDelete = async (id: string, e?: React.MouseEvent) => {
-    if (e) e.stopPropagation();
-
-    if (mockMode) {
-      setLocalNotifications((prev) => prev.filter((n) => n.id !== id));
-      if (selectedNotifId === id) {
-        setSelectedNotifId(null);
-        setDetailData(null);
-      }
-      toast.success("Notification deleted.");
-      return;
-    }
-
-    try {
-      await deleteNotification(id);
-      queryClient.invalidateQueries({ queryKey: ["adminNotifications"] });
-      if (selectedNotifId === id) {
-        setSelectedNotifId(null);
-        setDetailData(null);
-      }
-      toast.success("Notification deleted successfully.");
-    } catch (err) {
-      toast.error("Failed to delete notification.");
-    }
-  };
-
-  // Click single notification handler (fetches detail and marks read)
-  const handleOpenDetails = async (id: string) => {
+  // Click single notification handler (fetches detail and marks read permanently)
+  const handleOpenDetails = useCallback(async (id: string) => {
     setSelectedNotifId(id);
     setDetailLoading(true);
+    setReadIds((prev) => new Set(prev).add(id));
 
     if (mockMode) {
       const found = localNotifications.find((n) => n.id === id);
       if (found) {
-        // Mark read locally — immediately updates the card UI + totalUnread count
-        setLocalNotifications((prev) =>
-          prev.map((n) => (n.id === id ? { ...n, read: true } : n))
-        );
         setDetailData({ ...found, read: true });
       }
       setDetailLoading(false);
       return;
     }
 
-    // Live mode — optimistically mark as read in the cache RIGHT NOW so the
-    // unread dot, left-border accent, and totalUnread counter all update
-    // the moment the drawer opens, without waiting for the refetch.
-    queryClient.setQueryData<ApiNotification[]>(
-      ["adminNotifications"],
-      (prev) =>
-        prev
-          ? prev.map((n) => (n.id === id ? { ...n, read: true } : n))
-          : prev
-    );
-
     try {
       const data = await getNotificationDetail(id);
-      // Use server response (which should already have read: true) as drawer content
-      setDetailData({ ...data, read: true });
-      // Background sync to reconcile any other server-side state changes
-      queryClient.invalidateQueries({ queryKey: ["adminNotifications"] });
+      setDetailData(data);
     } catch (err) {
       console.error(err);
       toast.error("Failed to fetch notification details.");
-      // Roll back the optimistic update on failure
-      queryClient.setQueryData<ApiNotification[]>(
-        ["adminNotifications"],
-        (prev) =>
-          prev
-            ? prev.map((n) => (n.id === id ? { ...n, read: false } : n))
-            : prev
-      );
       setSelectedNotifId(null);
     } finally {
       setDetailLoading(false);
     }
-  };
+  }, [mockMode, localNotifications]);
 
   // Inject fresh mock notifications for demo testing
   const handleSeedNotifications = () => {
@@ -328,13 +258,13 @@ const AdminNotifications = () => {
 
   // Mark all as read
   const handleMarkAllRead = () => {
-    if (mockMode) {
-      setLocalNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-      toast.success("All mock notifications marked as read!");
-      return;
-    }
-    // Note: Live API doesn't have a bulk mark-as-read, but we can simulate or toast.
-    toast.info("Bulk read-status relies on detail views. Clearing or reading completes this action.");
+    const ids = (mockMode ? localNotifications : (serverNotifications ?? [])).map((n) => n.id);
+    setReadIds((prev) => {
+      const next = new Set(prev);
+      ids.forEach((id) => next.add(id));
+      return next;
+    });
+    toast.success("All notifications marked as read!");
   };
 
   // Copy JSON metadata to clipboard
@@ -417,49 +347,16 @@ const AdminNotifications = () => {
         </div>
 
         {/* Global actions */}
-        <div className="bg-card p-4 border border-border rounded-lg flex items-center gap-3">
+        <div className="bg-card p-4 border border-border rounded-lg flex items-center">
           <Button
             variant="outline"
             size="sm"
             onClick={handleMarkAllRead}
-            className="flex-1 text-xs border-border/80 hover:bg-secondary/50"
+            className="w-full text-xs border-border/80 hover:bg-secondary/50"
             disabled={activeNotifications.length === 0}
           >
             Mark all read
           </Button>
-
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button
-                variant="destructive"
-                size="sm"
-                className="flex-1 text-xs"
-                disabled={activeNotifications.length === 0}
-              >
-                <Trash2 className="w-3.5 h-3.5 mr-1" />
-                Clear All
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent className="bg-popover border-border">
-              <AlertDialogHeader>
-                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This action will permanently delete all {activeNotifications.length} notifications. This cannot be undone.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel className="bg-secondary text-secondary-foreground border-border">
-                  Cancel
-                </AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={handleClearAll}
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                >
-                  Clear All
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
         </div>
       </div>
 
@@ -620,18 +517,7 @@ const AdminNotifications = () => {
                   </p>
                 </div>
 
-                {/* Inline Hover Action Bar */}
-                <div className="flex items-center gap-1 shrink-0 self-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="w-8 h-8 rounded-full border border-border/50 hover:bg-destructive/10 hover:text-destructive transition-colors"
-                    onClick={(e) => handleDelete(n.id, e)}
-                    title="Delete Notification"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </Button>
-                </div>
+
               </div>
             );
           })
@@ -716,27 +602,16 @@ const AdminNotifications = () => {
 
           {/* Footer drawer actions */}
           {detailData && (
-            <SheetFooter className="border-t border-border pt-4 mt-auto">
-              <div className="flex w-full items-center gap-3">
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => handleDelete(detailData.id)}
-                  className="flex-1"
-                >
-                  <Trash2 className="w-4 h-4 mr-1.5" />
-                  Delete Alert
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setSelectedNotifId(null)}
-                  className="flex-1 border-border/80"
-                >
-                  Dismiss Drawer
-                </Button>
-              </div>
-            </SheetFooter>
+            <div className="border-t border-border pt-4 mt-auto">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setSelectedNotifId(null)}
+                className="w-full border-border/80"
+              >
+                Close
+              </Button>
+            </div>
           )}
         </SheetContent>
       </Sheet>

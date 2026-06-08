@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useOnboarding } from '@/contexts/OnboardingContext';
 import api from '@/lib/api';
 import { classificationService, ClassificationSummaryResponse } from '@/services/school/classificationService';
+import { toHumanReadableError } from '@/lib/errorMessages';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -69,11 +70,7 @@ const ReviewActivation = () => {
         navigate('/dashboard');
       }, 4000);
     } catch (err: any) {
-      const detail = err.response?.data?.detail;
-      const parsedDetail = Array.isArray(detail) ? detail[0]?.msg : detail;
-      setActivationError(
-        parsedDetail || err.response?.data?.message || err.message || 'Failed to activate. Please try again.'
-      );
+      setActivationError(toHumanReadableError(err));
     } finally {
       setIsActivating(false);
     }
