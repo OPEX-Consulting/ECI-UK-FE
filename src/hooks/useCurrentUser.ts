@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { getCurrentUser } from "@/services/authService";
 import { CurrentUser, Permission, ROLE_PERMISSIONS } from "@/types/auth";
+import { toHumanReadableError } from "@/lib/errorMessages";
 
 interface UseCurrentUserReturn {
   user: CurrentUser | null;
@@ -33,9 +34,7 @@ export const useCurrentUser = (): UseCurrentUserReturn => {
       const currentUser = await getCurrentUser();
       setUser(currentUser);
     } catch (err: unknown) {
-      const message =
-        err instanceof Error ? err.message : "Failed to fetch user";
-      setError(message);
+      setError(toHumanReadableError(err));
       setUser(null);
     } finally {
       setIsLoading(false);

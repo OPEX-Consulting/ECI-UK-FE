@@ -10,6 +10,7 @@ import {
 import type { FrameworkCompliance } from "@/types/organisation";
 import { formatClassification, formatClassificationList } from "@/lib/classificationLabels";
 import { useToast } from "@/components/ui/use-toast";
+import { toHumanReadableError } from "@/lib/errorMessages";
 
 type Tab = "profile" | "compliance" | "users" | "audit";
 
@@ -143,10 +144,9 @@ const AdminOrgDetail = () => {
       });
     },
     onError: (err: any) => {
-      const msg = err.response?.data?.detail || err.message || "Failed to rerun classification";
       toast({
         title: "Classification Failed",
-        description: msg,
+        description: toHumanReadableError(err),
         variant: "destructive",
       });
     },

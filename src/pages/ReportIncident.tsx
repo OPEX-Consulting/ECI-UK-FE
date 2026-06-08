@@ -59,6 +59,7 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { format } from "date-fns";
 import { IncidentDetailsModal } from "@/components/incidents/IncidentDetailsModal";
+import { toHumanReadableError } from "@/lib/errorMessages";
 
 const safeFormatDate = (dateStr: any, formatStr: string, fallback = "N/A") => {
   if (!dateStr) return fallback;
@@ -185,8 +186,7 @@ const ReportIncident = () => {
       });
     },
     onError: (err: any) => {
-      const msg = err.response?.data?.detail || err.message || "Failed to submit incident";
-      toast.error(typeof msg === "string" ? msg : "Failed to submit incident");
+      toast.error(toHumanReadableError(err));
     }
   });
 

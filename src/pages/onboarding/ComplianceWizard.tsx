@@ -12,6 +12,29 @@ import { cn } from '@/lib/utils';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
 import { classificationService, buildStepPayload } from '@/services/school/classificationService';
+import { toHumanReadableError } from '@/lib/errorMessages';
+
+const UI_LABELS: Record<string, string> = {
+  la_maintained: "Local Authority Maintained",
+  academy_trust: "Multi-Academy Trust (MAT)",
+  single_academy: "Single Academy Trust",
+  proprietor: "Independent Proprietor",
+  early_years: "Early Years (0\u20135)",
+  primary: "Primary (5\u201311)",
+  secondary: "Secondary (11\u201316)",
+  sixth_form: "Sixth Form (16\u201318)",
+  sen: "SEN Provision",
+  boarding: "Residential / Boarding",
+  pupil_referral: "Pupil Referral / AP",
+  international: "International Students",
+  ey_attached: "Early Years Attached",
+  transport: "School Transport",
+  remote_learning: "Online / Remote Learning",
+  cctv: "CCTV in Use",
+  placements: "Work Placements",
+  biometrics: "Biometric Systems",
+  data_heavy: "Data Heavy Systems",
+};
 
 const STEPS = [
   { id: 'schoolType', title: 'School Type', description: 'What type of educational institution are you?' },
@@ -20,28 +43,6 @@ const STEPS = [
   { id: 'specialProvisions', title: 'Special Provision', description: 'Do you offer any specialized provision?' },
   { id: 'operationalActivities', title: 'Operational Activities', description: 'Select all operational activities that apply.' },
 ];
-
-const UI_LABELS: Record<string, string> = {
-  la_maintained: 'Local Authority Maintained',
-  academy_trust: 'Multi-Academy Trust (MAT)',
-  single_academy: 'Single Academy Trust',
-  proprietor: 'Independent Proprietor body',
-  early_years: 'Early Years (0–5)',
-  primary: 'Primary (5–11)',
-  secondary: 'Secondary (11–16)',
-  sixth_form: 'Sixth Form (16–18)',
-  sen: 'SEN Provision',
-  boarding: 'Residential / Boarding',
-  pupil_referral: 'Pupil Referral / AP',
-  international: 'International Students',
-  ey_attached: 'Early Years Attached Provision',
-  transport: 'School Transport',
-  remote_learning: 'Online / Remote Learning',
-  cctv: 'CCTV in Use',
-  placements: 'Work Placements',
-  biometrics: 'Biometric Systems',
-  data_heavy: 'Data Heavy Systems (large data sets, cloud systems)',
-};
 
 const ComplianceWizard = () => {
   const { state, updateCompliance, nextStep, prevStep } = useOnboarding();
@@ -71,6 +72,7 @@ const ComplianceWizard = () => {
     queryFn: () => classificationService.getStartupData(0, 100),
     retry: 1,
   });
+  console.log("startupData from API:", JSON.stringify(startupData, null, 2));
 
   // Local state for current step inputs (synced with context on navigation)
   const [schoolType, setSchoolType] = useState(state.compliance.schoolType);
@@ -115,7 +117,14 @@ const ComplianceWizard = () => {
     setIsLoading(true);
 
     try {
-      console.log("School type selected:", schoolType, "available types:", apiSchoolTypes);
+      console.log("--- Step", activeStepIndex + 1, "---");
+      console.log("Selected values:", {
+        schoolType,
+        fundingType,
+        ageRanges,
+        specialProvisions,
+        operationalActivities,
+      });
       const payload = buildStepPayload(currentStepId, {
         schoolType,
         fundingType,
@@ -123,7 +132,7 @@ const ComplianceWizard = () => {
         specialProvisions,
         operationalActivities,
       }, startupData);
-      console.log("Saving step:", { step: activeStepIndex + 1, stepId: currentStepId, payload });
+      console.log("Payload being sent:", JSON.stringify(payload, null, 2));
 
       // POST this step to the API (step is 1-indexed)
       await classificationService.saveStep({
@@ -139,10 +148,8 @@ const ComplianceWizard = () => {
         navigate('/onboarding/review');
       }
     } catch (err: any) {
-      console.error("Step save error:", err.response?.data, err.response?.status);
-      const detail = err.response?.data?.detail;
-      const parsedDetail = Array.isArray(detail) ? detail[0]?.msg : detail;
-      setError(parsedDetail || err.response?.data?.message || err.message || 'Failed to save this step. Please try again.');
+      console.error("Step save error:", JSON.stringify(err.response?.data, null, 2), err.response?.status);
+      setError(toHumanReadableError(err));
     } finally {
       setIsLoading(false);
     }

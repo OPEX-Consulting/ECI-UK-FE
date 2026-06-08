@@ -13,6 +13,7 @@ import {
 import Navbar from "@/components/landing/Navbar";
 import { acceptAdminInvite } from "@/services/organisation";
 import { toast } from "sonner";
+import { toHumanReadableError } from "@/lib/errorMessages";
 
 const AdminAcceptInvite = () => {
   const [searchParams] = useSearchParams();
@@ -62,14 +63,7 @@ const AdminAcceptInvite = () => {
       toast.success("Account activated successfully. Please log in.");
       navigate("/admin/login");
     } catch (err: any) {
-      const detail = err.response?.data?.detail;
-      const parsedDetail = Array.isArray(detail) ? detail[0]?.msg : detail;
-      setError(
-        parsedDetail ||
-          err.response?.data?.message ||
-          err.message ||
-          "Failed to accept invitation. Please try again.",
-      );
+      setError(toHumanReadableError(err));
     } finally {
       setIsLoading(false);
     }

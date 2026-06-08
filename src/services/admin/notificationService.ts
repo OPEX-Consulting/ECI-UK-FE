@@ -22,3 +22,8 @@ export const getNotificationDetail = async (id: string): Promise<ApiNotification
 export const deleteNotification = async (id: string): Promise<void> => {
   await api.delete(`/admin/notifications/${id}`);
 };
+
+/** Mark all notifications as read. */
+export const markAllNotificationsAsRead = async (): Promise<void> => {
+  await api.patch("/admin/notifications/read-all");
+};

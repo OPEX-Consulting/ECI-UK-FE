@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle, Loader2, Building2 } from 'lucide-react';
+import { toHumanReadableError } from '@/lib/errorMessages';
 
 const OrganizationSetup = () => {
   const { state, updateOrganization, nextStep } = useOnboarding();
@@ -44,9 +45,7 @@ const OrganizationSetup = () => {
       nextStep();
       navigate('/onboarding/compliance');
     } catch (err: any) {
-      const detail = err.response?.data?.detail;
-      const parsedDetail = Array.isArray(detail) ? detail[0]?.msg : detail;
-      setError(parsedDetail || err.response?.data?.message || err.message || 'Failed to save organisation details');
+      setError(toHumanReadableError(err));
     } finally {
       setIsLoading(false);
     }

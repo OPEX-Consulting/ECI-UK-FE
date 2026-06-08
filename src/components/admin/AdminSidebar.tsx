@@ -48,17 +48,26 @@ export const AdminSidebar = () => {
     queryKey: ['adminNotifications'],
     queryFn: async () => {
       const mockMode = localStorage.getItem('eci-admin-mock-mode') === 'true';
+      const readIds = new Set<string>(
+        JSON.parse(localStorage.getItem('eci-admin-read-ids') || '[]')
+      );
+      let result: any[] = [];
       if (mockMode) {
         const stored = localStorage.getItem('eci-admin-mock-notifications');
-        return stored ? JSON.parse(stored) : [];
+        result = stored ? JSON.parse(stored) : [];
+      } else {
+        try {
+          result = await getNotifications();
+        } catch (error) {
+          console.warn("Failed to fetch live notifications, falling back to mock storage:", error);
+          const stored = localStorage.getItem('eci-admin-mock-notifications');
+          result = stored ? JSON.parse(stored) : [];
+        }
       }
-      try {
-        return await getNotifications();
-      } catch (error) {
-        console.warn("Failed to fetch live notifications, falling back to mock storage:", error);
-        const stored = localStorage.getItem('eci-admin-mock-notifications');
-        return stored ? JSON.parse(stored) : [];
-      }
+      return result.map((n: any) => ({
+        ...n,
+        read: readIds.has(n.id) ? true : n.read,
+      }));
     },
     refetchInterval: 10000,
   });

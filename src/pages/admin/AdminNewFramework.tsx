@@ -53,6 +53,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { toHumanReadableError } from "@/lib/errorMessages";
 
 // --- Types & Enums ---
 
@@ -2271,7 +2272,7 @@ const StageObligationSelect = ({
       const updated = await synthesizeTasks(draft.id, selected);
       onSynthesize(updated);
     } catch (err: any) {
-      toast.error(err.response?.data?.detail || "Failed to trigger synthesis.");
+      toast.error(toHumanReadableError(err));
       setIsSubmitting(false);
     }
   };
@@ -2287,7 +2288,7 @@ const StageObligationSelect = ({
       setIsInstructionModalOpen(false);
       onRefine(updated);
     } catch (err: any) {
-      toast.error(err.response?.data?.detail || "Failed to regenerate obligations.");
+      toast.error(toHumanReadableError(err));
       setIsRefining(false);
     }
   };

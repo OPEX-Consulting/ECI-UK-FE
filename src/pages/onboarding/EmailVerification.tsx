@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle, Loader2, RefreshCw, CheckCircle2 } from 'lucide-react';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+import { toHumanReadableError } from "@/lib/errorMessages";
 
 const EmailVerification = () => {
   const [otp, setOtp] = useState('');
@@ -82,9 +83,7 @@ const EmailVerification = () => {
       nextStep();
       navigate('/onboarding/organization');
     } catch (err: any) {
-      const detail = err.response?.data?.detail;
-      const parsedDetail = Array.isArray(detail) ? detail[0]?.msg : detail;
-      setError(parsedDetail || err.response?.data?.message || err.message || 'Invalid verification code');
+      setError(toHumanReadableError(err));
       setOtp('');
     } finally {
       setIsLoading(false);
@@ -103,9 +102,7 @@ const EmailVerification = () => {
       setResendSuccess(true);
       setCountdown(60); // 60-second cooldown before resend is allowed again
     } catch (err: any) {
-      const detail = err.response?.data?.detail;
-      const parsedDetail = Array.isArray(detail) ? detail[0]?.msg : detail;
-      setError(parsedDetail || 'Failed to resend code. Please try again.');
+      setError(toHumanReadableError(err));
     } finally {
       setIsResending(false);
     }
