@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { getAuditLogs } from "@/services/organisation";
+import { toHumanReadableError } from "@/lib/errorMessages";
 import {
   Select,
   SelectContent,
@@ -264,12 +265,10 @@ const AdminAuditLog = () => {
           <div className="flex flex-col items-center justify-center py-20 text-center px-4">
             <AlertCircle className="w-8 h-8 text-red-500 mb-4" />
             <p className="text-sm font-medium text-foreground">
-              Failed to load audit logs
+              You do not have permission to modify this user.
             </p>
             <p className="text-xs text-muted-foreground mt-1 max-w-xs">
-              {error instanceof Error
-                ? error.message
-                : "An unexpected error occurred."}
+              {toHumanReadableError(error)}
             </p>
           </div>
         ) : filtered.length === 0 ? (

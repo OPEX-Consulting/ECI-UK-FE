@@ -1,7 +1,7 @@
 const statusMessages: Record<number, string> = {
   400: "The request was invalid. Please check your input and try again.",
   401: "Your session has expired or you're not signed in. Please log in again.",
-  403: "You don't have permission to perform this action.",
+  403: "You do not have permission to perform this action.",
   404: "The requested resource could not be found.",
   409: "This conflicts with existing data. Please review and try again.",
   422: "Some information provided is incorrect. Please check your input.",
