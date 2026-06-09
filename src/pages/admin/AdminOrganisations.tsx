@@ -77,17 +77,15 @@ const AdminOrganisations = () => {
     return apiOrgs.map(apiOrg => {
       const status = (apiOrg.status.charAt(0).toUpperCase() + apiOrg.status.slice(1)) as OrgStatus;
       
-      const meta = apiOrg.metadata ?? {};
-      
       return {
         id: apiOrg.id,
         name: apiOrg.name,
         schoolType: apiOrg.type,
         status,
-        region: meta.region ?? apiOrg.region ?? "N/A",
-        compliance: meta.compliance_score ?? meta.compliance ?? 0,
+        region: apiOrg.school?.region_or_local_authority?.trim() || "N/A",
+        compliance: apiOrg.compliance_percentage ?? 0,
         frameworks: apiOrg.assigned_frameworks?.length || 0,
-        users: meta.total_users ?? 0,
+        users: apiOrg.metadata?.total_users ?? 0,
       };
     });
   }, [apiOrgs]);

@@ -13,6 +13,9 @@ export interface ApiOrganisation {
     total_users?: number;
     [key: string]: any;
   };
+  school?: ApiOrgSchool;
+  region?: string | null;
+  compliance_percentage?: number;
   created_at: string;
   updated_at: string;
 }
