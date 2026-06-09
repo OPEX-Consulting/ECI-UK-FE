@@ -109,6 +109,7 @@ export interface ApiFramework {
   description?: string;
   version: string;
   is_published: boolean;
+  organisation_count?: number;
   themes: ApiTheme[];
   review_summary?: ApiFrameworkReviewSummary | null;
   created_at: string;
