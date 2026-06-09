@@ -8,7 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { getFrameworkDrafts } from '@/services/frameworkService';
+import { getFrameworkDrafts, getPublishedFrameworks } from '@/services/frameworkService';
 import type { ApiFrameworkDraft } from '@/types/framework';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -48,7 +48,7 @@ const mapDraftToRow = (d: ApiFrameworkDraft): Framework => ({
   version: d.structured_content?.version ?? '—',
   status: mapDraftStatus(d.status),
   regulator: '—',
-  orgsUsing: 0,
+  orgsUsing: d.structured_content?.organisation_count ?? 0,
   lastUpdated: new Date(d.updated_at).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' }),
 });
 
@@ -73,8 +73,19 @@ const AdminFrameworks = () => {
   const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
-    getFrameworkDrafts()
-      .then((drafts) => setFrameworks(drafts.map(mapDraftToRow)))
+    Promise.all([
+      getFrameworkDrafts(),
+      getPublishedFrameworks(),
+    ])
+      .then(([drafts, published]) => {
+        const orgCounts = new Map(published.map((p) => [p.id, p.organisation_count ?? 0]));
+        setFrameworks(drafts.map((d) => ({
+          ...mapDraftToRow(d),
+          orgsUsing: d.structured_content?.id
+            ? (orgCounts.get(d.structured_content.id) ?? 0)
+            : 0,
+        })));
+      })
       .catch(() => setLoadError('Failed to load frameworks. Please refresh.'))
       .finally(() => setIsLoading(false));
   }, []);

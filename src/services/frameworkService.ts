@@ -57,6 +57,12 @@ export const getFrameworkDrafts = async (): Promise<ApiFrameworkDraft[]> => {
   return response.data;
 };
 
+/** List all published frameworks with organisation counts. */
+export const getPublishedFrameworks = async (): Promise<ApiFramework[]> => {
+  const response = await api.get<ApiFramework[]>('/admin/frameworks/');
+  return response.data;
+};
+
 /** Fetch a single draft by UUID. */
 export const getFrameworkDraft = async (id: string): Promise<ApiFrameworkDraft> => {
   const response = await api.get<ApiFrameworkDraft>(`/admin/frameworks/${id}`);
