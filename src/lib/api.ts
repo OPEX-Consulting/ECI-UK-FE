@@ -60,6 +60,9 @@ api.interceptors.response.use(
       }
     }
     error.humanMessage = toHumanReadableError(error);
+    if (error.response?.status === 403) {
+      error.message = error.humanMessage;
+    }
     return Promise.reject(error);
   },
 );
